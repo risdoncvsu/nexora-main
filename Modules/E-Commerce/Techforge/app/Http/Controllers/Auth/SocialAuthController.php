@@ -132,11 +132,9 @@ class SocialAuthController extends Controller
         ]);
 
         $socialData = session()->pull('social_new_user');
-        $username = explode('@', $socialData['email'])[0] . rand(1000, 9999);
 
         $user = User::create([
             'name' => $socialData['name'],
-            'username' => $username,
             'email' => $socialData['email'],
             'provider' => $socialData['provider'],
             'provider_id' => $socialData['provider_id'],

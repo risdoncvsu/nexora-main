@@ -62,14 +62,11 @@ class AuthController extends Controller
     public function register(Request $request)
     {
         $validated = $request->validate([
-            'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
+            'email' => ['required', 'string', 'email', 'max:255', 'unique:ecommerce.users,email'],
             'password' => ['required', 'string', 'min:8'],
         ]);
 
-        $username = explode('@', $validated['email'])[0] . rand(1000, 9999);
-
         $user = User::create([
-            'username' => $username,
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
         ]);
