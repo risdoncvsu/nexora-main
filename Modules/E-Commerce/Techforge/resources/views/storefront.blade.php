@@ -494,7 +494,7 @@
                 $displayTiers = collect();
                 foreach($blocks as $idx => $b) {
                     if (!empty($b['listing_id'])) {
-                        $listing = \Modules\Ecommerce\Models\Listing::find($b['listing_id']);
+                        $listing = \Modules\Ecommerce\Models\StorefrontListing::find($b['listing_id']);
                         if ($listing) {
                             // Block-level description override
                             if (!empty($b['description'])) {
@@ -595,7 +595,7 @@
                 if (isset($section['blocks']) && is_array($section['blocks'])) {
                     foreach ($section['blocks'] as $idx => $block) {
                         if (!empty($block['listing_id'])) {
-                            $listing = \Modules\Ecommerce\Models\Listing::find($block['listing_id']);
+                            $listing = \Modules\Ecommerce\Models\StorefrontListing::find($block['listing_id']);
                             if ($listing) {
                                 // Block-level description override
                                 if (!empty($block['description'])) {
