@@ -302,7 +302,7 @@ class ErpIntegrationService
         $db = DB::connection('finance');
         if ($db->table('invoice')->where('nexora_client_id', $clientId)->where('order_id', $orderId)->exists()) return;
         $paid = strtolower($paymentStatus) === 'paid';
-        $this->insertAvailable('finance', 'invoice', ['nexora_client_id' => $clientId, 'issue_date' => now()->toDateString(), 'due_date' => now()->addDays(14)->toDateString(), 'invoice_amount' => $amount - $shipping, 'discount' => 0, 'shipping_fee' => $shipping, 'paid_amount' => $paid ? $amount : 0, 'payment_method' => null, 'reference_number' => 'ECOM-'.$orderId, 'payment_details' => 'Automatically generated from ecommerce checkout', 'payment_status' => $paid ? 'Paid' : 'Unpaid', 'status' => $paid ? 'Paid' : 'Pending', 'payment_date' => $paid ? now()->toDateString() : null, 'order_id' => $orderId, 'created_at' => now(), 'updated_at' => now()]);
+        $this->insertAvailable('finance', 'invoice', ['nexora_client_id' => $clientId, 'issue_date' => now()->toDateString(), 'due_date' => now()->addDays(14)->toDateString(), 'invoice_amount' => $amount - $shipping, 'discount' => 0, 'shipping_fee' => $shipping, 'paid_amount' => $paid ? $amount : 0, 'outstanding_amount' => $paid ? 0 : $amount, 'payment_method' => null, 'reference_number' => 'ECOM-'.$orderId, 'payment_details' => 'Automatically generated from ecommerce checkout', 'payment_status' => $paid ? 'Paid' : 'Unpaid', 'status' => $paid ? 'Paid' : 'Pending', 'payment_date' => $paid ? now()->toDateString() : null, 'order_id' => $orderId, 'created_at' => now(), 'updated_at' => now()]);
     }
 
     private function writeBiSnapshot(int $clientId): void
