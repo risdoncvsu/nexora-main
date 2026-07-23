@@ -9,14 +9,14 @@ use Modules\Ecommerce\Models\StorefrontListing;
 
 class StorefrontListingController extends Controller
 {
-    public function show(string $listing)
+    public function show(string $store, string $listing)
     {
         $listing = $this->activeListing($listing);
 
         return view('ecommerce::listing-show', compact('listing'));
     }
 
-    public function addToCart(string $listing): RedirectResponse
+    public function addToCart(string $store, string $listing): RedirectResponse
     {
         $listing = $this->activeListing($listing);
 
