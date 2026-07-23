@@ -9,16 +9,16 @@ use Modules\Ecommerce\Models\StorefrontListing;
 
 class StorefrontListingController extends Controller
 {
-    public function show(StorefrontListing $listing)
+    public function show(string $listing)
     {
-        abort_unless($listing->status === 'active', 404);
+        $listing = $this->activeListing($listing);
 
         return view('ecommerce::listing-show', compact('listing'));
     }
 
-    public function addToCart(StorefrontListing $listing): RedirectResponse
+    public function addToCart(string $listing): RedirectResponse
     {
-        abort_unless($listing->status === 'active', 404);
+        $listing = $this->activeListing($listing);
 
         if ($listing->available_quantity < 1) {
             return back()->with('error', 'This product is currently out of stock.');
@@ -66,5 +66,19 @@ class StorefrontListingController extends Controller
         }
 
         return redirect()->route('ecommerce.cart')->with('success', 'Product added to cart.');
+    }
+
+    /**
+     * Resolve the listing only after the storefront client middleware has set
+     * the active client context. Implicit route binding runs too early and
+     * otherwise causes valid tenant listings to appear missing.
+     */
+    private function activeListing(string $listingId): StorefrontListing
+    {
+        $listing = StorefrontListing::query()->whereKey($listingId)->firstOrFail();
+
+        abort_unless($listing->status === 'active', 404);
+
+        return $listing;
     }
 }

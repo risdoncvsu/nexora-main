@@ -272,7 +272,7 @@
         <div class="p-6 border-t border-white/10 bg-white/5">
             <div class="flex items-center justify-between mb-4">
                 <span class="text-sm font-bold text-gray-400 uppercase tracking-widest">Subtotal</span>
-                <span id="mini-cart-subtotal" class="text-xl font-black text-white">Ã¢â€šÂ±0.00</span>
+                <span id="mini-cart-subtotal" class="text-xl font-black text-white">&#8369;0.00</span>
             </div>
             <a href="{{ route('ecommerce.cart', ['store' => $store]) }}" class="block w-full bg-primary hover:bg-white hover:text-black text-white text-center py-4 rounded-xl font-black uppercase tracking-widest transition-all duration-300 shadow-[0_0_20px_rgba(255,107,0,0.3)]">
                 Checkout Now
@@ -316,7 +316,7 @@
                     <i class="ph-light ph-shopping-cart text-5xl mb-3 text-gray-400"></i>
                     <p class="text-sm font-bold text-white">Your cart is empty.</p>
                 </div>`;
-                subtotalEl.textContent = 'Ã¢â€šÂ±0.00';
+                subtotalEl.textContent = '\u20B10.00';
                 return;
             }
 
@@ -332,13 +332,13 @@
                     <div class="flex-1 min-w-0">
                         <h4 class="text-xs font-bold text-white truncate mb-1">${item.name}</h4>
                         <div class="text-xs text-gray-400 mb-1">Qty: ${item.quantity}</div>
-                        <div class="text-sm font-bold text-primary">Ã¢â€šÂ±${parseFloat(item.price).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                        <div class="text-sm font-bold text-primary">\u20B1${parseFloat(item.price).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
                     </div>
                 </div>`;
             });
 
             itemsContainer.innerHTML = html;
-            subtotalEl.textContent = 'Ã¢â€šÂ±' + subtotal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            subtotalEl.textContent = '\u20B1' + subtotal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
         }
 
         window.addToCart = function(productId, name, price, imageUrl, quantity = 1, productType = 'generic', configuration = null, btn = null) {

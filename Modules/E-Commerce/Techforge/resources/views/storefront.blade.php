@@ -302,7 +302,7 @@
                                 foreach ($customConfigs as $i => $cfg) {
                                     $heroDisplayItems[] = [
                                         'name'  => $cfg->name ?? $placeholderLabels[$i] ?? 'BUILD',
-                                        'price' => 'Ã¢â€šÂ±' . number_format($cfg->price ?? 0, 0),
+                                        'price' => "\u{20B1}" . number_format($cfg->price ?? 0, 0),
                                         'image' => $cfg->image_url ?: $placeholderImages[$i % 4],
                                         'label' => strtoupper(explode(' ', $cfg->name ?? $placeholderLabels[$i] ?? 'BUILD')[0]),
                                     ];
@@ -568,7 +568,7 @@
                             <div class="pt-6 border-t border-white/10 flex items-end justify-between mt-auto">
                                 <div>
                                     <div class="text-gray-500 text-[10px] uppercase font-bold tracking-widest mb-1">Price</div>
-                                    <div class="text-primary text-2xl font-black">Ã¢â€šÂ±{{ number_format($listing->price, 0) }}</div>
+                                    <div class="text-primary text-2xl font-black">&#8369;{{ number_format($listing->price, 0) }}</div>
                                 </div>
                                 @if(isset($listing->id))
                                 <a href="{{ route('ecommerce.listings.show', ['store' => $store, 'listing' => $listing]) }}" class="border border-primary/50 hover:border-primary text-primary hover:text-white hover:bg-primary text-[10px] font-black uppercase tracking-widest px-4 py-2 transition-all flex items-center gap-2">
@@ -665,7 +665,7 @@
                             <div class="pt-6 border-t border-white/10 flex items-end justify-between mt-auto">
                                 <div>
                                     <div class="text-gray-500 text-[10px] uppercase font-bold tracking-widest mb-1">Price</div>
-                                    <div class="text-primary text-2xl font-black">Ã¢â€šÂ±{{ number_format($listing->price, 0) }}</div>
+                                    <div class="text-primary text-2xl font-black">&#8369;{{ number_format($listing->price, 0) }}</div>
                                 </div>
                                 @if(isset($listing->id))
                                 <a href="{{ route('ecommerce.listings.show', ['store' => $store, 'listing' => $listing]) }}" class="border border-primary/50 hover:border-primary text-primary hover:text-white hover:bg-primary text-[10px] font-black uppercase tracking-widest px-4 py-2 transition-all flex items-center gap-2">
