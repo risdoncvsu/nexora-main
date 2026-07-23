@@ -1,3 +1,7 @@
+@php
+    $storefrontCompany = request()->attributes->get('ecommerce_company');
+    $store = $storefrontCompany?->ecommerce_slug ?: 'techforge';
+@endphp
 @extends('ecommerce::admin.layout', ['title' => 'Storefront Listings', 'heading' => 'Storefront Listings'])
 
 @section('content')

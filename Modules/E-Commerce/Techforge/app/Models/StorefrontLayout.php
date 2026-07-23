@@ -25,6 +25,7 @@ class StorefrontLayout extends Model
             'primary_color' => '#ff6b00',
             'accent_color' => '#f59e0b',
             'logo_path' => null,
+            'custom_pages' => [],
             'sections' => [
                 [
                     'id' => 'hero',
@@ -35,28 +36,61 @@ class StorefrontLayout extends Model
                     'button_label' => 'Browse products',
                     'button_url' => '#products',
                     'image_path' => null,
+                    'hero_stats' => [
+                        ['value' => '4,200+', 'label' => 'Units Shipped'],
+                        ['value' => '4.9&starf;', 'label' => 'Avg Rating'],
+                        ['value' => '72 hr', 'label' => 'Avg Delivery'],
+                    ],
+                    'hero_marquee' => [
+                        ['text' => 'CERTIFIED BUILD TECHNICIANS'],
+                        ['text' => 'RTX 4090 IN STOCK'],
+                        ['text' => '3-YEAR WARRANTY INCLUDED'],
+                        ['text' => 'FREE SHIPPING OVER â‚±50,000'],
+                        ['text' => 'ZERO THERMAL THROTTLING'],
+                        ['text' => '72-HOUR STRESS TESTED'],
+                    ],
                 ],
                 [
-                    'id' => 'featured_listings',
+                    'id' => 'tiers',
                     'enabled' => true,
-                    'title' => 'Featured products',
-                    'body' => 'Available now from our current inventory.',
+                    'title' => "Select\nYour Tier",
+                    'body' => 'Four configurations. Every one tested under load for 72 hours before it leaves our facility.',
+                    'blocks' => [
+                        ['listing_id' => ''],
+                        ['listing_id' => ''],
+                        ['listing_id' => ''],
+                        ['listing_id' => '']
+                    ]
                 ],
                 [
-                    'id' => 'promo',
+                    'id' => 'prebuilts',
                     'enabled' => true,
-                    'title' => 'Built around your business.',
-                    'body' => 'Every listing is tied to approved production data and live warehouse stock.',
-                    'button_label' => 'Explore the catalog',
-                    'button_url' => '#products',
+                    'title' => "Pre-Built\nSystems",
+                    'body' => 'Ready to ship. Professionally assembled and stress-tested for out-of-the-box performance.',
+                    'blocks' => [
+                        ['listing_id' => ''],
+                        ['listing_id' => ''],
+                        ['listing_id' => ''],
+                        ['listing_id' => '']
+                    ]
                 ],
                 [
-                    'id' => 'benefits',
+                    'id' => 'categories',
                     'enabled' => true,
-                    'title' => 'Why shop with us',
-                    'benefit_one' => 'Inventory-aware availability',
-                    'benefit_two' => 'Secure checkout',
-                    'benefit_three' => 'Order tracking',
+                    'title' => "Explore\nCategories",
+                    'body' => 'Find exactly what you need. From ready-to-ship systems to fully custom workstations.',
+                ],
+                [
+                    'id' => 'cta',
+                    'enabled' => true,
+                    'title' => "Stop Settling.",
+                    'subtitle' => "Start Winning.",
+                    'body' => 'Free shipping. Free setup support. 30-day no-questions return policy. Your next machine is three clicks away.',
+                    'primary_button_label' => 'Build Yours Now',
+                    'primary_button_url' => '/configurator',
+                    'secondary_button_label' => 'Talk To An Expert',
+                    'secondary_button_url' => '/contact',
+                    'tag_text' => 'READY_TO_BUILD',
                 ],
             ],
         ];

@@ -79,7 +79,7 @@ Route::middleware([\Modules\Ecommerce\Http\Middleware\RequireEcommerceAuth::clas
 
 Route::get('/configurator-overview/{id}', function ($id) {
     $product = \Modules\Ecommerce\Models\CustombuiltConfig::with(['intelCpu', 'amdCpu', 'gpu', 'intelMotherboard', 'amdMotherboard', 'intelRam', 'amdRam', 'storage', 'powerSupply', 'pcCase', 'cooler'])->findOrFail($id);
-    
+
     $cpus = \Modules\Ecommerce\Models\Cpu::all()->map(function($i) { $i->component_category = 'Processor'; return $i; });
     $gpus = \Modules\Ecommerce\Models\Gpu::all()->map(function($i) { $i->component_category = 'Video Card'; return $i; });
     $rams = \Modules\Ecommerce\Models\Ram::all()->map(function($i) { $i->component_category = 'Memory'; return $i; });
@@ -89,9 +89,9 @@ Route::get('/configurator-overview/{id}', function ($id) {
     $cases = \Modules\Ecommerce\Models\PcCase::all()->map(function($i) { $i->component_category = 'Case'; return $i; });
     $coolers = \Modules\Ecommerce\Models\Cooler::all()->map(function($i) { $i->component_category = 'Cooling'; return $i; });
     $caseFans = \Modules\Ecommerce\Models\ChasisFan::all()->map(function($i) { $i->component_category = 'Case Fan'; return $i; });
-    
+
     $allComponents = $cpus->concat($gpus)->concat($rams)->concat($storages)->concat($mobos)->concat($psus)->concat($cases)->concat($coolers)->concat($caseFans);
-    
+
     return view('ecommerce::configurator-overview', compact('product', 'allComponents'));
 })->name('configurator-overview');
 
@@ -105,23 +105,23 @@ Route::get('/custompc-overview/{id}', function ($id) {
             $cart = session()->get('cart', []);
             if (isset($cart[$id])) $configuration = $cart[$id]['configuration'] ?? null;
         }
-        
+
         if (!$configuration) {
             return redirect('/cart')->with('error', 'This custom PC build is from an older session and its configuration data was lost. Please remove it and build a new one.');
         }
-        
+
         $config = json_decode($configuration, true);
         $product = new \Modules\Ecommerce\Models\CustombuiltConfig();
         $product->id = $id;
         $product->name = 'Custom PC Build';
-        
+
         // Sum total from config
         $total = 0;
         foreach($config as $part) {
             if (isset($part['price'])) $total += floatval($part['price']);
         }
         $product->price = $total;
-        
+
         if (isset($config['Processor'])) $product->setRelation('intelCpu', new \Modules\Ecommerce\Models\Cpu((array)$config['Processor']));
         if (isset($config['Motherboard'])) $product->setRelation('intelMotherboard', new \Modules\Ecommerce\Models\Motherboard((array)$config['Motherboard']));
         if (isset($config['Memory'])) $product->setRelation('intelRam', new \Modules\Ecommerce\Models\Ram((array)$config['Memory']));
@@ -130,7 +130,7 @@ Route::get('/custompc-overview/{id}', function ($id) {
         if (isset($config['Power Supply'])) $product->setRelation('powerSupply', new \Modules\Ecommerce\Models\PowerSupply((array)$config['Power Supply']));
         if (isset($config['Case'])) $product->setRelation('pcCase', new \Modules\Ecommerce\Models\PcCase((array)$config['Case']));
         if (isset($config['Cooling'])) $product->setRelation('cooler', new \Modules\Ecommerce\Models\Cooler((array)$config['Cooling']));
-        
+
         return view('ecommerce::custompc-overview', compact('product'));
     }
 
@@ -253,6 +253,10 @@ Route::middleware([\Modules\Ecommerce\Http\Middleware\RequireEcommerceAuth::clas
     Route::get('/checkout/success/{id}', [\Modules\Ecommerce\Http\Controllers\CheckoutController::class, 'success'])->name('checkout.success');
 });
 
+Route::get('/{slug}', [\Modules\Ecommerce\Http\Controllers\DynamicPageController::class, 'show'])
+    ->where('slug', '.*')
+    ->name('dynamic.page');
+
 });
 
 Route::prefix('ecommerce-admin')->name('ecommerce.admin.')->group(function (): void {
@@ -285,7 +289,7 @@ if (app()->environment('local')) {
             $url = 'http://' . $domain . $portStr . $request->getRequestUri();
             return redirect($url);
         }
-        
+
         return app(\Modules\Ecommerce\Http\Controllers\Auth\SocialAuthController::class)->callback($provider);
     });
 }
