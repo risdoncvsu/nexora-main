@@ -26,6 +26,10 @@ Route::get('/login', function () {
     return view('ecommerce::auth.login');
 })->name('login');
 
+Route::get('/register', function () {
+    return redirect()->route('ecommerce.login', ['register' => 'true']);
+})->name('register');
+
 Route::post('/login', [\Modules\Ecommerce\Http\Controllers\AuthController::class, 'login'])->name('login.post');
 Route::post('/register', [\Modules\Ecommerce\Http\Controllers\AuthController::class, 'register'])->name('register.post');
 Route::post('/logout', [\Modules\Ecommerce\Http\Controllers\AuthController::class, 'logout'])->name('logout');

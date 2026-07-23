@@ -133,6 +133,12 @@
     @vite('Modules/E-Commerce/Techforge/resources/css/liquidglass.css')
 </head>
 <body class="relative antialiased selection:bg-primary selection:text-white">
+    @if (session('success') || session('error'))
+        <div class="fixed top-5 right-5 z-[120] max-w-sm rounded-xl border px-5 py-4 text-sm shadow-2xl {{ session('success') ? 'border-emerald-400/40 bg-emerald-500/15 text-emerald-100' : 'border-red-400/40 bg-red-500/15 text-red-100' }}">
+            {{ session('success') ?: session('error') }}
+        </div>
+    @endif
+
     @if (request('preview'))
         <div class="sticky top-0 z-[100] bg-amber-500/10 backdrop-blur-md border-b border-amber-500/20 px-5 py-2.5 text-center text-xs tracking-wider font-bold text-amber-400 uppercase shadow-[0_4px_30px_rgba(0,0,0,0.1)]">Preview mode Ã¢â‚¬â€ this draft is not public until you publish it.</div>
     @endif
