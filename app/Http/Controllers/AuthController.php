@@ -95,6 +95,10 @@ class AuthController extends Controller
     {
         $company = $user->company_id ? \App\Models\Company::find($user->company_id) : null;
 
+        if ($company && $this->isExistingClientCompany($company)) {
+            return route('client.itsm.employees');
+        }
+
         if ($company && ! $company->setup_completed_at) {
             return route('newuser.show');
         }
@@ -104,6 +108,37 @@ class AuthController extends Controller
         }
 
         return route('client.itsm.employees');
+    }
+
+    /**
+     * Companies created before the ITSM onboarding flow can be identified by
+     * either their existing onboarding marker/HR manager pointer or HR-owned
+     * employee records. A rollback may leave the HR record unavailable, but
+     * that must not send an established client through onboarding again.
+     *
+     * A genuinely new company has none of these markers, so it still begins
+     * the normal onboarding flow.
+     */
+    private function isExistingClientCompany(\App\Models\Company $company): bool
+    {
+        if ($company->setup_completed_at || $company->hr_employee_id) {
+            return true;
+        }
+
+        $employees = $this->hrEmployeeProfileProvisioner->employeesForCompany($company);
+        if ($employees->isEmpty()) {
+            return false;
+        }
+
+        $hrManager = $employees->first(fn (object $employee): bool => strcasecmp((string) $employee->department, 'Human Resources') === 0)
+            ?? $employees->first();
+
+        $company->forceFill([
+            'hr_employee_id' => (int) $hrManager->id,
+            'setup_completed_at' => now(),
+        ])->save();
+
+        return true;
     }
 
     /**
