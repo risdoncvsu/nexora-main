@@ -148,6 +148,7 @@ class SocialAuthController extends Controller
             return redirect(session()->pull('redirect_after_auth'))->with('success', 'Account created successfully!');
         }
 
-        return redirect()->route('ecommerce.account.profile')->with('success', 'Account created successfully! Please complete your profile.');
+        return redirect()->intended(route('ecommerce.home'))
+            ->with('success', 'Account created successfully. You are now signed in.');
     }
 }
