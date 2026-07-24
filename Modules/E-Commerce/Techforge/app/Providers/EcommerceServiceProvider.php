@@ -8,6 +8,7 @@ use Illuminate\Support\ServiceProvider;
 use Modules\Ecommerce\Support\EcommerceClientContext;
 use Modules\Ecommerce\Console\Commands\EnsureEcommerceClientColumns;
 use Modules\Ecommerce\Console\Commands\AssignEcommerceCatalogToClient;
+use Modules\Ecommerce\Console\Commands\BackfillEcommerceOrderLinks;
 use Modules\Ecommerce\Services\ListingAvailabilityService;
 
 class EcommerceServiceProvider extends ServiceProvider
@@ -19,6 +20,7 @@ class EcommerceServiceProvider extends ServiceProvider
         $this->commands([
             EnsureEcommerceClientColumns::class,
             AssignEcommerceCatalogToClient::class,
+            BackfillEcommerceOrderLinks::class,
         ]);
     }
 
