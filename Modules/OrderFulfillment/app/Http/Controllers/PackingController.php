@@ -20,14 +20,14 @@ class PackingController extends Controller
     public function index()
     {
         $packingOrders = Order::where('status', 'PACKING')
-            ->when(Schema::hasTable('order_items'), fn ($q) => $q->with('items'))
+            ->when(Schema::connection('order_fulfillment')->hasTable('order_items'), fn ($q) => $q->with('items'))
             ->get();
 
         $inPackingCount = $packingOrders->count();
         $ShippedCount   = Order::where('status', 'SHIPPED')->count();
 
 
-        $packingError = Schema::hasTable('packing_errors')
+        $packingError = Schema::connection('order_fulfillment')->hasTable('packing_errors')
             ? PackingError::count()
             : 0;
 
@@ -285,7 +285,7 @@ class PackingController extends Controller
      */
     private function buildOrderItems(Order $order)
     {
-        if (Schema::hasTable('order_items') && $order->relationLoaded('items') && $order->items->isNotEmpty()) {
+        if (Schema::connection('order_fulfillment')->hasTable('order_items') && $order->relationLoaded('items') && $order->items->isNotEmpty()) {
             return $order->items->map(function ($item) {
                 $rawAmount = $item->qty * $item->product_amount;
 

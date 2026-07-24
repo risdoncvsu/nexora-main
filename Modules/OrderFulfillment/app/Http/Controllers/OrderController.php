@@ -18,7 +18,7 @@ class OrderController extends Controller
      */
     public function show($id)
     {
-        $order = Order::with('items')->findOrFail($id);
+        $order = Order::findOrFail($id);
         return view('orders.show', compact('order'));
     }
 
@@ -27,7 +27,15 @@ class OrderController extends Controller
      */
     public function index()
     {
-        $orders       = Order::with('items')->orderByDesc('created_at')->get();
+        $orders       = Order::orderByDesc('created_at')->get();
+        $newOrders    = $orders;
+        $packingOrders = $orders->where('status', 'PACKING')->values();
+        $shippedOrders = $orders->whereIn('status', [
+            'READY_TO_SHIP',
+            'SHIPPED',
+            'OUT_FOR_DELIVERY',
+            'DELIVERED',
+        ])->values();
         $ordersReceivedToday  = Order::where('status', 'NEW')->count();
         $inPacking    = Order::where('status', 'PACKING')->count();
         $shippedToday = Order::where('status', 'SHIPPED')->count();
@@ -68,8 +76,24 @@ class OrderController extends Controller
                 return $o;
             });
 
+        $alerts = $newOrders->where('status', 'NEW')->values();
+        $activity = $recentActivity;
+
         return view('order-fulfillment::order', compact(
-            'orders', 'ordersReceivedToday', 'inPacking', 'inPackingCount', 'shippedToday', 'ShippedCount', 'shippedTodayCount', 'onTimeRate', 'recentActivity'
+            'orders',
+            'newOrders',
+            'packingOrders',
+            'shippedOrders',
+            'alerts',
+            'activity',
+            'ordersReceivedToday',
+            'inPacking',
+            'inPackingCount',
+            'shippedToday',
+            'ShippedCount',
+            'shippedTodayCount',
+            'onTimeRate',
+            'recentActivity'
         ));
     }
 

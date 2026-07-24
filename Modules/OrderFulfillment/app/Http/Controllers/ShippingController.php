@@ -9,7 +9,6 @@ use Modules\OrderFulfillment\Models\Shipment;
 use Modules\OrderFulfillment\Models\DeliveryMan;
 use Modules\OrderFulfillment\Models\ReturnItem;
 use Modules\OrderFulfillment\App\Helpers\OrderStatus;
-use Modules\OrderFulfillment\Models\OrderItem;
 use Illuminate\Support\Str;
 
 class ShippingController extends Controller
@@ -53,23 +52,17 @@ class ShippingController extends Controller
         // that's already being @json()'d out to the page.
         $orderIds = $shipments->pluck('order_id')->filter()->unique()->values();
 
-        $itemsByOrder = OrderItem::whereIn('order_id', $orderIds)
-            ->get(['order_id', 'product_name', 'qty', 'product_amount'])
-            ->groupBy('order_id');
+        $ordersById = Order::whereIn('id', $orderIds)->get()->keyBy('id');
 
-        $shipments->each(function (Shipment $shipment) use ($itemsByOrder) {
-            $orderItems = $itemsByOrder->get($shipment->order_id, collect());
-
-            $shipment->items = $orderItems->map(function (OrderItem $item) {
-                return [
-                    'product_name'   => $item->product_name,
-                    'qty'            => (int) $item->qty,
-                    'product_amount' => (float) $item->product_amount,
-                    'line_total'     => (float) $item->line_total,
-                ];
-            })->values()->toArray();
-
-            $shipment->items_count = $orderItems->count();
+        $shipments->each(function (Shipment $shipment) use ($ordersById) {
+            $order = $ordersById->get($shipment->order_id);
+            $shipment->items = $order ? [[
+                'product_name' => $order->product_name,
+                'qty' => (int) $order->qty,
+                'product_amount' => (float) $order->product_amount,
+                'line_total' => (float) $order->qty * (float) $order->product_amount,
+            ]] : [];
+            $shipment->items_count = count($shipment->items);
         });
 
         $shippedToday = Order::whereDate('updated_at', today())
@@ -194,22 +187,20 @@ class ShippingController extends Controller
         }
 
         DB::transaction(function () use ($shipment) {
-            $orderItems = OrderItem::where('order_id', $shipment->order_id)
-                ->get(['product_name', 'qty', 'product_amount']);
+            $order = Order::find($shipment->order_id);
 
             // line_total isn't a real order_items column — it's derived
             // (qty * product_amount) — so sum it in PHP the same way
             // index() and the order-detail modal already do, rather than
             // selecting it directly in the query.
-            $refundAmount = $orderItems->sum(function (OrderItem $item) {
-                return $item->qty * $item->product_amount;
-            });
+            $refundAmount = $order ? (float) $order->qty * (float) $order->product_amount : 0;
 
             ReturnItem::create([
                 'id'            => (string) Str::uuid(),
+                'client_id'     => $shipment->client_id,
                 'order_id'      => $shipment->order_id,
                 'customer_name' => $shipment->customer_name,
-                'product_name'  => $orderItems->pluck('product_name')->implode(', ') ?: 'N/A',
+                'product_name'  => $order?->product_name ?: 'N/A',
                 'reason'        => 'Cancelled while shipping',
                 // Admin cancelled this after it had already left for delivery,
                 // so there's nothing to "review" — it just needs to make its
