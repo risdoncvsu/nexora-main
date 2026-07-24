@@ -7,6 +7,7 @@ use Modules\HR\Http\Controllers\DepartmentController;
 use Modules\HR\Http\Controllers\AttendanceController;
 use Modules\HR\Http\Controllers\EmployeeOnboardingController;
 use Modules\HR\Http\Controllers\ReportsAnalyticsController;
+use Modules\HR\Http\Controllers\DeliveryDriverController;
 use Modules\HR\Models\Attendance;
 
 Route::get('/', function () {
@@ -32,6 +33,10 @@ Route::middleware('hr.access')->group(function () {
     Route::get('/employees/{id}', [EmployeeController::class, 'show'])->name('employees.show');
     Route::put('/employees/{employee}', [EmployeeController::class, 'update'])->name('employees.update');
     Route::delete('/employees/{id}', [EmployeeController::class, 'destroy'])->name('employees.destroy');
+
+    Route::get('/drivers', [DeliveryDriverController::class, 'index'])->name('drivers.index');
+    Route::post('/drivers', [DeliveryDriverController::class, 'store'])->name('drivers.store');
+    Route::put('/drivers/{driver}', [DeliveryDriverController::class, 'update'])->name('drivers.update');
 
     Route::get('/departments', [DepartmentController::class, 'index'])
         ->name('departments.index');

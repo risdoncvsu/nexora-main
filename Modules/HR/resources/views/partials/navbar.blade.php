@@ -5,9 +5,10 @@
     $dropActive = 'bg-[#f3f6fb] text-[#2D7EFF]';
 
     $isDashboard = request()->routeIs('hr.dashboard');
-    $isWorkforce = request()->routeIs('hr.employees.*') || request()->routeIs('hr.departments.*');
+    $isWorkforce = request()->routeIs('hr.employees.*') || request()->routeIs('hr.departments.*') || request()->routeIs('hr.drivers.*');
     $isEmployees = request()->routeIs('hr.employees.index') || request()->routeIs('hr.employees.show') || request()->routeIs('hr.employees.create');
     $isDepartments = request()->routeIs('hr.departments.*');
+    $isDrivers = request()->routeIs('hr.drivers.*');
     $isOnboarding = request()->routeIs('hr.onboarding.*');
     $isReports = request()->routeIs('hr.reports-analytics.*');
     $isAttendance = request()->routeIs('hr.reports-analytics.attendance-overview') || request()->routeIs('hr.reports-analytics.employee-attendance');
@@ -41,6 +42,8 @@
                        class="{{ $dropLink }} {{ $isEmployees ? $dropActive : '' }}">Employee List</a>
                     <a href="{{ route('hr.departments.index') }}"
                        class="{{ $dropLink }} {{ $isDepartments ? $dropActive : '' }}">Department List</a>
+                    <a href="{{ route('hr.drivers.index') }}"
+                       class="{{ $dropLink }} {{ $isDrivers ? $dropActive : '' }}">Delivery Drivers</a>
                 </div>
             </div>
 

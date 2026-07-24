@@ -3,6 +3,7 @@
 namespace Modules\OrderFulfillment\Models;
 
 use Modules\OrderFulfillment\Models\Concerns\BelongsToClient;
+use Modules\HR\Models\DeliveryDriver;
 
 use Illuminate\Database\Eloquent\Model;
 
@@ -34,9 +35,10 @@ class Shipment extends Model
         'out_for_delivery_at' => 'datetime',
     ];
 
-    public function deliveryMan()
+    /** The assigned HR delivery-driver profile (legacy column name retained). */
+    public function deliveryDriver()
     {
-        return $this->belongsTo(DeliveryMan::class, 'delivery_man_id');
+        return $this->belongsTo(DeliveryDriver::class, 'delivery_man_id');
     }
 
     public function order()
@@ -56,8 +58,8 @@ class Shipment extends Model
                 strtoupper($shipment->status) === 'DELIVERED' &&
                 $shipment->delivery_man_id
             ) {
-                DeliveryMan::where('id', $shipment->delivery_man_id)
-                    ->update(['status' => DeliveryMan::STATUS_AVAILABLE]);
+                DeliveryDriver::where('id', $shipment->delivery_man_id)
+                    ->update(['availability' => DeliveryDriver::STATUS_AVAILABLE]);
             }
         });
 

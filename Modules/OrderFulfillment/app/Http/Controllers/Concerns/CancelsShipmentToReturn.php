@@ -4,7 +4,7 @@ namespace Modules\OrderFulfillment\Http\Controllers\Concerns;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Modules\OrderFulfillment\Models\DeliveryMan;
+use Modules\HR\Models\DeliveryDriver;
 use Modules\OrderFulfillment\Models\Order;
 use Modules\OrderFulfillment\Models\OrderItem;
 use Modules\OrderFulfillment\Models\ReturnItem;
@@ -86,8 +86,8 @@ trait CancelsShipmentToReturn
             // Free up the driver, if one was already assigned, same as a
             // normal delivery completion would.
             if ($shipment->delivery_man_id) {
-                DeliveryMan::where('id', $shipment->delivery_man_id)
-                    ->update(['status' => DeliveryMan::STATUS_AVAILABLE]);
+                DeliveryDriver::where('id', $shipment->delivery_man_id)
+                    ->update(['availability' => DeliveryDriver::STATUS_AVAILABLE]);
             }
 
             // Set explicitly — deleting the shipment below means the

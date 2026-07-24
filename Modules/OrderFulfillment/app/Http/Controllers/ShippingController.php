@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Modules\OrderFulfillment\Models\Order;
 use Modules\OrderFulfillment\Models\Shipment;
-use Modules\OrderFulfillment\Models\DeliveryMan;
+use Modules\HR\Models\DeliveryDriver;
 use Modules\OrderFulfillment\Helpers\OrderStatus;
 use Modules\OrderFulfillment\Models\OrderItem;
 use Modules\OrderFulfillment\Http\Controllers\Concerns\CancelsShipmentToReturn;
@@ -47,8 +47,8 @@ class ShippingController extends Controller
                         $shipment->update(['status' => 'DELIVERED']);
 
                         if ($shipment->delivery_man_id) {
-                            DeliveryMan::where('id', $shipment->delivery_man_id)
-                                ->update(['status' => DeliveryMan::STATUS_AVAILABLE]);
+                            DeliveryDriver::where('id', $shipment->delivery_man_id)
+                                ->update(['availability' => DeliveryDriver::STATUS_AVAILABLE]);
                         }
                     });
                 });
@@ -167,10 +167,18 @@ class ShippingController extends Controller
     {
         $shipment = Shipment::where('shipment_id', $shipmentId)->firstOrFail();
 
-        $drivers = DeliveryMan::available()
+        $drivers = DeliveryDriver::with('employee')
+            ->available()
             ->forCourier($shipment->courier)
-            ->orderBy('name')
-            ->get(['id', 'name', 'vehicle_type', 'plate_number']);
+            ->get()
+            ->sortBy(fn (DeliveryDriver $driver) => strtolower(trim("{$driver->employee->first_name} {$driver->employee->last_name}")))
+            ->values()
+            ->map(fn (DeliveryDriver $driver) => [
+                'id' => $driver->id,
+                'name' => trim("{$driver->employee->first_name} {$driver->employee->last_name}"),
+                'vehicle_type' => $driver->vehicle_type ?: 'Vehicle not specified',
+                'plate_number' => $driver->plate_number ?: '—',
+            ]);
 
         return response()->json($drivers);
     }
@@ -183,13 +191,13 @@ class ShippingController extends Controller
      */
     public function assignDriver(Request $request, string $shipmentId)
     {
-        // 'exists:delivery_men,id' checks Laravel's *default* DB connection,
-        // but delivery_men — like orders and packing_materials elsewhere in
-        // this module — lives on its own connection, not the default one.
+        // The HR-owned delivery_drivers table lives on a separate connection,
+        // so the validation rule must be built from the model instead of
+        // relying on Laravel's default database connection.
         // Resolving it off the model itself (rather than hardcoding a
         // connection name here) keeps this in sync automatically if that
         // ever changes.
-        $driverModel = new DeliveryMan();
+        $driverModel = new DeliveryDriver();
         $driverTable = ($driverModel->getConnectionName() ? $driverModel->getConnectionName() . '.' : '') . $driverModel->getTable();
 
         $validated = $request->validate([
@@ -198,8 +206,8 @@ class ShippingController extends Controller
 
         $shipment = Shipment::where('shipment_id', $shipmentId)->firstOrFail();
 
-        $driver = DeliveryMan::where('id', $validated['driver_id'])
-            ->where('status', DeliveryMan::STATUS_AVAILABLE)
+        $driver = DeliveryDriver::available()
+            ->where('id', $validated['driver_id'])
             ->first();
 
         if (! $driver) {
@@ -220,7 +228,7 @@ class ShippingController extends Controller
 
             $shipment->update($changes);
 
-            $driver->update(['status' => DeliveryMan::STATUS_UNAVAILABLE]);
+            $driver->update(['availability' => DeliveryDriver::STATUS_UNAVAILABLE]);
         });
 
         return response()->json([
