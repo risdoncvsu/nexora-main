@@ -201,7 +201,10 @@ class ShippingController extends Controller
         $driverTable = ($driverModel->getConnectionName() ? $driverModel->getConnectionName() . '.' : '') . $driverModel->getTable();
 
         $validated = $request->validate([
-            'driver_id' => "required|string|exists:{$driverTable},id",
+            // HR delivery_drivers uses the normal numeric primary key. The
+            // former fulfillment-local directory used string IDs, so keep
+            // this explicitly aligned with the new source of truth.
+            'driver_id' => "required|integer|exists:{$driverTable},id",
         ]);
 
         $shipment = Shipment::where('shipment_id', $shipmentId)->firstOrFail();
