@@ -18,6 +18,61 @@ use Illuminate\Support\Facades\Schema;
 
 class StockReceivingController extends Controller
 {
+    private function packingMaterialMeta(string $name): ?array
+    {
+        $normalized = strtolower(trim($name));
+        $boxSize = null;
+
+        if (str_contains($normalized, 'box')) {
+            $boxSize = str_contains($normalized, 'small') ? 'Small'
+                : (str_contains($normalized, 'medium') ? 'Medium'
+                : (str_contains($normalized, 'large') ? 'Large' : 'Standard'));
+        } elseif (! preg_match('/bubble\s*wrap|packing\s*tape|foam\s*insert|silica\s*gel|fragile\s*tape/', $normalized)) {
+            return null;
+        }
+
+        return [
+            'name' => $name,
+            'is_box' => $boxSize !== null,
+            'box_size' => $boxSize,
+        ];
+    }
+
+    private function syncPackingMaterial(string $name, int $quantity): void
+    {
+        $meta = $this->packingMaterialMeta($name);
+        $clientId = (int) session('employee_client_id');
+        if (! $meta || $quantity < 1 || ! $clientId) {
+            return;
+        }
+
+        $inventory = DB::connection('inventory');
+        if (! $inventory->getSchemaBuilder()->hasTable('packing_materials')) {
+            return;
+        }
+
+        $existing = $inventory->table('packing_materials')
+            ->where('client_id', $clientId)
+            ->whereRaw('LOWER(name) = LOWER(?)', [$meta['name']])
+            ->first();
+
+        if ($existing) {
+            $inventory->table('packing_materials')->where('id', $existing->id)->increment('stock_qty', $quantity);
+            return;
+        }
+
+        $inventory->table('packing_materials')->insert([
+            'client_id' => $clientId,
+            'name' => $meta['name'],
+            'stock_qty' => $quantity,
+            'low_stock_threshold' => 5,
+            'is_box' => $meta['is_box'],
+            'box_size' => $meta['box_size'],
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
     private function procurementDeliveriesQuery()
     {
         $schema = Schema::connection('procurement');
@@ -275,6 +330,11 @@ class StockReceivingController extends Controller
                 'remarks' => $delivery->remarks,
                 'processed_at' => now(),
             ]);
+
+            // Packing consumes the dedicated packing_materials inventory.
+            // Mirror recognized packaging supplies as they are received so
+            // Order Fulfillment sees them immediately.
+            $this->syncPackingMaterial($item->name, $receivedQuantity);
 
             // Update the procurement delivery status to delivered
             DB::connection('procurement')

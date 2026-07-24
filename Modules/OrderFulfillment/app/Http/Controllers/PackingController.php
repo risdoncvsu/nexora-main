@@ -44,6 +44,21 @@ class PackingController extends Controller
         return Schema::connection('order_fulfillment');
     }
 
+    private function packingMaterialQuery()
+    {
+        return PackingMaterial::query()
+            ->where('client_id', (int) session('employee_client_id'));
+    }
+
+    private function findPackingMaterial(string $materialName)
+    {
+        return $this->packingMaterialQuery()
+            ->where(function ($query) use ($materialName) {
+                $query->whereRaw('LOWER(name) = LOWER(?)', [$materialName])
+                    ->orWhereRaw('LOWER(box_size) = LOWER(?)', [$materialName]);
+            });
+    }
+
     public function index()
     {
         $packingOrders = Order::where('status', 'PACKING')
@@ -63,7 +78,7 @@ class PackingController extends Controller
             : 0;
 
         $materials = Schema::connection(self::INVENTORY_CONN)->hasTable('packing_materials')
-            ? PackingMaterial::all()
+            ? $this->packingMaterialQuery()->get()
             : collect();
 
         $lowStockMaterialCount = $materials->filter(function ($m) {
@@ -182,7 +197,7 @@ class PackingController extends Controller
             //    "inventory" Neon database, so this read goes through that
             //    connection.
             foreach ($requiredMaterials as $materialName) {
-                $row = PackingMaterial::whereRaw('LOWER(name) = LOWER(?)', [$materialName])->first();
+                $row = $this->findPackingMaterial($materialName)->first();
 
                 if (!$row || $row->stock_qty <= 0) {
                     $this->logPackingError((string) $order->id, $materialName, $row ? 'out_of_stock' : 'material_not_found');
@@ -202,7 +217,7 @@ class PackingController extends Controller
             //    to guard against a race between the pre-check above and now.
             DB::connection(self::INVENTORY_CONN)->transaction(function () use ($requiredMaterials) {
                 foreach ($requiredMaterials as $materialName) {
-                    $row = PackingMaterial::whereRaw('LOWER(name) = LOWER(?)', [$materialName])
+                    $row = $this->findPackingMaterial($materialName)
                         ->lockForUpdate()
                         ->first();
 
@@ -215,7 +230,7 @@ class PackingController extends Controller
 
                 // All materials confirmed in stock — safe to decrement.
                 foreach ($requiredMaterials as $materialName) {
-                    PackingMaterial::whereRaw('LOWER(name) = LOWER(?)', [$materialName])->decrement('stock_qty', 1);
+                    $this->findPackingMaterial($materialName)->decrement('stock_qty', 1);
                 }
             });
 
@@ -324,7 +339,7 @@ class PackingController extends Controller
         try {
             DB::connection(self::INVENTORY_CONN)->transaction(function () use ($requiredMaterials) {
                 foreach ($requiredMaterials as $materialName) {
-                    PackingMaterial::whereRaw('LOWER(name) = LOWER(?)', [$materialName])->increment('stock_qty', 1);
+                    $this->findPackingMaterial($materialName)->increment('stock_qty', 1);
                 }
             });
         } catch (\Throwable $e) {
