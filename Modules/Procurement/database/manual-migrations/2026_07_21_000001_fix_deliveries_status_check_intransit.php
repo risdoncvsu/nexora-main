@@ -26,17 +26,17 @@ return new class extends Migration
         // Drop the OLD constraint FIRST — it still only allows 'in-transit',
         // so updating rows to 'intransit' while it's still active gets
         // rejected by the same check constraint we're trying to fix.
-        DB::statement('ALTER TABLE deliveries DROP CONSTRAINT IF EXISTS deliveries_status_check');
+        DB::connection('procurement')->statement('ALTER TABLE deliveries DROP CONSTRAINT IF EXISTS deliveries_status_check');
 
         // Now it's safe to normalize any existing rows still holding the
         // old value.
-        DB::table('deliveries')
+        DB::connection('procurement')->table('deliveries')
             ->where('status', 'in-transit')
             ->update(['status' => 'intransit']);
 
         // Recreate the constraint so it matches what the app actually
         // sends now.
-        DB::statement("ALTER TABLE deliveries ADD CONSTRAINT deliveries_status_check CHECK (status IN ('pending', 'scheduled', 'intransit', 'delivered', 'delayed', 'cancelled', 'completed'))");
+        DB::connection('procurement')->statement("ALTER TABLE deliveries ADD CONSTRAINT deliveries_status_check CHECK (status IN ('pending', 'scheduled', 'intransit', 'delivered', 'delayed', 'cancelled', 'completed'))");
     }
 
     /**
@@ -44,12 +44,12 @@ return new class extends Migration
      */
     public function down(): void
     {
-        DB::statement('ALTER TABLE deliveries DROP CONSTRAINT IF EXISTS deliveries_status_check');
+        DB::connection('procurement')->statement('ALTER TABLE deliveries DROP CONSTRAINT IF EXISTS deliveries_status_check');
 
-        DB::table('deliveries')
+        DB::connection('procurement')->table('deliveries')
             ->where('status', 'intransit')
             ->update(['status' => 'in-transit']);
 
-        DB::statement("ALTER TABLE deliveries ADD CONSTRAINT deliveries_status_check CHECK (status IN ('pending', 'scheduled', 'in-transit', 'delivered', 'delayed', 'cancelled', 'completed'))");
+        DB::connection('procurement')->statement("ALTER TABLE deliveries ADD CONSTRAINT deliveries_status_check CHECK (status IN ('pending', 'scheduled', 'in-transit', 'delivered', 'delayed', 'cancelled', 'completed'))");
     }
 };

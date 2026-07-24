@@ -20,10 +20,6 @@
           <div class="status-label">Pending</div>
           <div class="status-count">{{ $statusCounts->get('pending', 0) }}</div>
         </div>
-        <div class="status-chart-item scheduled" data-status="scheduled" style="background:linear-gradient(135deg,#f0eaff,#dcd0fb);border-color:#7a5af0;" onclick="filterByStatus('deliveries-table', 'scheduled', this)">
-          <div class="status-label">Scheduled</div>
-          <div class="status-count">{{ $statusCounts->get('scheduled', 0) }}</div>
-        </div>
         <div class="status-chart-item intransit" data-status="intransit" style="background:linear-gradient(135deg,#e3f2fd,#bbdefb);border-color:#2196f3;" onclick="filterByStatus('deliveries-table', 'intransit', this)">
           <div class="status-label">intransit</div>
           <div class="status-count">{{ $statusCounts->get('intransit', 0) }}</div>
@@ -43,10 +39,6 @@
           <div class="status-label">Completed</div>
           <div class="status-count">{{ $statusCounts->get('completed', 0) }}</div>
         </div>
-        <div class="status-chart-item cancelled" data-status="cancelled" style="background:linear-gradient(135deg,#f1f3f6,#e2e6ee);border-color:#7c88a3;" onclick="filterByStatus('deliveries-table', 'cancelled', this)">
-          <div class="status-label">Cancelled</div>
-          <div class="status-count">{{ $statusCounts->get('cancelled', 0) }}</div>
-        </div>
       </div>
       
         <div class="panel" style="grid-column: span 2;">
@@ -56,48 +48,11 @@
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
               <input placeholder="Search shipment or PO..." oninput="filterTable('deliveries-table', this.value)">
             </div>
-             <button class="toolbar-btn" onclick="toggleFilterPanel('del-filter-panel', this)">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M3 5h18l-7 8v6l-4 2v-8L3 5z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
-            Filter
-          </button>
+            
             <button class="toolbar-btn primary" onclick="openAddModal('delivery')">+ Log Delivery</button>
           </div>
-        </div>
-        <div class="filter-panel hidden" id="del-filter-panel">
-          <div class="filter-group">
-            <label>Status</label>
-            <select id="delivery-filter-status" onchange="applyDelFilter()">
-              <option value="">All Status</option>
-              <option value="pending">Pending</option>
-              <option value="scheduled">Scheduled</option>
-              <option value="intransit">intransit</option>
-              <option value="delayed">Delayed</option>
-              <option value="delivered">Delivered</option>
-              <option value="completed">Completed</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
-          </div>
-          <div class="filter-group">
-            <label>Date Range</label>
-            <input type="date" id="delivery-filter-date-from" placeholder="From"> 
-            <input type="date" id="delivery-filter-date-to" placeholder="To">
-          </div>
-          <div class="filter-group">
-            <label>Supplier</label>
-            <select id="delivery-filter-supplier" onchange="applyDelFilter()">
-              <option value="">All Suppliers</option>
-              <option value="TechWholesale PH">TechWholesale PH</option>
-              <option value="Quantum Motherboards">Quantum Motherboards</option>
-              <option value="Silverline PSU Ltd">Silverline PSU Ltd</option>
-              <option value="Primo Electronics">Primo Electronics</option>
-              <option value="GigaCore Components">GigaCore Components</option>
-            </select>
-          </div>
-          <div class="filter-actions">
-            <button class="btn-text" onclick="clearDelFilter()">Clear</button>
-            <button class="btn-primary" onclick="applyDelFilter()">Apply</button>
-          </div>
-        </div>
+      
+     
 
         <table class="data-table sortable-table" id="deliveries-table">
             <thead>
@@ -131,11 +86,19 @@
                       $badgeColor = $colors[$h % count($colors)];
                     }
                   @endphp
-                  <tr data-id="{{ $d->id }}" data-po="{{ $d->po_number ?? '' }}" data-sup="{{ $d->supplier_name ?? '' }}" data-stage="{{ $d->stage ?? '' }}" data-status="{{ strtolower(str_replace([' ', '_'], '-', $d->status ?? 'intransit')) }}" data-date="{{ $d->delivery_date ?? '' }}">
+                  @php
+                    // Only the first purchased item is shown in the table; the rest
+                    // are visible in the shipment's tracking details modal.
+                    $delItems = array_values(array_filter(array_map('trim', explode(',', (string) ($d->items ?? '')))));
+                    $delFirstItem = $delItems[0] ?? '';
+                    $delMoreCount = max(0, count($delItems) - 1);
+                  @endphp
+                  <tr data-id="{{ $d->id }}" data-ship="{{ $d->shipment_number }}" data-po="{{ $d->po_number ?? '' }}" data-sup="{{ $d->supplier_name ?? '' }}" data-items="{{ $d->items ?? '' }}" data-stage="{{ $d->stage ?? '' }}" data-status="{{ strtolower(str_replace([' ', '_'], '-', $d->status ?? 'intransit')) }}" data-date="{{ $d->delivery_date ?? '' }}" data-warehouse="{{ $d->deliver_to_warehouse ?? '' }}">
+                    {{-- Show the full shipment number (e.g. SHP-2026-0001). --}}
                     <td><a class="po-link">{{ $d->shipment_number }}</a></td>
                     <td><a class="po-link">{{ $d->po_number ?? '—' }}</a></td>
                     <td><div class="supplier-pill-cell"><span class="supplier-pill"><span class="supplier-badge" style="background: {{ $badgeColor }}">{{ $initials }}</span>{{ $d->supplier_name ?? '—' }}</span></div></td>
-                    <td>{{ $d->items ?? '—' }}</td>
+                    <td title="{{ $d->items ?? '' }}">{{ $delFirstItem ?: '—' }}@if($delMoreCount > 0)<span class="item-more">+{{ $delMoreCount }} more</span>@endif</td>
                     <td>{{ $d->estimated_arrival ?? $d->delivery_date ?? '' }}</td>
                     <td><span class="status-pill {{ strtolower(str_replace([' ', '_'], '-', $d->status ?? 'intransit')) }}">{{ ucwords(str_replace('-', ' ', $d->status ?? 'intransit')) }}</span></td>
                     <td>{{ $d->delivery_date ?? '' }}</td>
@@ -151,7 +114,7 @@
           </table>
           
 
-      
+        </div>
       </div>
     </section>
 @endsection

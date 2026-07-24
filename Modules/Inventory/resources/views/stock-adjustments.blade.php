@@ -1,68 +1,76 @@
 @extends('inventory::layouts.dashboard')
 
-@section('title', 'Stock Adjustments')
+@section('title', 'Adjustments')
 
 @push('styles')
 <style>
-    .status-badge { display: inline-block; padding: 4px 10px; border-radius: 9999px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
-    .status-pending { background: #fef9c3; color: #854d0e; }
-    .status-approved { background: #dcfce7; color: #166534; }
-    .status-rejected { background: #fee2e2; color: #991b1b; }
-    .status-cancelled { background: #e2e8f0; color: #475569; }
-
-    #adjustmentModal { opacity: 0; pointer-events: none; transition: opacity 0.2s ease; }
-    #adjustmentModal.open { opacity: 1; pointer-events: auto; }
+    .status-badge { display: inline-block; padding: 4px 10px; border-radius: 9999px; font-size: 11px; font-weight: 600; text-transform: uppercase; border:1px solid transparent; }
+    .status-pending { background: #F0FFF5; color: #D97706; border-color: rgba(217,119,6,0.5); }
+    .status-approved { background: #F0FFF5; color: #0CAE57; border-color: rgba(12,174,87,0.5); }
+    .status-rejected { background: #F0FFF5; color: #DC2626; border-color: rgba(220,38,38,0.5); }
+    .status-cancelled { background: #F0FFF5; color: #64748B; border-color: rgba(100,116,139,0.5); }
 
 </style>
 @endpush
 
 @section('content')
-    @if(session('success'))
-        <div style="margin-bottom:16px;padding:12px 16px;background:rgba(34,197,94,0.15);color:#22c55e;border-radius:10px;font-weight:600;">
-            {{ session('success') }}
-        </div>
-    @endif
-    @if(session('error'))
-        <div style="margin-bottom:16px;padding:12px 16px;background:rgba(239,68,68,0.15);color:#ef4444;border-radius:10px;font-weight:600;">
-            {{ session('error') }}
-        </div>
-    @endif
+<div class="inv-page">
 
-    <!-- Stat Cards Row -->
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;">
-        <div style="background:#0b1e3d;padding:20px;border-radius:20px;">
-            <p style="font-size:15px;color:#94a3b8;">Total Adjustments</p>
-            <p style="font-size:40px;font-weight:bold;color:#fff;">{{ $totalCount }}</p>
+    <!-- KPI tiles -->
+    <div class="kpi-row cols-3">
+        <div class="kpi-tile" style="--accent:#4a9ee8;">
+            <div class="kpi-head">
+                <span class="kpi-label">Total Adjustments</span>
+                <span class="kpi-icon" style="background:rgba(74,158,232,0.15);color:#4a9ee8;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+                </span>
+            </div>
+            <p class="kpi-value">{{ number_format($totalCount) }}</p>
         </div>
-        <div style="background:#0b1e3d;padding:20px;border-radius:20px;">
-            <p style="font-size:15px;color:#94a3b8;">Net Adjusted Units</p>
-            <p style="font-size:40px;font-weight:bold;color:{{ $netAdjustedUnits >= 0 ? '#22c55e' : '#ef4444' }};">
-                {{ ($netAdjustedUnits >= 0 ? '+' : '') . number_format($netAdjustedUnits) }}
-            </p>
+        <div class="kpi-tile" style="--accent:{{ $netAdjustedUnits >= 0 ? '#22c55e' : '#ef4444' }};">
+            <div class="kpi-head">
+                <span class="kpi-label">Net Adjusted Units</span>
+                <span class="kpi-icon" style="background:{{ $netAdjustedUnits >= 0 ? 'rgba(34,197,94,0.15);color:#22c55e' : 'rgba(239,68,68,0.15);color:#ef4444' }};">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>
+                </span>
+            </div>
+            <p class="kpi-value" style="color:{{ $netAdjustedUnits >= 0 ? '#4ade80' : '#f87171' }};">{{ ($netAdjustedUnits >= 0 ? '+' : '') . number_format($netAdjustedUnits) }}</p>
         </div>
-        <div style="background:#0b1e3d;padding:20px;border-radius:20px;">
-            <p style="font-size:15px;color:#94a3b8;">Pending Approval</p>
-            <p style="font-size:40px;font-weight:bold;color:#fff;">{{ $pendingCount }}</p>
+        <div class="kpi-tile" style="--accent:#f59e0b;">
+            <div class="kpi-head">
+                <span class="kpi-label">Pending Approval</span>
+                <span class="kpi-icon" style="background:rgba(245,158,11,0.15);color:#f59e0b;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                </span>
+            </div>
+            <p class="kpi-value">{{ number_format($pendingCount) }}</p>
         </div>
     </div>
 
-    <!-- Table Card -->
-    <div style="background:#ffffff;border-radius:20px;overflow:hidden;min-width:0;">
-        <!-- Filters Row -->
-        <form method="GET" action="{{ route('inventory.stock-adjustments') }}" style="padding:16px 20px;display:flex;align-items:center;gap:12px;flex-wrap:nowrap;min-width:0;">
-            <!-- Search -->
-            <div style="display:flex;align-items:center;background:#E2E8F0;border-radius:8px;padding:8px 14px;gap:8px;flex:1;min-width:150px;">
-                <svg width="16" height="16" fill="none" stroke="#64748b" viewBox="0 0 24 24" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="M21 21l-4.35-4.35"/></svg>
-                <input type="text" name="search" value="{{ $filters['search'] ?? '' }}" placeholder="Search by Name..." style="border:none;outline:none;background:transparent;font-size:12px;font-family:'Inter',sans-serif;color:#333;width:100%;">
+    <!-- Data panel -->
+    <div class="data-panel">
+        <div class="panel-head">
+            <span class="panel-title">Adjustment History</span>
+            <span class="panel-count">{{ number_format($adjustments->total()) }} records</span>
+            <div class="panel-head-actions">
+                <button type="button" onclick="openAdjustmentModal()" class="inv-btn inv-btn-primary inv-btn-sm">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                    New Adjustment
+                </button>
             </div>
-            <!-- Filter: Type -->
-            <select name="type" onchange="this.form.submit()" style="background:#E2E8F0;color:#000;border:none;border-radius:20px;padding:8px 16px;font-size:13px;font-family:'Inter',sans-serif;cursor:pointer;outline:none;flex-shrink:0;">
+        </div>
+
+        <form method="GET" action="{{ route('inventory.stock-adjustments') }}" class="data-toolbar">
+            <div class="tb-search">
+                <svg width="16" height="16" fill="none" stroke="#64748b" viewBox="0 0 24 24" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="M21 21l-4.35-4.35"/></svg>
+                <input type="text" name="search" value="{{ $filters['search'] ?? '' }}" placeholder="Search by Name...">
+            </div>
+            <select name="type" class="tb-select" onchange="this.form.submit()">
                 <option value="">Type</option>
                 <option value="increase" {{ ($filters['type'] ?? '') === 'increase' ? 'selected' : '' }}>Increase</option>
                 <option value="decrease" {{ ($filters['type'] ?? '') === 'decrease' ? 'selected' : '' }}>Decrease</option>
             </select>
-            <!-- Filter: Reason -->
-            <select name="reason" onchange="this.form.submit()" style="background:#E2E8F0;color:#000;border:none;border-radius:20px;padding:8px 16px;font-size:13px;font-family:'Inter',sans-serif;cursor:pointer;outline:none;flex-shrink:0;">
+            <select name="reason" class="tb-select" onchange="this.form.submit()">
                 <option value="">Reason</option>
                 <option value="damage" {{ ($filters['reason'] ?? '') === 'damage' ? 'selected' : '' }}>Damage</option>
                 <option value="expired" {{ ($filters['reason'] ?? '') === 'expired' ? 'selected' : '' }}>Expired</option>
@@ -70,113 +78,108 @@
                 <option value="theft" {{ ($filters['reason'] ?? '') === 'theft' ? 'selected' : '' }}>Theft</option>
                 <option value="correction" {{ ($filters['reason'] ?? '') === 'correction' ? 'selected' : '' }}>Correction</option>
             </select>
-            <!-- Filter: Warehouse -->
-            <select name="warehouse" onchange="this.form.submit()" style="background:#E2E8F0;color:#000;border:none;border-radius:20px;padding:8px 16px;font-size:13px;font-family:'Inter',sans-serif;cursor:pointer;outline:none;flex-shrink:0;">
+            <select name="warehouse" class="tb-select" onchange="this.form.submit()">
                 <option value="">Warehouse</option>
                 @foreach ($warehouses as $wh)
                     <option value="{{ $wh->id }}" {{ ($filters['warehouse'] ?? '') == $wh->id ? 'selected' : '' }}>{{ $wh->name }}</option>
                 @endforeach
             </select>
-            <!-- Filter: Status -->
-            <select name="status" onchange="this.form.submit()" style="background:#E2E8F0;color:#000;border:none;border-radius:20px;padding:8px 16px;font-size:13px;font-family:'Inter',sans-serif;cursor:pointer;outline:none;flex-shrink:0;">
+            <select name="status" class="tb-select" onchange="this.form.submit()">
                 <option value="">Status</option>
                 <option value="pending" {{ ($filters['status'] ?? '') === 'pending' ? 'selected' : '' }}>Pending</option>
                 <option value="approved" {{ ($filters['status'] ?? '') === 'approved' ? 'selected' : '' }}>Approved</option>
                 <option value="rejected" {{ ($filters['status'] ?? '') === 'rejected' ? 'selected' : '' }}>Rejected</option>
                 <option value="cancelled" {{ ($filters['status'] ?? '') === 'cancelled' ? 'selected' : '' }}>Cancelled</option>
             </select>
-            <!-- Clear Filters -->
             @if(array_filter($filters ?? []))
-                <a href="{{ route('inventory.stock-adjustments') }}" style="background:transparent;color:#64748b;border:1px solid #cbd5e1;border-radius:20px;padding:8px 16px;font-size:13px;font-family:'Inter',sans-serif;text-decoration:none;display:inline-flex;align-items:center;gap:4px;white-space:nowrap;flex-shrink:0;" title="Clear all filters">
+                <a href="{{ route('inventory.stock-adjustments') }}" class="tb-clear" title="Clear all filters">
                     <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                     Clear
                 </a>
             @endif
-            <!-- + New Adjustment Button -->
-            <button type="button" onclick="openAdjustmentModal()" style="background:#1b6fc8;color:#fff;border:none;border-radius:20px;padding:8px 20px;font-size:13px;font-weight:600;font-family:'Inter',sans-serif;cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap;flex-shrink:0;">
-                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
-                New Adjustment
-            </button>
         </form>
 
-        <!-- Table -->
         <div class="responsive-table" style="min-width:0;">
-            <table class="stock-table" style="width:100%;table-layout:auto;border-collapse:collapse;">
+            <table class="data-grid">
                 <thead>
-                    <tr style="background:#1b3a6b;">
-                        <th style="text-align:center;padding:10px 6px;color:#fff;font-size:11px;font-weight:600;white-space:nowrap;">ADJ.ID</th>
-                        <th style="text-align:center;padding:10px 6px;color:#fff;font-size:11px;font-weight:600;white-space:nowrap;">ITEM NAME</th>
-                        <th style="text-align:center;padding:10px 6px;color:#fff;font-size:11px;font-weight:600;white-space:nowrap;">SKU</th>
-                        <th style="text-align:center;padding:10px 6px;color:#fff;font-size:11px;font-weight:600;white-space:nowrap;">WAREHOUSE</th>
-                        <th style="text-align:center;padding:10px 6px;color:#fff;font-size:11px;font-weight:600;white-space:nowrap;">QUANTITY</th>
-                        <th style="text-align:center;padding:10px 6px;color:#fff;font-size:11px;font-weight:600;white-space:nowrap;">TYPE</th>
-                        <th style="text-align:center;padding:10px 6px;color:#fff;font-size:11px;font-weight:600;white-space:nowrap;">REASON</th>
-                        <th style="text-align:center;padding:10px 6px;color:#fff;font-size:11px;font-weight:600;white-space:nowrap;">STATUS</th>
-                        <th style="text-align:center;padding:10px 6px;color:#fff;font-size:11px;font-weight:600;white-space:nowrap;">APPROVED BY</th>
-                        <th style="text-align:center;padding:10px 6px;color:#fff;font-size:11px;font-weight:600;white-space:nowrap;">DATE</th>
-                        <th style="text-align:center;padding:10px 6px;color:#fff;font-size:11px;font-weight:600;white-space:nowrap;">ACTIONS</th>
+                    <tr>
+                        <th class="col-r">ADJ.ID</th>
+                        <th>ITEM NAME</th>
+                        <th>SKU</th>
+                        <th>WAREHOUSE</th>
+                        <th class="col-r">QUANTITY</th>
+                        <th>TYPE</th>
+                        <th>REASON</th>
+                        <th>STATUS</th>
+                        <th>APPROVED BY</th>
+                        <th class="col-r">DATE</th>
+                        <th>ACTIONS</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse ($adjustments as $adjustment)
-                        <tr style="border-bottom:1px solid #e2e8f0;">
-                            <td style="text-align:center;padding:12px 8px;font-size:13px;color:#132B52;">{{ $adjustment->id }}</td>
-                            <td style="text-align:center;padding:12px 8px;font-size:13px;color:#132B52;">{{ $adjustment->item?->name ?? 'Deleted' }}</td>
-                            <td style="text-align:center;padding:12px 8px;font-size:13px;color:#5B7A9D;">{{ $adjustment->item?->sku ?? 'â€”' }}</td>
-                            <td style="text-align:center;padding:12px 8px;font-size:13px;color:#5B7A9D;">{{ $adjustment->warehouse?->name ?? 'Deleted' }}</td>
-                            <td style="text-align:center;padding:12px 8px;font-size:13px;color:#132B52;font-weight:600;">{{ $adjustment->quantity }}</td>
-                            <td style="text-align:center;padding:12px 8px;font-size:13px;color:#132B52;">{{ ucfirst($adjustment->type) }}</td>
-                            <td style="text-align:center;padding:12px 8px;font-size:13px;color:#132B52;">{{ ucfirst($adjustment->reason) }}</td>
-                            <td style="text-align:center;padding:12px 8px;">
+                        <tr>
+                            <td class="col-r cell-muted">{{ $adjustment->id }}</td>
+                            <td class="cell-strong">{{ $adjustment->item?->name ?? 'Deleted' }}</td>
+                            <td class="cell-muted">{{ $adjustment->item?->sku ?? '—' }}</td>
+                            <td>{{ $adjustment->warehouse?->name ?? 'Deleted' }}</td>
+                            <td class="col-r cell-strong">{{ $adjustment->quantity }}</td>
+                            <td>{{ ucfirst($adjustment->type) }}</td>
+                            <td>{{ ucfirst($adjustment->reason) }}</td>
+                            <td>
                                 <span class="status-badge status-{{ $adjustment->status }}">{{ ucfirst($adjustment->status) }}</span>
                             </td>
-                            <td style="text-align:center;padding:12px 8px;font-size:13px;color:#5B7A9D;">{{ $adjustment->approver?->name ?? 'â€”' }}</td>
-                            <td style="text-align:center;padding:12px 8px;font-size:13px;color:#5B7A9D;">{{ $adjustment->created_at?->format('M d, Y') ?? 'â€”' }}</td>
-                            <td style="text-align:center;padding:12px 8px;">
+                            <td class="cell-muted">{{ $adjustment->approver?->name ?? '—' }}</td>
+                            <td class="col-r cell-muted">{{ $adjustment->created_at?->format('M d, Y') ?? '—' }}</td>
+                            <td>
                                 @error("adj_action_{$adjustment->id}")
                                     <p style="color:#ef4444;font-size:11px;margin:0 0 6px 0;">{{ $message }}</p>
                                 @enderror
                                 @if($adjustment->status === 'pending')
-                                    @if($adjustment->requested_by !== Auth::id())
-                                        <form method="POST" action="{{ route('inventory.stock-adjustments.approve', $adjustment) }}" style="display:inline;" onsubmit="return confirm('Approve this adjustment?')">
-                                            @csrf
-                                            @method('PATCH')
-                                            <button type="submit" style="background:#166534;color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:11px;font-weight:600;cursor:pointer;">Approve</button>
-                                        </form>
-                                        <form method="POST" action="{{ route('inventory.stock-adjustments.reject', $adjustment) }}" style="display:inline;" onsubmit="return confirm('Reject this adjustment?')">
-                                            @csrf
-                                            @method('PATCH')
-                                            <button type="submit" style="background:#991b1b;color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:11px;font-weight:600;cursor:pointer;">Reject</button>
-                                        </form>
-                                    @else
-                                        <span style="color:#94a3b8;font-size:12px;">Awaiting review</span>
-                                        <form method="POST" action="{{ route('inventory.stock-adjustments.cancel', $adjustment) }}" style="display:inline;" onsubmit="return confirm('Cancel this adjustment request?')">
-                                            @csrf
-                                            @method('PATCH')
-                                            <button type="submit" style="background:#475569;color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:11px;font-weight:600;cursor:pointer;">Cancel</button>
-                                        </form>
-                                    @endif
+                                    <form method="POST" action="{{ route('inventory.stock-adjustments.approve', $adjustment) }}" style="display:inline;" onsubmit="return confirm('Approve this adjustment?')">
+                                        @csrf
+                                        @method('PATCH')
+                                        <button type="submit" class="inv-btn inv-btn-success inv-btn-xs">Approve</button>
+                                    </form>
+                                    <form method="POST" action="{{ route('inventory.stock-adjustments.reject', $adjustment) }}" style="display:inline;" onsubmit="return confirm('Reject this adjustment?')">
+                                        @csrf
+                                        @method('PATCH')
+                                        <button type="submit" class="inv-btn inv-btn-danger inv-btn-xs">Reject</button>
+                                    </form>
+                                    <form method="POST" action="{{ route('inventory.stock-adjustments.cancel', $adjustment) }}" style="display:inline;" onsubmit="return confirm('Cancel this adjustment request?')">
+                                        @csrf
+                                        @method('PATCH')
+                                        <button type="submit" class="inv-btn inv-btn-neutral inv-btn-xs">Cancel</button>
+                                    </form>
                                 @else
-                                    <span style="color:#94a3b8;font-size:12px;">â€”</span>
+                                    <span style="color:#94a3b8;font-size:12px;">—</span>
                                 @endif
                             </td>
                         </tr>
                     @empty
-                        <tr>
-                            <td colspan="11" style="text-align:center;padding:20px;color:#64748b;font-size:13px;">No stock adjustments found.</td>
+                        <tr class="empty-row">
+                            <td colspan="11">No stock adjustments found.</td>
                         </tr>
                     @endforelse
                 </tbody>
             </table>
         </div>
-        {{ $adjustments->links() }}
+        <div class="panel-foot">
+            {{ $adjustments->links() }}
+        </div>
     </div>
-    <div id="adjustmentModal" class="nexora-modal-overlay" style="display:flex;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:20;align-items:center;justify-content:center;">
+</div>
+    <div id="adjustmentModal" class="nexora-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="newAdjustmentTitle">
         <div class="nexora-modal">
             <div class="nexora-modal-logo"></div>
             <div class="nexora-modal-header">
-                <h2 class="nexora-modal-title">New Stock Adjustment</h2>
-                <button type="button" onclick="closeAdjustmentModal()" class="nexora-modal-close">&times;</button>
+                <div class="nexora-modal-heading">
+                    <span class="nexora-modal-icon nexora-modal-icon-blue">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>
+                    </span>
+                    <h2 id="newAdjustmentTitle" class="nexora-modal-title">New Stock Adjustment</h2>
+                </div>
+                <button type="button" onclick="closeAdjustmentModal()" class="nexora-modal-close" aria-label="Close">&times;</button>
             </div>
 
             <form method="POST" action="{{ route('inventory.stock-adjustments.store') }}" novalidate>
@@ -337,4 +340,3 @@
     filterItems();
 </script>
 @endpush
-

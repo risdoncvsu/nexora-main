@@ -5,6 +5,7 @@ namespace Modules\Inventory\Http\Controllers;
 use App\Http\Controllers\Controller;
 
 use Modules\Inventory\Models\StockMovement;
+use Modules\Inventory\Models\StockTransfer;
 use Modules\Inventory\Models\Warehouse;
 use Illuminate\Http\Request;
 
@@ -45,15 +46,20 @@ class StockMovementController extends Controller
             });
         }
 
-        $movements = $query->paginate(10)->appends($request->query());
+        $allRaw = $query->get();
 
         // Merge transfer movements (which are stored as two rows: from & to) into a single display row.
         // Group by item_id + reference since that's how transfer rows are created.
         $mergedMovements = collect();
-        $transferGroups = $movements->getCollection()->groupBy(fn ($m) => $m->type === 'transfer'
+        $transferGroups = $allRaw->groupBy(fn ($m) => $m->type === 'transfer'
             ? ($m->item_id . '|' . ($m->reference ?? ''))
             : ('__single__|' . $m->id)
         );
+
+        // Both legs of a transfer are stored with the same reference and a positive
+        // quantity, so direction cannot be recovered from the rows themselves.
+        // Resolve it from the originating transfer record instead of guessing.
+        $transferDirections = $this->transferDirections($allRaw);
 
         foreach ($transferGroups as $groupKey => $group) {
             // Skip empty keys
@@ -70,14 +76,22 @@ class StockMovementController extends Controller
             // Take the newest row as the base (for date / performer / item fields)
             $base = $group->sortByDesc('created_at')->first();
 
-            $transferFrom = $group->firstWhere('warehouse_id', $group->min('warehouse_id')) ?? $group->first();
-            $transferTo = $group->firstWhere('warehouse_id', $group->max('warehouse_id')) ?? $group->last();
+            $direction = $transferDirections[$base->reference] ?? null;
+            $byWarehouse = $group->keyBy('warehouse_id');
+
+            if ($direction) {
+                $transferFrom = $byWarehouse[$direction->from_warehouse_id] ?? null;
+                $transferTo = $byWarehouse[$direction->to_warehouse_id] ?? null;
+            } else {
+                $transferFrom = $group->first();
+                $transferTo = $group->last();
+            }
 
             $fromName = $transferFrom?->warehouse?->name ?? 'Deleted';
             $toName = $transferTo?->warehouse?->name ?? 'Deleted';
 
             // Attach display-only fields consumed by the blade.
-            $base->transfer_warehouses_display = $fromName . ' â‡„ ' . $toName;
+            $base->transfer_warehouses_display = $fromName . ' → ' . $toName;
             $base->transfer_quantity_display = $base->quantity;
 
             $mergedMovements->push($base);
@@ -86,13 +100,26 @@ class StockMovementController extends Controller
         // Sort merged results newest-first
         $mergedMovements = $mergedMovements->sortByDesc('created_at')->values();
 
-        // Replace pagination collection so links stay correct.
-        $movements->setCollection($mergedMovements);
+        // Paginate the merged collection so per-page count is accurate.
+        $page = request()->get('page', 1);
+        $perPage = 10;
+        $totalAfterMerge = $mergedMovements->count();
+        $displayItems = $mergedMovements->forPage($page, $perPage)->values();
+
+        $movements = new \Illuminate\Pagination\LengthAwarePaginator(
+            $displayItems,
+            $totalAfterMerge,
+            $perPage,
+            $page,
+            ['path' => request()->url(), 'query' => request()->query()]
+        );
 
         $totals = [
             'inbound' => StockMovement::where('type', 'inbound')->sum('quantity'),
             'outbound' => StockMovement::where('type', 'outbound')->sum('quantity'),
-            'transfer' => StockMovement::where('type', 'transfer')->sum('quantity') / 2,
+            // Read from the transfers themselves rather than halving the movement
+            // rows, which silently went fractional if a leg was ever missing.
+            'transfer' => (int) StockTransfer::where('status', 'approved')->sum('quantity'),
             'adjustment' => StockMovement::where('type', 'adjustment')->sum('quantity'),
         ];
         $totals['net'] = $totals['inbound'] + $totals['outbound'] + $totals['adjustment'];
@@ -103,6 +130,32 @@ class StockMovementController extends Controller
             'totals' => $totals,
             'activePage' => 'stock-movement',
         ]);
+    }
+
+    /**
+     * Map transfer movement references (TRF-000123) back to the source and
+     * destination warehouses recorded on the transfer, keyed by reference.
+     */
+    private function transferDirections($movements): array
+    {
+        $ids = $movements
+            ->where('type', 'transfer')
+            ->pluck('reference')
+            ->filter()
+            ->unique()
+            ->map(fn ($reference) => (int) (explode('-', $reference)[2] ?? 0))
+            ->filter()
+            ->values()
+            ->all();
+
+        if (empty($ids)) {
+            return [];
+        }
+
+        return StockTransfer::whereIn('id', $ids)
+            ->get(['id', 'from_warehouse_id', 'to_warehouse_id', 'created_at'])
+            ->keyBy(fn ($transfer) => $transfer->reference)
+            ->all();
     }
 }
 

@@ -1,3 +1,10 @@
+{{-- Real next PO / shipment sequence numbers (see ProcurementServiceProvider),
+     so the add-PO / log-delivery modals auto-fill numbers that won't collide. --}}
+<script>
+  window.nextPoSeq = {{ (int) ($nextPoSeq ?? 0) }};
+  window.nextShipmentSeq = {{ (int) ($nextShipmentSeq ?? 0) }};
+</script>
+
 <div class="modal-overlay" id="view-modal" onclick="if(event.target===this) closeViewModal()">
   <div class="modal-box" style="width:620px;max-width:92vw;">
     <div class="modal-head">
@@ -76,7 +83,6 @@
     <div id="track-body"></div>
     <div class="modal-actions">
       <button class="btn btn-view" style="flex:1" onclick="closeTrackModal()">Close</button>
-      <button id="mark-received-btn" class="btn btn-approve" style="flex:1;display:none;" onclick="markReceived()">Mark Received</button>
       <button id="mark-completed-btn" class="btn btn-primary" style="flex:1;display:none;" onclick="markCompleted()">Mark Completed</button>
     </div>
   </div>
@@ -99,6 +105,10 @@
    
     <form id="add-po-form" onsubmit="submitAddPO(event)">
       <input type="hidden" name="reqRef" value="">
+      {{-- Priority is inherited from the linked requisition (set by the JS when
+           converting a requisition to a PO) so a PO always matches its
+           requisition's priority; defaults to Normal for a direct PO. --}}
+      <input type="hidden" name="priority" value="Normal">
       <div class="form-grid">
         <div class="form-field">
           <label>PO Number <span class="req">*</span></label>
@@ -114,27 +124,17 @@
             @endforeach
           </select>
         </div>
-        <div class="form-field">
-          <label>Brand <span class="req">*</span></label>
-          <input type="text" name="brand" required>
+
+        <div class="form-field full">
+          <label>Items <span class="req">*</span></label>
+          <div id="po-items-rows"></div>
+          <button type="button" class="btn btn-small" style="margin-top:4px;" onclick="addPoItemRow(document.getElementById('add-po-modal'))">+ Add Item</button>
+          <span class="hint">Select a supplier first to load its categories and items.</span>
         </div>
+
         <div class="form-field">
-          <label>Item <span class="req">*</span></label>
-          <select name="item" required>
-            <option value="">Select item...</option>
-          </select>
-        </div>
-        <div class="form-field">
-          <label>Quantity <span class="req">*</span></label>
-          <input type="number" name="qty" min="1" step="1" required>
-        </div>
-        <div class="form-field">
-          <label>Unit Price (₱) <span class="req">*</span></label>
-          <input type="number" name="unitPrice" min="0" step="0.01" placeholder="0.00" required>
-        </div>
-        <div class="form-field">
-          <label>Total Amount (₱) <span class="req">*</span></label>
-          <input type="number" name="amount" min="0" step="0.01" placeholder="0.00" required>
+          <label>Total Amount (₱)</label>
+          <input type="number" name="amount" value="0.00" readonly>
         </div>
         <div class="form-field">
           <label>Payment Method</label>
@@ -149,21 +149,11 @@
         </div>
         <div class="form-field">
           <label>Created By</label>
-          <input name="createdBy" value="John Reyes">
+          <input name="createdBy" value="Justine Nocuenca">
         </div>
         <div class="form-field">
           <label>Expected Delivery <span class="req">*</span></label>
           <input type="date" name="expected" required>
-        </div>
-        <div class="form-field full">
-          <label>Destination Warehouse <span class="req">*</span></label>
-          <select name="warehouse_id" required>
-            <option value="">Select the receiving warehouse...</option>
-            @foreach($warehouses ?? collect() as $warehouse)
-              <option value="{{ $warehouse->id }}">{{ $warehouse->name }}{{ $warehouse->address ? ' — '.$warehouse->address : '' }}</option>
-            @endforeach
-          </select>
-          <span class="hint">The selected warehouse becomes the purchase order delivery address.</span>
         </div>
         <div class="form-field full">
           <label>Remarks</label>
@@ -177,6 +167,39 @@
     </form>
   </div>
 </div>
+
+{{-- Template for one PO item row (Category -> Item cascading, Qty, Unit Price,
+     Amount). Cloned by addPoItemRow() in app-forms.js; a <template> keeps the
+     markup out of the initial DOM and avoids re-escaping headaches. --}}
+<template id="po-item-row-template">
+  <div class="po-item-row">
+    <div class="form-field">
+      <label>Category <span class="req">*</span></label>
+      <select class="po-item-category" required>
+        <option value="">Select category...</option>
+      </select>
+    </div>
+    <div class="form-field">
+      <label>Item <span class="req">*</span></label>
+      <select class="po-item-name" required disabled>
+        <option value="">Select item...</option>
+      </select>
+    </div>
+    <div class="form-field">
+      <label>Qty <span class="req">*</span></label>
+      <input type="number" class="po-item-qty" min="1" step="1" value="1" required>
+    </div>
+    <div class="form-field">
+      <label>Unit Price (₱)</label>
+      <input type="number" class="po-item-price" min="0" step="0.01" placeholder="0.00" readonly>
+    </div>
+    <div class="form-field">
+      <label>Amount</label>
+      <input type="text" class="po-item-amount" value="₱0.00" readonly>
+    </div>
+    <button type="button" class="po-item-remove" title="Remove item" onclick="removePoItemRow(this)">×</button>
+  </div>
+</template>
 
 <!-- Add Supplier -->
 <div class="modal-overlay" id="add-supplier-modal" onclick="if(event.target===this) closeAddModal('supplier')">
@@ -215,16 +238,6 @@
           <input name="brand" placeholder="e.g. Dell, HP" required>
         </div>
         <div class="form-field full">
-          <label>Default Receiving Warehouse <span class="req">*</span></label>
-          <select name="warehouse_id" required>
-            <option value="">Select the warehouse for supplier deliveries...</option>
-            @foreach($warehouses ?? collect() as $warehouse)
-              <option value="{{ $warehouse->id }}">{{ $warehouse->name }}{{ $warehouse->address ? ' — '.$warehouse->address : '' }}</option>
-            @endforeach
-          </select>
-          <span class="hint">This is where deliveries from this supplier are normally received.</span>
-        </div>
-        <div class="form-field full">
           <label>Products</label>
           <div id="supplier-products-list" class="product-chip-list">
             <div class="product-list-empty">No products added yet.</div>    
@@ -260,6 +273,10 @@
         <div class="form-field full">
           <label>Product Name <span class="req">*</span></label>
           <input name="productName" placeholder="e.g. NAS Storage 8TB" required onchange="syncSupplierProductSku(this)">
+        </div>
+        <div class="form-field">
+          <label>Category</label>
+          <input name="productCategory" placeholder="e.g. Storage">
         </div>
         <div class="form-field">
           <label>SKU code type</label>
@@ -316,24 +333,32 @@
           <label>Delivery Date <span class="req">*</span></label>
           <input type="date" name="delDate" required>
         </div>
-      <div class="form-field">
-          <label>Item<span class="req">*</span></label>
-          <input name="items" placeholder="e.g. USB-C Cables" required>
+        <div class="form-field">
+          <label>Carrier</label>
+          <input type="text" name="carrier" placeholder="e.g. LBC, J&T, in-house fleet">
         </div>
 
-         <div class="form-field">
-          <label>Quantity<span class="req">*</span></label>
-          <input type="number" name="qty" min="0" step="1" required>
-        </div>
-       
        <div class="form-field">
-          <label>Unit Price </label>
-          <input type="text " name="unit_price" placeholder="₱0.00">
+          <label>Total Amount</label>
+          <input type="text" name="amount" placeholder="₱0.00" readonly>
         </div>
-       <div class="form-field">
-          <label>Total Amount </label>
-          <input type="text " name="amount" placeholder="₱0.00">
         </div>
+      <div class="form-field full">
+          <label>Items Purchased</label>
+          <div id="delivery-items-chips" class="product-chip-list">
+            <div class="product-list-empty">Select a PO to load its items.</div>
+          </div>
+          <input type="hidden" name="items" id="delivery-items-value">
+        </div>
+ <div class="form-field full">
+          <label>Warehouse <span class="req">*</span></label>
+          <select name="warehouse_id" id="delivery-warehouse-select" required>
+            <option value="">Select the receiving warehouse...</option>
+            @foreach($warehouses ?? collect() as $warehouse)
+              <option value="{{ $warehouse->id }}">{{ $warehouse->name }}{{ $warehouse->address ? ' — '.$warehouse->address : '' }}</option>
+            @endforeach
+          </select>
+      
         
        
         <div class="form-field full">

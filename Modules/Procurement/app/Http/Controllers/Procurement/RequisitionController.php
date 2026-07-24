@@ -6,12 +6,13 @@ use App\Http\Controllers\Controller;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Modules\Procurement\Services\RequisitionStatusWriter;
 
 class RequisitionController extends Controller
 {
     private function getRequisitionConnection()
     {
-        foreach (['order_fulfillment', 'manufacturing'] as $connectionName) {
+        foreach (['order_fulfillment', 'inventory'] as $connectionName) {
             try {
                 $connection = DB::connection($connectionName);
                 if ($connection->getSchemaBuilder()->hasTable('requisitions')) {
@@ -29,7 +30,7 @@ class RequisitionController extends Controller
     {
         $connections = [];
 
-        foreach (['order_fulfillment', 'manufacturing'] as $connectionName) {
+        foreach (['order_fulfillment', 'inventory'] as $connectionName) {
             try {
                 $connection = DB::connection($connectionName);
                 if ($connection->getSchemaBuilder()->hasTable('requisitions')) {
@@ -53,12 +54,11 @@ class RequisitionController extends Controller
     }
 
     /**
-     * Find which external connection (orderfullfillment or manufacturing)
-     * actually holds the requisition with this id. Previously update()/
-     * destroy() always used the first connection that had a "requisitions"
-     * table (orderfullfillment), so status changes and deletes for
-     * requisitions that actually came from "manufacturing" silently
-     * touched zero rows there instead of the real record.
+     * Find which external connection (order_fulfillment or inventory) actually
+     * holds the requisition with this id. Previously update()/destroy() always
+     * used the first connection that had a "requisitions" table, so status
+     * changes and deletes for requisitions that came from the other source
+     * silently touched zero rows instead of the real record.
      */
     private function findRequisitionConnectionFor($id)
     {
@@ -139,11 +139,6 @@ class RequisitionController extends Controller
 
     private function getRequisitionSelectFields($connection): array
     {
-        // Order Fulfillment and Manufacturing intentionally use different
-        // requisition schemas.  Keep the mapping tied to the actual Laravel
-        // connection name: a previous spelling of `order_fulfillment` here
-        // made the fulfillment rows select Manufacturing-only columns
-        // (`req_id`, `part_name`, and `quantity`) and broke the inbox page.
         if ($connection->getName() === 'order_fulfillment') {
             return [
                 'id',
@@ -161,6 +156,9 @@ class RequisitionController extends Controller
             ];
         }
 
+        // Inventory requisitions: id, client_id, req_id, part_name, quantity,
+        // department, requested_by, notes, date_requested, status, priority.
+        // (No `destination` column — that was Manufacturing's.)
         return [
             'id',
             'req_id as requisition_number',
@@ -172,7 +170,6 @@ class RequisitionController extends Controller
             'status',
             'date_requested as request_date',
             'notes',
-            'destination',
             'created_at',
             'updated_at',
         ];
@@ -184,29 +181,23 @@ class RequisitionController extends Controller
     public function index(Request $request)
     {
         $requisitions = collect();
-        $clientId = (int) session('employee_client_id');
-        $rootTesting = config('nexora.root_admin_module_testing')
-            && $request->user()?->role === 'root_admin';
 
         foreach ($this->getRequisitionConnections() as $connection) {
             $this->ensureRequisitionTable($connection);
-            $query = $connection
+            $connectionRequisitions = $connection
                 ->table('requisitions')
-                ->select($this->getRequisitionSelectFields($connection));
-
-            // Both current source schemas are client-scoped.  Retain the
-            // legacy-column guard so a not-yet-upgraded Manufacturing schema
-            // does not turn this page into a server error.
-            if (! $rootTesting && $this->requisitionHasColumn($connection, 'client_id')) {
-                $query->where('client_id', $clientId);
-            }
-
-            $connectionRequisitions = $query
+                ->select($this->getRequisitionSelectFields($connection))
                 ->orderBy('created_at', 'desc')
                 ->get();
 
+            // Sources with a real status column (Inventory) are the source of
+            // truth — Procurement writes back to them, so their status must not
+            // be overwritten by the PO-derived fallback below.
+            $hasStatusColumn = $this->requisitionHasColumn($connection, 'status');
+
             foreach ($connectionRequisitions as $req) {
                 $req->source_connection = $connection->getName();
+                $req->status_authoritative = $hasStatusColumn;
                 $requisitions->push($req);
             }
         }
@@ -215,18 +206,19 @@ class RequisitionController extends Controller
         $requisitionRefs = $requisitions->pluck('requisition_number')->filter()->all();
 
         $purchaseOrders = collect();
-        if ($requisitionRefs !== []) {
-            $purchaseOrderQuery = DB::connection('procurement')
-                ->table('purchase_orders')
-                ->whereIn('requisition_reference', $requisitionRefs);
-
-            if (! $rootTesting) {
-                $purchaseOrderQuery->where('client_id', $clientId);
+        foreach ($this->getRequisitionConnections() as $connection) {
+            try {
+                if ($connection->getSchemaBuilder()->hasTable('purchase_orders')) {
+                    $purchaseOrders = $connection
+                        ->table('purchase_orders')
+                        ->whereIn('requisition_reference', $requisitionRefs)
+                        ->get()
+                        ->keyBy('requisition_reference');
+                    break;
+                }
+            } catch (\Exception $e) {
+                // ignore broken or unavailable external DB connections
             }
-
-            $purchaseOrders = $purchaseOrderQuery
-                ->get()
-                ->keyBy('requisition_reference');
         }
 
         $requisitions = $requisitions->map(function ($req) use ($purchaseOrders) {
@@ -236,13 +228,30 @@ class RequisitionController extends Controller
             if ($po) {
                 $poStatus = strtolower(trim($po->status ?? 'pending'));
                 $currentStatus = strtolower(trim($req->status ?? 'pending'));
-                if (in_array($currentStatus, ['pending', 'processing', ''], true)) {
-                    if (in_array($poStatus, ['pending', 'approved', 'processing'], true)) {
-                        $req->status = 'Processing';
-                    } elseif ($poStatus === 'completed') {
-                        $req->status = 'Completed';
-                    }
+
+                // A requisition's fulfillment status follows its purchase order:
+                //   PO pending/approved -> Processing  (a PO exists for it)
+                //   PO processing       -> In Transit  (logged in Deliveries)
+                //   PO delivered        -> Delivered   (shipment delivered)
+                //   PO completed        -> Completed
+                $derived = [
+                    'pending' => 'Processing',
+                    'approved' => 'Processing',
+                    'processing' => 'In Transit',
+                    'delivered' => 'Delivered',
+                    'completed' => 'Completed',
+                ];
+
+                // Only a source without its own status column (Order
+                // Fulfillment) falls back to this. Inventory stores the real
+                // status that Procurement writes back, so it is left alone.
+                $advanceable = ['pending', 'approved', 'processing', 'in transit', 'intransit', 'delivered', ''];
+                if (empty($req->status_authoritative)
+                    && isset($derived[$poStatus])
+                    && in_array($currentStatus, $advanceable, true)) {
+                    $req->status = $derived[$poStatus];
                 }
+
                 $req->po_number = $po->po_number;
                 $req->po_status = $po->status;
             }
@@ -251,7 +260,7 @@ class RequisitionController extends Controller
         });
 
         $statusCounts = $requisitions->map(function ($req) {
-            return strtolower(str_replace(' ', '-', $req->status ?? 'Pending'));
+            return strtolower(str_replace(' ', '', $req->status ?? 'Pending'));
         })->countBy();
 
         return view('procurement::pages.requisitions', compact('requisitions', 'statusCounts'));
@@ -269,23 +278,56 @@ class RequisitionController extends Controller
     {
         $validated = $request->validate([
             'status' => 'nullable|string|max:20',
+            'ref' => 'nullable|string|max:100',
             'notes' => 'nullable|string',
         ]);
 
-        $connection = $this->findRequisitionConnectionFor($requisition);
-        $update = ['updated_at' => now()];
+        $newStatus = null;
 
-        if ($this->requisitionHasColumn($connection, 'status') && ! empty($validated['status'])) {
-            $update['status'] = $validated['status'];
+        // Status changes go through the writer so the Pending -> Approved /
+        // Rejected -> Processing -> Completed rules are enforced here on the
+        // server, not just by hiding buttons in the UI.
+        if (! empty($validated['status'])) {
+            $target = RequisitionStatusWriter::normalise($validated['status']);
+
+            if (! RequisitionStatusWriter::isKnownStatus($target)) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => sprintf('Unknown requisition status "%s".', $validated['status']),
+                ], 422);
+            }
+
+            $writer = new RequisitionStatusWriter;
+
+            // Prefer the unique requisition reference — the numeric id can
+            // collide across the Inventory / Order Fulfillment databases, which
+            // would target the wrong record. Fall back to id if no ref is sent.
+            $result = ! empty($validated['ref'])
+                ? $writer->transitionByReference($validated['ref'], $target)
+                : $writer->transitionById($requisition, $target);
+
+            if (! $result['ok']) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => $result['message'] ?? 'Unable to update this requisition.',
+                ], $result['code'] ?? 422);
+            }
+
+            $newStatus = $result['status'];
         }
 
-        if ($this->requisitionHasColumn($connection, 'notes')) {
-            $update['notes'] = $validated['notes'] ?? DB::raw('notes');
+        // Notes are free-form and unaffected by the status lifecycle.
+        if (array_key_exists('notes', $validated)) {
+            $connection = $this->findRequisitionConnectionFor($requisition);
+            if ($this->requisitionHasColumn($connection, 'notes')) {
+                $connection->table('requisitions')->where('id', $requisition)->update([
+                    'notes' => $validated['notes'],
+                    'updated_at' => now(),
+                ]);
+            }
         }
 
-        $connection->table('requisitions')->where('id', $requisition)->update($update);
-
-        return response()->json(['status' => 'ok']);
+        return response()->json(['status' => 'ok', 'requisition_status' => $newStatus]);
     }
 
     public function destroy($requisition)

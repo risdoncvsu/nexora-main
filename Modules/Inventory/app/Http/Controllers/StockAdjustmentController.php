@@ -9,14 +9,15 @@ use Modules\Inventory\Models\StockAdjustment;
 use Modules\Inventory\Models\StockLevel;
 use Modules\Inventory\Models\StockMovement;
 use Modules\Inventory\Models\Warehouse;
+use Modules\Inventory\Http\Controllers\Concerns\HasInventoryPermissions;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use App\Services\ErpIntegrationService;
 
 class StockAdjustmentController extends Controller
 {
+    use HasInventoryPermissions;
     public function index(Request $request)
     {
         $query = StockAdjustment::with(['item', 'warehouse', 'requester', 'approver']);
@@ -81,8 +82,8 @@ class StockAdjustmentController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'item_id' => 'required|exists:items,id',
-            'warehouse_id' => ['required', Rule::exists('warehouses', 'id')->whereNull('deleted_at')->where('status', 'active')],
+            'item_id' => 'required|exists:inventory.items,id',
+            'warehouse_id' => ['required', Rule::exists('inventory.warehouses', 'id')->whereNull('deleted_at')->where('status', 'active')],
             'type' => 'required|in:increase,decrease',
             'quantity' => 'required|integer|min:1',
             'reason' => 'required|in:damage,expired,recount,theft,correction',
@@ -110,7 +111,7 @@ class StockAdjustmentController extends Controller
         }
 
         $validated['status'] = 'pending';
-        $validated['requested_by'] = session('employee_id');
+        $validated['requested_by'] = auth()->id();
         StockAdjustment::create($validated);
 
         return back()->with('success', 'Adjustment request submitted for approval.');
@@ -122,18 +123,22 @@ class StockAdjustmentController extends Controller
             return back()->withErrors(["adj_action_{$adjustment->id}" => 'This adjustment has already been processed.']);
         }
 
-        if ($adjustment->requested_by === session('employee_id')) {
-            return back()->withErrors(["adj_action_{$adjustment->id}" => 'You cannot approve your own adjustment request.']);
+        if (! $this->isInventoryManager()) {
+            return back()->withErrors(["adj_action_{$adjustment->id}" => 'Only Inventory Managers can approve adjustments.']);
         }
 
         $result = $this->executeApproval($adjustment);
 
         if ($result === true) {
-            app(ErpIntegrationService::class)->inventoryAvailabilityChanged(
-                (int) session('employee_client_id'),
-                (int) $adjustment->item_id,
-                'inventory.adjustment_approved'
-            );
+            try {
+                app(ErpIntegrationService::class)->inventoryAvailabilityChanged(
+                    (int) session('employee_client_id'),
+                    (int) $adjustment->item_id,
+                    'inventory.adjustment_approved'
+                );
+            } catch (\Throwable $e) {
+                // Ecommerce/BI credentials may be unconfigured — non-blocking
+            }
             return back()->with('success', 'Adjustment approved and stock updated.');
         }
 
@@ -142,114 +147,114 @@ class StockAdjustmentController extends Controller
 
     private function executeApproval(StockAdjustment $adjustment): true|string
     {
-        return DB::connection('inventory')->transaction(function () use ($adjustment) {
-            $adjustment = StockAdjustment::lockForUpdate()->find($adjustment->id);
+        $adjustment = StockAdjustment::lockForUpdate()->find($adjustment->id);
 
-            if ($adjustment->status !== 'pending') {
-                return 'This adjustment has already been processed.';
+        if (! $adjustment) {
+            return 'This adjustment no longer exists.';
+        }
+
+        if ($adjustment->status !== 'pending') {
+            return 'This adjustment has already been processed.';
+        }
+
+        $warehouse = Warehouse::where('id', $adjustment->warehouse_id)
+            ->whereNull('deleted_at')->where('status', 'active')->lockForUpdate()->first();
+
+        if (!$warehouse) {
+            return 'Warehouse is no longer active.';
+        }
+
+        $stockLevel = StockLevel::where('item_id', $adjustment->item_id)
+            ->where('warehouse_id', $adjustment->warehouse_id)
+            ->lockForUpdate()
+            ->first();
+
+        if (!$stockLevel) {
+            return 'No stock level record exists for this item and warehouse combination.';
+        }
+
+        if ($adjustment->type === 'decrease') {
+            $available = $stockLevel->stock - $stockLevel->reserved_quantity;
+
+            if ($available < $adjustment->quantity) {
+                return "Insufficient available stock. Only {$available} units available (stock: {$stockLevel->stock}, reserved: {$stockLevel->reserved_quantity}).";
             }
+        }
 
-            $warehouse = Warehouse::where('id', $adjustment->warehouse_id)
-                ->whereNull('deleted_at')->where('status', 'active')->lockForUpdate()->first();
+        if ($adjustment->type === 'increase') {
+            $stockLevel->increment('stock', $adjustment->quantity);
+        } else {
+            $stockLevel->decrement('stock', $adjustment->quantity);
+        }
 
-            if (!$warehouse) {
-                return 'Warehouse is no longer active.';
-            }
+        Warehouse::where('id', $adjustment->warehouse_id)
+            ->update(['last_activity_at' => now()]);
 
-            $stockLevel = StockLevel::where('item_id', $adjustment->item_id)
-                ->where('warehouse_id', $adjustment->warehouse_id)
-                ->lockForUpdate()
-                ->first();
+        $adjustment->update([
+            'status' => 'approved',
+            'approved_by' => auth()->id(),
+            'approved_at' => now(),
+        ]);
 
-            if (!$stockLevel) {
-                return 'No stock level record exists for this item and warehouse combination.';
-            }
+        StockMovement::create([
+            'type' => 'adjustment',
+            'item_id' => $adjustment->item_id,
+            'warehouse_id' => $adjustment->warehouse_id,
+            'quantity' => $adjustment->type === 'decrease' ? -$adjustment->quantity : $adjustment->quantity,
+            'reference' => 'ADJ-' . now()->format('Y') . '-' . str_pad($adjustment->id, 4, '0', STR_PAD_LEFT),
+            'notes' => "Adjustment #{$adjustment->id} approved: {$adjustment->type} ({$adjustment->reason})",
+            'performed_by' => session('employee_id'),
+            'created_at' => now(),
+        ]);
 
-            if ($adjustment->type === 'decrease') {
-                $available = $stockLevel->stock - $stockLevel->reserved_quantity;
-
-                if ($available < $adjustment->quantity) {
-                    return "Insufficient available stock. Only {$available} units available (stock: {$stockLevel->stock}, reserved: {$stockLevel->reserved_quantity}).";
-                }
-            }
-
-            if ($adjustment->type === 'increase') {
-                $stockLevel->increment('stock', $adjustment->quantity);
-            } else {
-                $stockLevel->decrement('stock', $adjustment->quantity);
-            }
-
-            Warehouse::where('id', $adjustment->warehouse_id)
-                ->update(['last_activity_at' => now()]);
-
-            $adjustment->update([
-                'status' => 'approved',
-                'approved_by' => session('employee_id'),
-                'approved_at' => now(),
-            ]);
-
-            StockMovement::create([
-                'type' => 'adjustment',
-                'item_id' => $adjustment->item_id,
-                'warehouse_id' => $adjustment->warehouse_id,
-                'quantity' => $adjustment->type === 'decrease' ? -$adjustment->quantity : $adjustment->quantity,
-                'reference' => 'ADJ-' . str_pad($adjustment->id, 6, '0', STR_PAD_LEFT),
-                'notes' => "Adjustment #{$adjustment->id} approved: {$adjustment->type} ({$adjustment->reason})",
-                'performed_by' => session('employee_id'),
-                'created_at' => now(),
-            ]);
-
-            return true;
-        });
+        return true;
     }
 
     public function reject(StockAdjustment $adjustment)
     {
-        $result = DB::connection('inventory')->transaction(function () use ($adjustment) {
-            $adjustment = StockAdjustment::lockForUpdate()->find($adjustment->id);
-
-            if ($adjustment->status !== 'pending') {
-                return 'This adjustment has already been processed.';
-            }
-
-            if ($adjustment->requested_by === session('employee_id')) {
-                return 'You cannot reject your own adjustment request.';
-            }
-
-            $adjustment->update(['status' => 'rejected']);
-
-            return true;
-        });
-
-        if ($result === true) {
-            return back()->with('success', 'Adjustment rejected.');
+        if ($adjustment->status !== 'pending') {
+            return back()->withErrors(["adj_action_{$adjustment->id}" => 'This adjustment has already been processed.']);
         }
 
-        return back()->withErrors(["adj_action_{$adjustment->id}" => $result]);
+        if (! $this->isInventoryManager()) {
+            return back()->withErrors(["adj_action_{$adjustment->id}" => 'Only Inventory Managers can reject adjustments.']);
+        }
+
+        $adjustmentId = $adjustment->id;
+        $adjustment = StockAdjustment::lockForUpdate()->find($adjustmentId);
+
+        if (! $adjustment) {
+            return back()->withErrors(["adj_action_{$adjustmentId}" => 'This adjustment no longer exists.']);
+        }
+
+        if ($adjustment->status !== 'pending') {
+            return back()->withErrors(["adj_action_{$adjustment->id}" => 'This adjustment has already been processed.']);
+        }
+
+        $adjustment->update(['status' => 'rejected']);
+
+        return back()->with('success', 'Adjustment rejected.');
     }
 
     public function cancel(StockAdjustment $adjustment)
     {
-        $result = DB::connection('inventory')->transaction(function () use ($adjustment) {
-            $adjustment = StockAdjustment::lockForUpdate()->find($adjustment->id);
+        $adjustmentId = $adjustment->id;
+        $adjustment = StockAdjustment::lockForUpdate()->find($adjustmentId);
 
-            if ($adjustment->status !== 'pending') {
-                return 'Only pending adjustments can be cancelled.';
-            }
-
-            if ($adjustment->requested_by !== session('employee_id')) {
-                return 'You can only cancel your own adjustment requests.';
-            }
-
-            $adjustment->update(['status' => 'cancelled']);
-
-            return true;
-        });
-
-        if ($result === true) {
-            return back()->with('success', 'Adjustment request cancelled.');
+        if (! $adjustment) {
+            return back()->withErrors(["adj_action_{$adjustmentId}" => 'This adjustment no longer exists.']);
         }
 
-        return back()->withErrors(["adj_action_{$adjustment->id}" => $result]);
+        if ($adjustment->status !== 'pending') {
+            return back()->withErrors(["adj_action_{$adjustment->id}" => 'Only pending adjustments can be cancelled.']);
+        }
+
+        if (! $this->canCancelRequest((int) $adjustment->requested_by)) {
+            return back()->withErrors(["adj_action_{$adjustment->id}" => 'You can only cancel your own adjustment requests.']);
+        }
+
+        $adjustment->update(['status' => 'cancelled']);
+
+        return back()->with('success', 'Adjustment request cancelled.');
     }
 }

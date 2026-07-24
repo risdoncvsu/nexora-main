@@ -33,76 +33,94 @@ class Procurement extends Model
 
     public function getSupplierProduct(): ?object
     {
-        $connection = DB::connection('procurement');
-        $schema = $connection->getSchemaBuilder();
+        $items = $this->getPurchaseOrderItems();
 
-        if (! $this->purchase_order_id || ! $schema->hasTable('purchase_order_items')) {
-            return $this->fallbackProduct();
-        }
-
-        $poItem = $connection->table('purchase_order_items')
-            ->where('purchase_order_id', $this->purchase_order_id)
-            ->first();
-
-        if (!$poItem) {
-            return $this->fallbackProduct();
-        }
-
-        $sku = null;
-
-        if ($schema->hasTable('supplier_products')
-            && property_exists($poItem, 'supplier_product_id')
-            && ! empty($poItem->supplier_product_id)) {
-            $supplierProduct = $connection
-                ->table('supplier_products')
-                ->where('id', $poItem->supplier_product_id)
-                ->first();
-
-            if ($supplierProduct) {
-                $sku = $supplierProduct->sku;
-            }
-        }
-
-        if (!$sku && $schema->hasTable('supplier_products')) {
-            $productName = trim(preg_replace('/\s*@\s*.*$/', '', (string) ($poItem->name ?? $this->items ?? '')));
-            $supplierProduct = $connection
-                ->table('supplier_products')
-                ->where('name', $productName)
-                ->orWhere('name', 'ILIKE', $productName)
-                ->first();
-
-            if ($supplierProduct) {
-                $sku = $supplierProduct->sku;
-            }
-        }
-
-        if (!$sku) {
-            $sku = 'AUTO-' . strtoupper(Str::random(8));
-        }
-
-        $cleanName = trim(preg_replace('/\s*@\s*.*$/', '', (string) ($poItem->name ?? $this->items ?? '')));
-
-        return (object) [
-            'item_name' => $cleanName,
-            'qty' => (int) ($poItem->qty ?? $this->qty ?? 0),
-            'unit_price' => (float) ($poItem->unit_price ?? 0),
-            'sku' => $sku,
-        ];
+        return $items[0] ?? null;
     }
 
-    private function fallbackProduct(): ?object
+    public function getPurchaseOrderItems(): array
     {
-        $itemName = trim((string) ($this->items ?? ''));
+        $poItems = DB::connection('procurement')
+            ->table('purchase_order_items')
+            ->where('purchase_order_id', $this->purchase_order_id)
+            ->get();
 
-        if ($itemName === '') {
-            return null;
+        if ($poItems->isEmpty()) {
+            return [];
         }
 
-        return (object) [
-            'item_name' => $itemName,
-            'qty' => (int) ($this->qty ?? 0),
-            'unit_price' => 0,
-            'sku' => 'AUTO-' . strtoupper(Str::random(8)),
-        ];
+        return self::resolvePoItems($poItems);
+    }
+
+    public static function itemsForPurchaseOrders(array $purchaseOrderIds): array
+    {
+        if (empty($purchaseOrderIds)) {
+            return [];
+        }
+
+        $poItems = DB::connection('procurement')
+            ->table('purchase_order_items')
+            ->whereIn('purchase_order_id', $purchaseOrderIds)
+            ->orderBy('id')
+            ->get();
+
+        if ($poItems->isEmpty()) {
+            return [];
+        }
+
+        $result = [];
+        foreach ($poItems->groupBy('purchase_order_id') as $poId => $items) {
+            $result[$poId] = self::resolvePoItems($items);
+        }
+
+        return $result;
+    }
+
+    private static function resolvePoItems($poItems): array
+    {
+        return $poItems->map(function ($poItem) {
+            $supplierProduct = null;
+            $sku = null;
+
+            if ($poItem->supplier_product_id) {
+                $supplierProduct = DB::connection('procurement')
+                    ->table('supplier_products')
+                    ->where('id', $poItem->supplier_product_id)
+                    ->first();
+
+                if ($supplierProduct) {
+                    $sku = $supplierProduct->sku;
+                }
+            }
+
+            if (!$sku) {
+                $productName = trim(preg_replace('/\s*@\s*.*$/', '', $poItem->name));
+                $supplierProduct = DB::connection('procurement')
+                    ->table('supplier_products')
+                    ->where('name', $productName)
+                    ->orWhere('name', 'ILIKE', $productName)
+                    ->first();
+
+                if ($supplierProduct) {
+                    $sku = $supplierProduct->sku;
+                }
+            }
+
+            if (!$sku) {
+                $sku = 'AUTO-' . strtoupper(Str::random(8));
+            }
+
+            $cleanName = trim(preg_replace('/\s*@\s*.*$/', '', $poItem->name));
+            $categories = $supplierProduct?->categories ?? null;
+
+            return (object) [
+                'item_name' => $cleanName,
+                'qty' => $poItem->qty,
+                'unit_price' => $poItem->unit_price,
+                'sku' => $sku,
+                'categories' => $categories,
+            ];
+        })->all();
     }
 }
+
