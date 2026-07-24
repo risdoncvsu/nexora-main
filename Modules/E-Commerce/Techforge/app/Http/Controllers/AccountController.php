@@ -86,10 +86,18 @@ class AccountController extends Controller
 
         $order->update(['status' => 'delivered']);
 
-        return response()->json([
+        $response = [
             'success' => true,
             'status' => 'DELIVERED',
-        ]);
+        ];
+
+        if ($request->expectsJson()) {
+            return response()->json($response);
+        }
+
+        return redirect()
+            ->route('ecommerce.account.order-history')
+            ->with('success', 'Order confirmed as received. Thank you.');
     }
 
     /**
