@@ -1445,21 +1445,30 @@
     if (!payload.qty || payload.qty <= 0) { alert('Enter a valid quantity'); return; }
     if (!payload.requested_by) { alert('Enter your name'); return; }
 
-    const response = await fetch(`{{ route('order-fulfillment.material-requests.store') }}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-      },
-      body: JSON.stringify(payload)
-    });
+    try {
+      const response = await fetch(`{{ route('order-fulfillment.material-requests.store') }}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+        },
+        body: JSON.stringify(payload)
+      });
 
-    const result = await response.json();
+      const result = await response.json().catch(() => ({}));
       if (result.success) {
-      closeRequestModal();
-      location.reload();
-    } else {
-      alert(result.message || 'Failed to submit request.');
+        closeRequestModal();
+        showPackToast(result.message || 'Material request sent to Procurement.');
+      } else {
+        const validationMessage = result.errors
+          ? Object.values(result.errors).flat().join('\n')
+          : null;
+        alert(validationMessage || result.message || `Failed to submit request (HTTP ${response.status}).`);
+      }
+    } catch (error) {
+      console.error('Material request failed:', error);
+      alert('Could not submit the material request. Please try again.');
       }
     }
 
