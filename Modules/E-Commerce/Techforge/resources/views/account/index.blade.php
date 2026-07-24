@@ -383,6 +383,41 @@
                                 <a href="#" class="text-gray-400 hover:text-white font-medium pb-2 px-1 sm:px-2 whitespace-nowrap text-sm transition-colors border-b-2 border-transparent hover:border-white/30">Cancelled</a>
                                 <a href="#" class="text-gray-400 hover:text-white font-medium pb-2 px-1 sm:px-2 whitespace-nowrap text-sm transition-colors border-b-2 border-transparent hover:border-white/30">Return / Refund</a>
                             </div>
+                            @forelse($orders ?? collect() as $order)
+                                @php
+                                    $firstItem = $order->items->first();
+                                    $itemCount = $order->items->count();
+                                    $status = str_replace('_', ' ', $order->status);
+                                @endphp
+                                <div class="bg-[#1a1a1a] border border-white/5 rounded-2xl p-6 shadow-xl transition-all hover:border-primary/30">
+                                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                        <div class="flex items-center gap-4">
+                                            <div class="w-16 h-16 bg-white/5 rounded-xl flex items-center justify-center border border-white/10 shrink-0">
+                                                <i class="ph-bold ph-package text-3xl text-primary"></i>
+                                            </div>
+                                            <div>
+                                                <h3 class="text-lg font-bold text-white">{{ $firstItem?->name ?? 'Order items' }}{{ $itemCount > 1 ? ' +' . ($itemCount - 1) . ' more' : '' }}</h3>
+                                                <p class="text-sm text-gray-400">Order #{{ $order->id }} · Placed {{ $order->created_at?->format('M j, Y') }}</p>
+                                                @if($order->tracking_number)
+                                                    <p class="text-xs text-gray-500 mt-1">Tracking: {{ $order->tracking_number }}</p>
+                                                @endif
+                                            </div>
+                                        </div>
+                                        <div class="text-left md:text-right">
+                                            <p class="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-primary to-[#ff8c33]">₱{{ number_format((float) $order->total, 2) }}</p>
+                                            <p class="text-xs font-bold text-primary border border-primary/30 bg-primary/10 px-2 py-0.5 rounded mt-1 inline-block uppercase tracking-wider">{{ $status }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            @empty
+                                <div class="py-12 text-center text-gray-400">
+                                    <i class="ph ph-receipt text-4xl text-gray-600"></i>
+                                    <p class="mt-3">You have not placed any orders yet.</p>
+                                </div>
+                            @endforelse
+
+                            @if(false)
+                            <!-- Legacy demo order card retained only as template markup. -->
                             <!-- Active Order Card -->
                             <div class="bg-[#1a1a1a] border border-white/5 rounded-2xl p-6 shadow-xl transition-all hover:border-primary/30">
                                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
@@ -442,6 +477,7 @@
                                     </div>
                                 </div>
                             </div>
+                            @endif
                         </div>
                     </div>
 

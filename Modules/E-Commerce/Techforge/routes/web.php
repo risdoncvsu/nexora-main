@@ -53,7 +53,8 @@ Route::middleware([\Modules\Ecommerce\Http\Middleware\RequireEcommerceAuth::clas
         $user = \Illuminate\Support\Facades\Auth::guard('ecommerce')->user();
         return view('ecommerce::account.index', [
             'paymentMethods' => $user->paymentMethods()->orderBy('is_default', 'desc')->get(),
-            'addresses' => $user->addresses()->orderBy('is_default', 'desc')->get()
+            'addresses' => $user->addresses()->orderBy('is_default', 'desc')->get(),
+            'orders' => $user->orders()->with('items')->latest()->get(),
         ]);
     })->name('account.profile');
 
@@ -61,7 +62,8 @@ Route::middleware([\Modules\Ecommerce\Http\Middleware\RequireEcommerceAuth::clas
         $user = \Illuminate\Support\Facades\Auth::guard('ecommerce')->user();
         return view('ecommerce::account.index', [
             'paymentMethods' => $user->paymentMethods()->orderBy('is_default', 'desc')->get(),
-            'addresses' => $user->addresses()->orderBy('is_default', 'desc')->get()
+            'addresses' => $user->addresses()->orderBy('is_default', 'desc')->get(),
+            'orders' => $user->orders()->with('items')->latest()->get(),
         ]);
     })->name('account.purchases');
 
