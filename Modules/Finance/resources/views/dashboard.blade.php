@@ -647,7 +647,27 @@ function renderAllCharts(){
   renderInvoiceTrendChart();
 }
 
+const financeDashboard = @json($financeDashboard ?? []);
+
 requestAnimationFrame(() => {
+  const paid = Number(financeDashboard.paid || 0);
+  const unpaid = Number(financeDashboard.unpaid || 0);
+  const overdue = Number(financeDashboard.overdue || 0);
+  const invoiceTotal = Number(financeDashboard.invoice_total || 0);
+  const overduePct = invoiceTotal ? Math.round((overdue / invoiceTotal) * 100) : 0;
+  const paidPct = invoiceTotal ? Math.round((paid / invoiceTotal) * 100) : 0;
+
+  setCashFlowData(
+    paid,
+    financeDashboard.week_labels || [],
+    financeDashboard.invoice_values || [],
+    financeDashboard.paid_values || []
+  );
+  setProfitLossData(paid - unpaid, paid, 100, 0, 0);
+  setInvoicesData(unpaid, overdue, overduePct, paid, paid, paidPct);
+  setRevenueData(paid, 0, 'Paid invoice revenue', financeDashboard.week_labels || [], financeDashboard.paid_values || []);
+  setInvoiceTrendData(financeDashboard.week_labels || [], financeDashboard.invoice_values || [], financeDashboard.paid_values || []);
+  setActivityData(financeDashboard.recent_activity || []);
   renderCashFlow();
   renderExpenses();
   renderProfitLoss();

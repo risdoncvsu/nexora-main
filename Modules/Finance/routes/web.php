@@ -4,11 +4,13 @@ use Illuminate\Support\Facades\Route;
 use Modules\Finance\Http\Controllers\InvoiceController;
 use Modules\Finance\Http\Controllers\ExpensesController;
 use Modules\Finance\Http\Controllers\AccountsController;
+use Modules\Finance\Http\Controllers\DashboardController;
 use Modules\Finance\Http\Controllers\OrderController;
 use Modules\Finance\Http\Controllers\SalesController;
 
-Route::get('maindash', function () {return view('finance::maindash');})->name('finance.maindash');
-Route::get('dashboard', function () {return view('finance::dashboard');})->name('finance.dashboard');
+Route::get('maindash', [DashboardController::class, 'shell'])->name('finance.maindash');
+Route::get('dashboard', [DashboardController::class, 'shell'])->name('finance.dashboard');
+Route::get('overview', [DashboardController::class, 'overview'])->name('finance.overview');
 Route::get('/test-order', function () {return view('finance::test-order');});
 
 Route::get('invoicedash', function () {return view('finance::invoicedash');})->name('finance.invoicedash');

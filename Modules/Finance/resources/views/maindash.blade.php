@@ -393,7 +393,7 @@ function changePage(element, page) {
     <!-- Sidebar -->
     <aside class="sidebar">
         <ul class="menu">
-            <li id="dashboardBtn" class="active" onclick="changePage(this, '{{ route('finance.dashboard') }}')"><x-heroicon-s-squares-2x2 class="dash-icon" /><span>Dashboard</span></li>
+            <li id="dashboardBtn" class="active" onclick="changePage(this, '{{ route('finance.overview') }}')"><x-heroicon-s-squares-2x2 class="dash-icon" /><span>Dashboard</span></li>
             <li  onclick="changePage(this, '{{ route('finance.invoicedash') }}')"><x-heroicon-s-chart-bar class="dash-icon" /><span>Invoice</span></li>
             <li  onclick="changePage(this, '{{ route('finance.expensesdash') }}')"><x-heroicon-s-credit-card class="dash-icon" /><span>Expenses</span></li>
             <li  onclick="changePage(this, '{{ route('finance.salesdash') }}')"><x-heroicon-s-shopping-cart class="dash-icon" /><span>Sales</span></li>
@@ -409,7 +409,7 @@ function changePage(element, page) {
     <iframe
         id="contentFrame"
         name="contentFrame"
-        src="{{ route('finance.dashboard') }}" >
+        src="{{ route('finance.overview') }}" >
     </iframe>
 
 
