@@ -28,7 +28,7 @@ class AccountController extends Controller
         return $this->index($request);
     }
 
-    public function showOrder(Request $request, string $id)
+    public function showOrder(Request $request, string $store, string $id)
     {
         $user = Auth::guard('ecommerce')->user();
         $order = $this->ordersFor($user)->firstWhere('id', $id);
@@ -41,7 +41,7 @@ class AccountController extends Controller
         ]);
     }
 
-    public function confirmReceived(Request $request, string $id)
+    public function confirmReceived(Request $request, string $store, string $id)
     {
         $user = Auth::guard('ecommerce')->user();
         $order = Order::query()
