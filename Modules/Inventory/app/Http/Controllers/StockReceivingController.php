@@ -21,8 +21,15 @@ class StockReceivingController extends Controller
     private function procurementDeliveriesQuery()
     {
         $schema = Schema::connection('procurement');
-        $hasPurchaseOrderWarehouse = $schema->hasColumn('purchase_orders', 'warehouse_id');
-        $hasSupplierWarehouse = $schema->hasColumn('suppliers', 'warehouse_id');
+        $hasPurchaseOrders = $schema->hasTable('purchase_orders');
+        $hasSuppliers = $schema->hasTable('suppliers');
+        $hasDeliveryClientId = $schema->hasColumn('deliveries', 'client_id');
+        $hasPurchaseOrderClientId = $hasPurchaseOrders
+            && $schema->hasColumn('purchase_orders', 'client_id');
+        $hasPurchaseOrderWarehouse = $hasPurchaseOrders
+            && $schema->hasColumn('purchase_orders', 'warehouse_id');
+        $hasSupplierWarehouse = $hasSuppliers
+            && $schema->hasColumn('suppliers', 'warehouse_id');
 
         $destinationWarehouse = match (true) {
             $hasPurchaseOrderWarehouse && $hasSupplierWarehouse => DB::raw('COALESCE(purchase_orders.warehouse_id, suppliers.warehouse_id) as destination_warehouse_id'),
@@ -31,17 +38,34 @@ class StockReceivingController extends Controller
             default => DB::raw('NULL as destination_warehouse_id'),
         };
 
-        $query = Procurement::query()
-            ->leftJoin('suppliers', 'deliveries.supplier_id', '=', 'suppliers.id')
-            ->leftJoin('purchase_orders', 'deliveries.purchase_order_id', '=', 'purchase_orders.id')
-            ->select(
-                'deliveries.*',
-                'suppliers.name as supplier_name',
-                $destinationWarehouse
-            );
+        $query = Procurement::query();
+
+        if ($hasSuppliers) {
+            $query->leftJoin('suppliers', 'deliveries.supplier_id', '=', 'suppliers.id');
+        }
+
+        if ($hasPurchaseOrders) {
+            $query->leftJoin('purchase_orders', 'deliveries.purchase_order_id', '=', 'purchase_orders.id');
+        }
+
+        $query->select(
+            'deliveries.*',
+            $hasSuppliers ? 'suppliers.name as supplier_name' : DB::raw("'Unknown supplier' as supplier_name"),
+            $destinationWarehouse
+        );
 
         if (! (config('nexora.root_admin_module_testing') && auth()->user()?->role === 'root_admin')) {
-            $query->where('purchase_orders.client_id', (int) session('employee_client_id'));
+            $clientId = (int) session('employee_client_id');
+
+            if ($hasPurchaseOrderClientId) {
+                $query->where('purchase_orders.client_id', $clientId);
+            } elseif ($hasDeliveryClientId) {
+                $query->where('deliveries.client_id', $clientId);
+            } else {
+                // A legacy Procurement database without a tenant key must
+                // never leak another company's deliveries into Inventory.
+                $query->whereRaw('1 = 0');
+            }
         }
 
         return $query;
