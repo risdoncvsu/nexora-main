@@ -1274,7 +1274,6 @@
       </div>
     </div>
   </div>
-  
 
   <div class="filter-overlay" id="filterOverlay"></div>
 
