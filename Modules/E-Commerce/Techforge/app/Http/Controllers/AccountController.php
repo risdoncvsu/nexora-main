@@ -5,9 +5,90 @@ namespace Modules\Ecommerce\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Modules\Ecommerce\Models\Order;
+use Modules\Ecommerce\Support\EcommerceClientContext;
 
 class AccountController extends Controller
 {
+    public function index(Request $request)
+    {
+        $user = Auth::guard('ecommerce')->user();
+
+        return view('ecommerce::account.index', [
+            'paymentMethods' => $user->paymentMethods()->orderBy('is_default', 'desc')->get(),
+            'addresses' => $user->addresses()->orderBy('is_default', 'desc')->get(),
+            'orders' => $this->ordersFor($user),
+        ]);
+    }
+
+    public function orderHistory(Request $request)
+    {
+        return $this->index($request);
+    }
+
+    public function showOrder(Request $request, string $id)
+    {
+        $user = Auth::guard('ecommerce')->user();
+        $order = $this->ordersFor($user)->firstWhere('id', $id);
+
+        abort_unless($order, 404);
+
+        return response()->json([
+            'success' => true,
+            'order' => $order,
+        ]);
+    }
+
+    /**
+     * Load an authenticated customer's orders and enrich them with the
+     * fulfillment and shipment status for the same storefront client.
+     */
+    private function ordersFor($user)
+    {
+        $orders = Order::with('items')
+            ->where('user_id', $user->id)
+            ->latest()
+            ->get();
+
+        $orderIds = $orders->pluck('id')->filter()->all();
+        if ($orderIds === [] || ! Schema::connection('order_fulfillment')->hasTable('orders')) {
+            return $orders;
+        }
+
+        $clientId = app(EcommerceClientContext::class)->clientId();
+        $fulfillmentQuery = DB::connection('order_fulfillment')
+            ->table('orders')
+            ->whereIn('id', $orderIds);
+        if ($clientId !== null && Schema::connection('order_fulfillment')->hasColumn('orders', 'client_id')) {
+            $fulfillmentQuery->where('client_id', $clientId);
+        }
+        $fulfillmentOrders = $fulfillmentQuery->get()->keyBy('id');
+
+        $shipments = collect();
+        if (Schema::connection('order_fulfillment')->hasTable('shipments')) {
+            $shipmentQuery = DB::connection('order_fulfillment')
+                ->table('shipments')
+                ->whereIn('order_id', $orderIds);
+            if ($clientId !== null && Schema::connection('order_fulfillment')->hasColumn('shipments', 'client_id')) {
+                $shipmentQuery->where('client_id', $clientId);
+            }
+            $shipments = $shipmentQuery->get()->keyBy('order_id');
+        }
+
+        return $orders->each(function (Order $order) use ($fulfillmentOrders, $shipments): void {
+            $fulfillment = $fulfillmentOrders->get($order->id);
+            $shipment = $shipments->get($order->id);
+
+            $order->setAttribute('fulfillment_status', strtoupper($fulfillment->status ?? $shipment->status ?? $order->status ?? 'NEW'));
+            $order->setAttribute('shipment_details', $shipment);
+            if (! $order->tracking_number && $shipment?->tracking_number) {
+                $order->setAttribute('tracking_number', $shipment->tracking_number);
+            }
+        });
+    }
+
     public function updateProfile(Request $request)
     {
         $user = Auth::guard('ecommerce')->user();

@@ -387,7 +387,7 @@
                                 @php
                                     $firstItem = $order->items->first();
                                     $itemCount = $order->items->count();
-                                    $status = str_replace('_', ' ', $order->status);
+                                    $status = str_replace('_', ' ', $order->fulfillment_status ?? $order->status);
                                 @endphp
                                 <div class="bg-[#1a1a1a] border border-white/5 rounded-2xl p-6 shadow-xl transition-all hover:border-primary/30">
                                     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">

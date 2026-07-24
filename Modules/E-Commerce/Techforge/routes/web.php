@@ -49,23 +49,10 @@ Route::get('/notifications', function () {
 })->name('notifications');
 
 Route::middleware([\Modules\Ecommerce\Http\Middleware\RequireEcommerceAuth::class])->group(function () {
-    Route::get('/account/profile', function () {
-        $user = \Illuminate\Support\Facades\Auth::guard('ecommerce')->user();
-        return view('ecommerce::account.index', [
-            'paymentMethods' => $user->paymentMethods()->orderBy('is_default', 'desc')->get(),
-            'addresses' => $user->addresses()->orderBy('is_default', 'desc')->get(),
-            'orders' => $user->orders()->with('items')->latest()->get(),
-        ]);
-    })->name('account.profile');
-
-    Route::get('/account/purchases', function () {
-        $user = \Illuminate\Support\Facades\Auth::guard('ecommerce')->user();
-        return view('ecommerce::account.index', [
-            'paymentMethods' => $user->paymentMethods()->orderBy('is_default', 'desc')->get(),
-            'addresses' => $user->addresses()->orderBy('is_default', 'desc')->get(),
-            'orders' => $user->orders()->with('items')->latest()->get(),
-        ]);
-    })->name('account.purchases');
+    Route::get('/account/profile', [\Modules\Ecommerce\Http\Controllers\AccountController::class, 'index'])->name('account.profile');
+    Route::get('/account/purchases', [\Modules\Ecommerce\Http\Controllers\AccountController::class, 'index'])->name('account.purchases');
+    Route::get('/account/order-history', [\Modules\Ecommerce\Http\Controllers\AccountController::class, 'orderHistory'])->name('account.order-history');
+    Route::get('/account/orders/{id}', [\Modules\Ecommerce\Http\Controllers\AccountController::class, 'showOrder'])->name('account.orders.show');
 
     Route::post('/account/profile', [\Modules\Ecommerce\Http\Controllers\AccountController::class, 'updateProfile'])->name('account.profile.update');
 
