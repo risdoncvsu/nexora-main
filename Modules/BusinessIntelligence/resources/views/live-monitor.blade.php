@@ -1,11 +1,11 @@
-@extends('layouts.app')
+@extends('bi::layouts.app')
 
 @section('content')
     <div class="tab-content active-tab" style="display:block;">
         <div class="subheader-bar">
             <div class="subheader-title">
                 <h3>Live Monitor</h3>
-                <p>Real‑time alerts and activity across all departments. Updates every 30 seconds.</p>
+                <p>Real‑time alerts and activity across all departments. Updates every 60 seconds.</p>
             </div>
             <div class="subheader-controls">
                 <span id="liveStatus"
@@ -27,6 +27,10 @@
 
 @section('scripts')
     <script>
+        const clientScope = @json(request()->integer('client_id') ?: null);
+        const liveFeedUrl = @json(route('bi.live-feed'));
+        const scopedUrl = (url) => url + (clientScope ? (url.includes('?') ? '&' : '?') + 'client_id=' + clientScope : '');
+
         function timeAgo(timestamp) {
             const seconds = Math.floor((Date.now() - new Date(timestamp).getTime()) / 1000);
             if (seconds < 10) return 'Just now';
@@ -42,7 +46,7 @@
             const status = document.getElementById('liveStatus');
             status.innerHTML = '<span class="live-dot" style="background:var(--warning);"></span> Updating…';
             try {
-                const res = await fetch('/api/live-feed');
+                const res = await fetch(scopedUrl(liveFeedUrl));
                 const data = await res.json();
                 renderFeed(data);
                 status.innerHTML = '<span class="live-dot"></span> Live';
@@ -59,28 +63,28 @@
             }
 
             let html = `
-            <div class="live-summary-bar">
-                <div class="live-summary-item"><span class="live-summary-count">${data.alerts.length}</span><span class="live-summary-label">Active Alerts</span></div>
-                <div class="live-summary-item live-summary-critical"><span class="live-summary-count">${data.summary.critical}</span><span class="live-summary-label">Critical</span></div>
-                <div class="live-summary-item live-summary-warning"><span class="live-summary-count">${data.summary.warning}</span><span class="live-summary-label">Warnings</span></div>
-                <div class="live-summary-item live-summary-info"><span class="live-summary-count">${data.summary.info}</span><span class="live-summary-label">Info</span></div>
-            </div>`;
+                <div class="live-summary-bar">
+                    <div class="live-summary-item"><span class="live-summary-count">${data.alerts.length}</span><span class="live-summary-label">Active Alerts</span></div>
+                    <div class="live-summary-item live-summary-critical"><span class="live-summary-count">${data.summary.critical}</span><span class="live-summary-label">Critical</span></div>
+                    <div class="live-summary-item live-summary-warning"><span class="live-summary-count">${data.summary.warning}</span><span class="live-summary-label">Warnings</span></div>
+                    <div class="live-summary-item live-summary-info"><span class="live-summary-count">${data.summary.info}</span><span class="live-summary-label">Info</span></div>
+                </div>`;
 
             html += '<div class="live-alerts-grid">';
             data.alerts.forEach(a => {
                 html += `
-                <div class="live-alert-card live-alert-${a.severity}">
-                    <div class="live-alert-header">
-                        <div class="live-alert-icon-wrap"><i data-lucide="${a.icon}" class="live-alert-icon"></i></div>
-                        <div class="live-alert-meta">
-                            <span class="live-alert-dept">${a.department}</span>
-                            <span class="live-alert-time" data-timestamp="${a.timestamp}">${timeAgo(a.timestamp)}</span>
+                    <div class="live-alert-card live-alert-${a.severity}">
+                        <div class="live-alert-header">
+                            <div class="live-alert-icon-wrap"><i data-lucide="${a.icon}" class="live-alert-icon"></i></div>
+                            <div class="live-alert-meta">
+                                <span class="live-alert-dept">${a.department}</span>
+                                <span class="live-alert-time" data-timestamp="${a.timestamp}">${timeAgo(a.timestamp)}</span>
+                            </div>
                         </div>
-                    </div>
-                    <h4 class="live-alert-title">${a.title}</h4>
-                    <p class="live-alert-desc">${a.description}</p>
-                    ${a.metrics ? `<div class="live-alert-metrics">${a.metrics.map(m => `<div class="live-alert-metric"><span class="live-metric-val">${m.value}</span><span class="live-metric-label">${m.label}</span></div>`).join('')}</div>` : ''}
-                </div>`;
+                        <h4 class="live-alert-title">${a.title}</h4>
+                        <p class="live-alert-desc">${a.description}</p>
+                        ${a.metrics ? `<div class="live-alert-metrics">${a.metrics.map(m => `<div class="live-alert-metric"><span class="live-metric-val">${m.value}</span><span class="live-metric-label">${m.label}</span></div>`).join('')}</div>` : ''}
+                    </div>`;
             });
             html += '</div>';
 
@@ -98,12 +102,7 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             fetchLiveFeed();
-            setInterval(fetchLiveFeed, 30000);
+            setInterval(fetchLiveFeed, 60000);
         });
-
-        const feedEndpoint = @json(route('bi.live-feed'));
-        const clientScope = @json(request()->integer('client_id') ?: null);
-        async function loadFeed() { const response = await fetch(feedEndpoint + (clientScope ? '?client_id=' + clientScope : '')); const data = await response.json(); document.getElementById('summary').innerHTML = [['Active alerts', data.alerts.length, ''], ['Critical', data.summary.critical, 'live-summary-critical'], ['Warnings', data.summary.warning, 'live-summary-warning'], ['Information', data.summary.info, 'live-summary-info']].map(x => `<div class="live-summary-item ${x[2]}"><span class="live-summary-count">${x[1]}</span><span class="live-summary-label">${x[0]}</span></div>`).join(''); document.getElementById('feed').innerHTML = data.alerts.length ? data.alerts.map(a => `<div class="live-alert-card live-alert-${a.severity}"><div class="live-alert-meta"><span class="live-alert-dept">${a.department}</span><span class="live-alert-title">${a.title}</span></div><p class="live-alert-desc">${a.description}</p></div>`).join('') : '<p style="color:var(--slate-500);padding:1rem">All systems are operating normally for this client.</p>'; }
-        loadFeed(); setInterval(loadFeed, 30000);
     </script>
 @endsection
