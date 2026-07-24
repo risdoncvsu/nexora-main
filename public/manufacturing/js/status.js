@@ -103,12 +103,19 @@ function markReady(partIdx) {
 }
 
 // ── Send to QC ──────────────────────────────────────────────────────────
-function sendToQC() {
+async function sendToQC() {
+    if (editingOrderIndex === null) return;
+
     pendingQC = true;
     const statusEl = document.getElementById('modal-order-status');
     statusEl.textContent = 'QC Check';
     statusEl.className   = 'px-2.5 py-1 rounded-full text-xs font-bold bg-blue-400 text-blue-900';
     document.getElementById('section-order-status').classList.add('hidden');
+
+    // This is a terminal workflow action, not merely a modal preference.
+    // Submit it immediately so a worker cannot close the dialog and lose the
+    // transition from Building/Finished to QC Check.
+    await saveChanges();
 }
 
 // ── Save ────────────────────────────────────────────────────────────────
