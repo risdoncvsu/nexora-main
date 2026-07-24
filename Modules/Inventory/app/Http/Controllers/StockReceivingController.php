@@ -27,7 +27,17 @@ class StockReceivingController extends Controller
             $boxSize = str_contains($normalized, 'small') ? 'Small'
                 : (str_contains($normalized, 'medium') ? 'Medium'
                 : (str_contains($normalized, 'large') ? 'Large' : 'Standard'));
-        } elseif (! preg_match('/bubble\s*wrap|packing\s*tape|foam\s*insert|silica\s*gel|fragile\s*tape/', $normalized)) {
+        } elseif (preg_match('/bubble\s*wrap/', $normalized)) {
+            $name = 'Bubble Wrap';
+        } elseif (preg_match('/packing\s*tape/', $normalized)) {
+            $name = 'Packing Tape';
+        } elseif (preg_match('/foam\s*insert/', $normalized)) {
+            $name = 'Foam Inserts';
+        } elseif (preg_match('/silica\s*gel/', $normalized)) {
+            $name = 'Silica Gel Packs';
+        } elseif (preg_match('/fragile\s*tape/', $normalized)) {
+            $name = 'Fragile Tape';
+        } else {
             return null;
         }
 

@@ -52,9 +52,23 @@ class PackingController extends Controller
 
     private function findPackingMaterial(string $materialName)
     {
+        $variants = match (strtolower(trim($materialName))) {
+            'silica gel packs' => ['silica gel packs', 'silica gel', 'silica gels'],
+            'foam inserts' => ['foam inserts', 'foam insert'],
+            'bubble wrap' => ['bubble wrap', 'bubble wraps'],
+            'packing tape' => ['packing tape', 'packing tapes'],
+            'fragile tape' => ['fragile tape', 'fragile tapes'],
+            default => [strtolower(trim($materialName))],
+        };
+
         return $this->packingMaterialQuery()
-            ->where(function ($query) use ($materialName) {
-                $query->whereRaw('LOWER(name) = LOWER(?)', [$materialName])
+            ->where(function ($query) use ($materialName, $variants) {
+                $query->where(function ($nameQuery) use ($variants) {
+                    foreach ($variants as $index => $variant) {
+                        $method = $index === 0 ? 'whereRaw' : 'orWhereRaw';
+                        $nameQuery->{$method}('LOWER(name) = ?', [$variant]);
+                    }
+                })
                     ->orWhereRaw('LOWER(box_size) = LOWER(?)', [$materialName]);
             });
     }
