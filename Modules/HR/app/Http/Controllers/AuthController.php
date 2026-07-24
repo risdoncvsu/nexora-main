@@ -31,6 +31,9 @@ class AuthController extends Controller
         $position = preg_replace('/[^a-z0-9]/', '', strtolower((string) $employee->position));
         $isHrManager = in_array($department, ['humanresources', 'hr'], true)
             && in_array($position, ['hrmanager', 'humanresourcesmanager'], true);
+        $isBiEmployee = str_contains($department, 'businessintelligence')
+            || str_contains($department, 'businessanalytics')
+            || in_array($position, ['bimanager', 'bianalyst', 'dataanalyst', 'businessanalyst'], true);
 
         session([
             'employee_logged_in' => true,
@@ -46,7 +49,7 @@ class AuthController extends Controller
 
         $route = $isHrManager
             ? 'hr.dashboard'
-            : 'hr.employee.dashboard';
+            : ($isBiEmployee ? 'bi.dashboard' : 'hr.employee.dashboard');
 
         return redirect()->route($route);
     }

@@ -174,6 +174,14 @@ class AuthController extends Controller
         }
 
         if (
+            str_contains($assignment, 'business intelligence')
+            || str_contains($assignment, 'business analytics')
+            || preg_match('/(^|\s)bi(\s|$)/', $assignment)
+        ) {
+            return route('bi.dashboard');
+        }
+
+        if (
             str_contains($assignment, 'e-commerce')
             || str_contains($assignment, 'ecommerce')
             || str_contains($assignment, 'electronic commerce')
