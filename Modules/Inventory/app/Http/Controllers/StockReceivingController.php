@@ -136,7 +136,15 @@ class StockReceivingController extends Controller
             return back()->withErrors(["del_action_{$delivery->id}" => 'This purchase order has no active destination warehouse.']);
         }
 
-        $result = $this->executeApproval($delivery, ['warehouse_id' => $warehouse->id]);
+        try {
+            $result = $this->executeApproval($delivery, ['warehouse_id' => $warehouse->id]);
+        } catch (\Throwable $exception) {
+            report($exception);
+
+            return back()->withErrors([
+                "del_action_{$delivery->id}" => 'Unable to receive this delivery. The error was recorded for review.',
+            ]);
+        }
 
         if ($result === true) {
             return back()->with('success', 'Delivery approved and stock updated.');
@@ -155,6 +163,11 @@ class StockReceivingController extends Controller
                 return 'Could not fetch delivery from procurement.';
             }
 
+            $receivedQuantity = (int) ($delivery->qty ?: $product->qty);
+            if ($receivedQuantity < 1) {
+                return 'The delivery has no receivable quantity.';
+            }
+
             // Try to match existing item by SKU, or create new one
             $item = Item::where('sku', $product->sku)->first();
 
@@ -171,6 +184,12 @@ class StockReceivingController extends Controller
                 ]);
             }
 
+            if (StockReceiving::where('shipment_number', $delivery->shipment_number)
+                ->where('item_id', $item->id)
+                ->exists()) {
+                return 'This delivery has already been processed.';
+            }
+
             // Lock the stock level row FIRST â€” this is the serialization point.
             // Any concurrent request for the same item+warehouse will wait here.
             $stockLevel = StockLevel::where('item_id', $item->id)
@@ -183,7 +202,7 @@ class StockReceivingController extends Controller
                     $stockLevel = StockLevel::create([
                         'item_id' => $item->id,
                         'warehouse_id' => $validated['warehouse_id'],
-                        'stock' => $delivery->qty,
+                        'stock' => $receivedQuantity,
                         'reorder_threshold' => 10,
                     ]);
                 } catch (\Illuminate\Database\UniqueConstraintViolationException) {
@@ -191,7 +210,7 @@ class StockReceivingController extends Controller
                         ->where('warehouse_id', $validated['warehouse_id'])
                         ->lockForUpdate()
                         ->first();
-                    $stockLevel->increment('stock', $delivery->qty);
+                    $stockLevel->increment('stock', $receivedQuantity);
                 }
             } else {
                 // NOW check if already processed â€” safe because we hold the exclusive lock.
@@ -199,7 +218,7 @@ class StockReceivingController extends Controller
                     return 'This delivery has already been processed.';
                 }
 
-                $stockLevel->increment('stock', $delivery->qty);
+                $stockLevel->increment('stock', $receivedQuantity);
             }
 
             // Update warehouse activity
@@ -211,7 +230,7 @@ class StockReceivingController extends Controller
                 'type' => 'inbound',
                 'item_id' => $item->id,
                 'warehouse_id' => $validated['warehouse_id'],
-                'quantity' => $delivery->qty,
+                'quantity' => $receivedQuantity,
                 'reference' => $delivery->shipment_number,
                 'notes' => "From delivery - Shipment: {$delivery->shipment_number}",
                 'performed_by' => session('employee_id'),
@@ -223,7 +242,7 @@ class StockReceivingController extends Controller
                 'shipment_number' => $delivery->shipment_number,
                 'item_id' => $item->id,
                 'warehouse_id' => $validated['warehouse_id'],
-                'quantity' => $delivery->qty,
+                'quantity' => $receivedQuantity,
                 'status' => 'approved',
                 'processed_by' => session('employee_id'),
                 'remarks' => $delivery->remarks,
