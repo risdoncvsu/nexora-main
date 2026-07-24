@@ -180,7 +180,27 @@
     <!-- Account Section -->
     <main class="relative pt-40 pb-20 lg:pt-48 lg:pb-28 overflow-hidden z-10 min-h-screen">
         <div class="max-w-7xl mx-auto px-6 sm:px-12 lg:px-14">
-            
+            <!-- Main Page Header -->
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 border-b border-white/10 pb-6" id="account-page-header">
+                <div>
+                    <h1 class="text-3xl sm:text-4xl font-black text-white tracking-tight" id="account-header-title">Order History</h1>
+                    <p class="text-sm text-gray-400 mt-1" id="account-header-sub">Track live fulfillment status, view past purchases, and inspect build specifications.</p>
+                </div>
+                
+                <!-- Quick Summary Stats -->
+                <div class="flex items-center gap-4">
+                    <div class="bg-white/5 border border-white/10 rounded-2xl px-5 py-3 flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary font-bold text-lg" id="account-header-count">
+                            {{ count($orders) }}
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="text-[11px] text-gray-400 uppercase tracking-wider font-semibold">Total Orders</span>
+                            <span class="text-xs font-bold text-white">Lifetime History</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="grid grid-cols-1 lg:grid-cols-4 gap-10">
                 
                 <!-- Sidebar -->
@@ -203,9 +223,9 @@
                         </div>
 
                         <!-- Other Categories -->
-                        <a href="#purchases" data-target="pane-purchases" class="sidebar-link main-category-link flex items-center gap-3 text-gray-400 hover:text-white transition-colors font-bold text-base">
+                        <a href="#order-history" data-target="pane-order-history" class="sidebar-link main-category-link flex items-center gap-3 text-gray-400 hover:text-white transition-colors font-bold text-base">
                             <i class="ph ph-receipt text-xl category-icon"></i>
-                            Purchases
+                            Order History
                         </a>
                         <a href="#vouchers" data-target="pane-vouchers" class="sidebar-link main-category-link flex items-center gap-3 text-gray-400 hover:text-white transition-colors font-bold text-base">
                             <i class="ph ph-ticket text-xl category-icon"></i>
@@ -225,11 +245,6 @@
 
                     <!-- PANE: PROFILE -->
                     <div id="pane-profile" class="content-pane block">
-
-                    <div class="border-b border-white/10 pb-4 mb-8 relative z-10">
-                        <h2 class="text-2xl font-black text-white">Profile</h2>
-                        <p class="text-sm text-gray-400 mt-1">Manage your account</p>
-                    </div>
 
                     <form action="{{ route('ecommerce.account.profile.update') }}" method="POST" class="flex flex-col-reverse md:flex-row gap-12 relative z-10">
                         @csrf
@@ -365,129 +380,10 @@
                     </form>
                     </div> <!-- END PANE: PROFILE -->
 
-                    <!-- PANE: PURCHASES -->
-                    <div id="pane-purchases" class="content-pane hidden">
-
-                    <div class="border-b border-white/10 pb-4 mb-6 relative z-10">
-                            <h2 class="text-2xl font-black text-white">Purchases</h2>
-                            <p class="text-sm text-gray-400 mt-1">View and track your orders</p>
-                        </div>
-                        <div class="relative z-10 flex flex-col gap-6">
-                            <!-- Tabs -->
-                            <div class="flex overflow-x-auto gap-2 sm:gap-6 border-b border-white/10 pb-2 scrollbar-hide">
-                                <a href="#" class="text-primary font-bold border-b-2 border-primary pb-2 px-1 sm:px-2 whitespace-nowrap text-sm transition-colors">All</a>
-                                <a href="#" class="text-gray-400 hover:text-white font-medium pb-2 px-1 sm:px-2 whitespace-nowrap text-sm transition-colors border-b-2 border-transparent hover:border-white/30">To Pay</a>
-                                <a href="#" class="text-gray-400 hover:text-white font-medium pb-2 px-1 sm:px-2 whitespace-nowrap text-sm transition-colors border-b-2 border-transparent hover:border-white/30">To Ship</a>
-                                <a href="#" class="text-gray-400 hover:text-white font-medium pb-2 px-1 sm:px-2 whitespace-nowrap text-sm transition-colors border-b-2 border-transparent hover:border-white/30">To Receive</a>
-                                <a href="#" class="text-gray-400 hover:text-white font-medium pb-2 px-1 sm:px-2 whitespace-nowrap text-sm transition-colors border-b-2 border-transparent hover:border-white/30">Completed</a>
-                                <a href="#" class="text-gray-400 hover:text-white font-medium pb-2 px-1 sm:px-2 whitespace-nowrap text-sm transition-colors border-b-2 border-transparent hover:border-white/30">Cancelled</a>
-                                <a href="#" class="text-gray-400 hover:text-white font-medium pb-2 px-1 sm:px-2 whitespace-nowrap text-sm transition-colors border-b-2 border-transparent hover:border-white/30">Return / Refund</a>
-                            </div>
-                            @forelse($orders ?? collect() as $order)
-                                @php
-                                    $firstItem = $order->items->first();
-                                    $itemCount = $order->items->count();
-                                    $status = str_replace('_', ' ', $order->fulfillment_status ?? $order->status);
-                                @endphp
-                                <div class="bg-[#1a1a1a] border border-white/5 rounded-2xl p-6 shadow-xl transition-all hover:border-primary/30">
-                                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                                        <div class="flex items-center gap-4">
-                                            <div class="w-16 h-16 bg-white/5 rounded-xl flex items-center justify-center border border-white/10 shrink-0">
-                                                <i class="ph-bold ph-package text-3xl text-primary"></i>
-                                            </div>
-                                            <div>
-                                                <h3 class="text-lg font-bold text-white">{{ $firstItem?->name ?? 'Order items' }}{{ $itemCount > 1 ? ' +' . ($itemCount - 1) . ' more' : '' }}</h3>
-                                                <p class="text-sm text-gray-400">Order #{{ $order->id }} · Placed {{ $order->created_at?->format('M j, Y') }}</p>
-                                                @if($order->tracking_number)
-                                                    <p class="text-xs text-gray-500 mt-1">Tracking: {{ $order->tracking_number }}</p>
-                                                @endif
-                                            </div>
-                                        </div>
-                                        <div class="text-left md:text-right">
-                                            <p class="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-primary to-[#ff8c33]">₱{{ number_format((float) $order->total, 2) }}</p>
-                                            <p class="text-xs font-bold text-primary border border-primary/30 bg-primary/10 px-2 py-0.5 rounded mt-1 inline-block uppercase tracking-wider">{{ $status }}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            @empty
-                                <div class="py-12 text-center text-gray-400">
-                                    <i class="ph ph-receipt text-4xl text-gray-600"></i>
-                                    <p class="mt-3">You have not placed any orders yet.</p>
-                                </div>
-                            @endforelse
-
-                            @if(false)
-                            <!-- Legacy demo order card retained only as template markup. -->
-                            <!-- Active Order Card -->
-                            <div class="bg-[#1a1a1a] border border-white/5 rounded-2xl p-6 shadow-xl transition-all hover:border-primary/30">
-                                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-                                    <div class="flex items-center gap-4">
-                                        <div class="w-16 h-16 bg-white/5 rounded-xl flex items-center justify-center border border-white/10 shrink-0">
-                                            <i class="ph-bold ph-desktop text-3xl text-primary"></i>
-                                        </div>
-                                        <div>
-                                            <h3 class="text-lg font-bold text-white">Custom Water-Cooled PC Build</h3>
-                                            <p class="text-sm text-gray-400">Order #TF-892415 • Placed 2 days ago</p>
-                                        </div>
-                                    </div>
-                                    <div class="text-left md:text-right">
-                                        <p class="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-primary to-[#ff8c33]">₱145,000</p>
-                                        <p class="text-xs font-bold text-primary border border-primary/30 bg-primary/10 px-2 py-0.5 rounded mt-1 inline-block uppercase tracking-wider">Building Phase</p>
-                                    </div>
-                                </div>
-                                
-                                <!-- Timeline Bar -->
-                                <div class="relative pt-6 pb-2">
-                                    <!-- Line -->
-                                    <div class="absolute top-8 left-[10%] right-[10%] h-1 bg-white/10 rounded-full"></div>
-                                    <div class="absolute top-8 left-[10%] w-[40%] h-1 bg-gradient-to-r from-[#ff5100] to-primary rounded-full shadow-[0_0_10px_rgba(255,107,0,0.5)]"></div>
-                                    
-                                    <div class="flex justify-between relative z-10">
-                                        <!-- Step 1 -->
-                                        <div class="flex flex-col items-center gap-2">
-                                            <div class="w-6 h-6 rounded-full bg-primary border-4 border-[#1a1a1a] flex items-center justify-center shadow-[0_0_10px_rgba(255,107,0,0.5)]">
-                                                <i class="ph-bold ph-check text-[10px] text-white"></i>
-                                            </div>
-                                            <span class="text-[10px] text-primary font-bold uppercase tracking-wider text-center hidden sm:block">Order Placed</span>
-                                        </div>
-                                        <!-- Step 2 -->
-                                        <div class="flex flex-col items-center gap-2">
-                                            <div class="w-6 h-6 rounded-full bg-primary border-4 border-[#1a1a1a] flex items-center justify-center shadow-[0_0_10px_rgba(255,107,0,0.5)]">
-                                                <i class="ph-bold ph-check text-[10px] text-white"></i>
-                                            </div>
-                                            <span class="text-[10px] text-primary font-bold uppercase tracking-wider text-center hidden sm:block">Processing</span>
-                                        </div>
-                                        <!-- Step 3 (Active) -->
-                                        <div class="flex flex-col items-center gap-2">
-                                            <div class="w-8 h-8 -mt-1 rounded-full bg-[#1a1a1a] border-4 border-primary flex items-center justify-center relative shadow-[0_0_15px_rgba(255,107,0,0.5)]">
-                                                <div class="w-2.5 h-2.5 rounded-full bg-primary animate-pulse"></div>
-                                            </div>
-                                            <span class="text-[10px] text-white font-bold uppercase tracking-wider text-center hidden sm:block">Building</span>
-                                        </div>
-                                        <!-- Step 4 -->
-                                        <div class="flex flex-col items-center gap-2">
-                                            <div class="w-6 h-6 rounded-full bg-white/10 border-4 border-[#1a1a1a]"></div>
-                                            <span class="text-[10px] text-gray-500 font-bold uppercase tracking-wider text-center hidden sm:block">Quality Check</span>
-                                        </div>
-                                        <!-- Step 5 -->
-                                        <div class="flex flex-col items-center gap-2">
-                                            <div class="w-6 h-6 rounded-full bg-white/10 border-4 border-[#1a1a1a]"></div>
-                                            <span class="text-[10px] text-gray-500 font-bold uppercase tracking-wider text-center hidden sm:block">Shipping</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            @endif
-                        </div>
-                    </div>
 
                     <!-- PANE: BANK & CARDS -->
                     <div id="pane-bank-cards" class="content-pane hidden">
-                        <div class="border-b border-white/10 pb-4 mb-6 relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                            <div>
-                                <h2 class="text-2xl font-black text-white">Bank & Cards</h2>
-                                <p class="text-sm text-gray-400 mt-1">Manage your payment methods</p>
-                            </div>
+                        <div class="flex items-center justify-end mb-6 relative z-10">
                             <button onclick="openModal('add-card-modal')" class="bg-primary hover:bg-[#ff8c33] text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-lg flex items-center gap-2 whitespace-nowrap">
                                 <i class="ph-bold ph-plus"></i> Add New Card
                             </button>
@@ -633,11 +529,7 @@
 
                     <!-- PANE: ADDRESSES -->
                     <div id="pane-addresses" class="content-pane hidden">
-                        <div class="border-b border-white/10 pb-4 mb-6 relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                            <div>
-                                <h2 class="text-2xl font-black text-white">Addresses</h2>
-                                <p class="text-sm text-gray-400 mt-1">Manage your delivery addresses</p>
-                            </div>
+                        <div class="flex items-center justify-end mb-6 relative z-10">
                             <button onclick="openAddAddressModal()" class="bg-primary hover:bg-[#ff8c33] text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-lg flex items-center gap-2 whitespace-nowrap">
                                 <i class="ph-bold ph-plus"></i> Add New Address
                             </button>
@@ -702,10 +594,6 @@
 
                     <!-- PANE: PASSWORD -->
                     <div id="pane-password" class="content-pane hidden">
-                        <div class="border-b border-white/10 pb-4 mb-8 relative z-10">
-                            <h2 class="text-2xl font-black text-white">Change Password</h2>
-                            <p class="text-sm text-gray-400 mt-1">Update your account security</p>
-                        </div>
                         <div class="py-10 max-w-md mx-auto">
                             <div class="flex flex-col gap-4">
                                 <div class="flex flex-col gap-2">
@@ -765,13 +653,493 @@
                         </div>
                     </div>
 
+                    <!-- PANE: ORDER HISTORY -->
+                    <div id="pane-order-history" class="content-pane hidden">
+                        <!-- Dedicated Order History Script Block -->
+                        <script>
+                            (function() {
+                                window.userAccountOrders = @json($orders);
+
+                                window.filterOrderHistory = function(category, btn) {
+                                    const tabs = document.querySelectorAll('.oh-tab-btn');
+                                    tabs.forEach(tab => {
+                                        tab.classList.remove('bg-white/10', 'text-white', 'font-bold', 'active-oh-tab');
+                                        tab.classList.add('text-gray-400', 'font-medium');
+                                    });
+
+                                    if (btn) {
+                                        btn.classList.remove('text-gray-400', 'font-medium');
+                                        btn.classList.add('bg-white/10', 'text-white', 'font-bold', 'active-oh-tab');
+                                    }
+
+                                    const cards = document.querySelectorAll('.order-history-card');
+                                    let visibleCount = 0;
+
+                                    cards.forEach(card => {
+                                        const cardCat = card.getAttribute('data-category');
+                                        if (category === 'all' || cardCat === category) {
+                                            card.style.display = 'block';
+                                            visibleCount++;
+                                        } else {
+                                            card.style.display = 'none';
+                                        }
+                                    });
+
+                                    const noMatch = document.getElementById('oh-no-match');
+                                    const emptyState = document.getElementById('oh-empty-state');
+                                    if (cards.length > 0) {
+                                        if (emptyState) emptyState.style.display = 'none';
+                                        if (noMatch) {
+                                            noMatch.style.display = (visibleCount === 0) ? 'flex' : 'none';
+                                        }
+                                    }
+                                };
+
+                                window.openOrderModal = window._openOrderModal = function(orderId) {
+                                    const modal = document.getElementById('order-details-modal');
+                                    const body = document.getElementById('modal-order-body');
+                                    const title = document.getElementById('modal-order-title');
+                                    const sub = document.getElementById('modal-order-sub');
+                                    const badge = document.getElementById('modal-order-badge');
+
+                                    if (!modal) return;
+
+                                    modal.classList.remove('hidden');
+                                    modal.classList.add('flex');
+                                    modal.style.display = 'flex';
+
+                                    const ordersData = window.userAccountOrders || [];
+                                    const order = ordersData.find(o => String(o.id) === String(orderId));
+
+                                    if (!order) {
+                                        if (body) body.innerHTML = `<p class="text-gray-400 text-center py-8">Order details could not be loaded.</p>`;
+                                        return;
+                                    }
+
+                                    const trackingNo = order.tracking_number || ('TF-' + String(order.id).substring(0, 8).toUpperCase());
+                                    if (title) title.textContent = `Order #${trackingNo}`;
+                                    if (sub) sub.textContent = `Placed on ${order.created_at ? new Date(order.created_at).toLocaleDateString() : 'N/A'}`;
+                                    
+                                    const status = (order.fulfillment_status || 'NEW').toUpperCase();
+                                    if (badge) badge.textContent = status;
+
+                                    let stepIndex = 1;
+                                    let barWidth = '0%';
+
+                                    switch (status) {
+                                        case 'NEW':
+                                        case 'PENDING':
+                                            stepIndex = 1; barWidth = '0%'; break;
+                                        case 'PACKING':
+                                        case 'PROCESSING':
+                                            stepIndex = 2; barWidth = '25%'; break;
+                                        case 'BUILDING':
+                                        case 'READY_TO_SHIP':
+                                            stepIndex = 3; barWidth = '50%'; break;
+                                        case 'OUT_FOR_DELIVERY':
+                                        case 'SHIPPED':
+                                            stepIndex = 4; barWidth = '75%'; break;
+                                        case 'DELIVERED':
+                                        case 'COMPLETED':
+                                            stepIndex = 5; barWidth = '100%'; break;
+                                        default:
+                                            stepIndex = 1; barWidth = '20%'; break;
+                                    }
+
+                                    let itemsHtml = '';
+                                    if (order.items && order.items.length > 0) {
+                                        order.items.forEach(item => {
+                                            itemsHtml += `
+                                                <div class="flex items-center justify-between p-3.5 bg-black/40 border border-white/5 rounded-xl">
+                                                    <div class="flex items-center gap-3">
+                                                        <div class="w-10 h-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
+                                                            <i class="ph-bold ph-cpu text-xl"></i>
+                                                        </div>
+                                                        <div>
+                                                            <h4 class="text-sm font-bold text-white">${item.name}</h4>
+                                                            <p class="text-xs text-gray-400">Qty: ${item.quantity || 1} • ₱${Number(item.price || 0).toLocaleString()}</p>
+                                                        </div>
+                                                    </div>
+                                                    <span class="text-sm font-bold text-primary">₱${(Number(item.price || 0) * Number(item.quantity || 1)).toLocaleString()}</span>
+                                                </div>
+                                            `;
+                                        });
+                                    } else if (order.fulfillment_details) {
+                                        itemsHtml = `
+                                            <div class="flex items-center justify-between p-3.5 bg-black/40 border border-white/5 rounded-xl">
+                                                <div class="flex items-center gap-3">
+                                                    <div class="w-10 h-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
+                                                        <i class="ph-bold ph-desktop text-xl"></i>
+                                                    </div>
+                                                    <div>
+                                                        <h4 class="text-sm font-bold text-white">${order.fulfillment_details.product_name}</h4>
+                                                        <p class="text-xs text-gray-400">Qty: ${order.fulfillment_details.qty || 1}</p>
+                                                    </div>
+                                                </div>
+                                                <span class="text-sm font-bold text-primary">₱${Number(order.fulfillment_details.product_amount || order.total).toLocaleString()}</span>
+                                            </div>
+                                        `;
+                                    }
+
+                                    if (body) {
+                                        // Build address string
+                                        let addressHtml = '';
+                                        const addrData = order.shipping_address_parsed;
+                                        if (addrData) {
+                                            let addrLine = '';
+                                            if (addrData.raw) {
+                                                addrLine = addrData.raw;
+                                            } else {
+                                                const parts = [];
+                                                if (addrData.first_name || addrData.last_name) parts.push(((addrData.first_name || '') + ' ' + (addrData.last_name || '')).trim());
+                                                if (addrData.phone) parts.push(addrData.phone);
+                                                if (addrData.address) parts.push(addrData.address);
+                                                if (addrData.city) parts.push(addrData.city);
+                                                if (addrData.province) parts.push(addrData.province);
+                                                if (addrData.zip) parts.push(addrData.zip);
+                                                addrLine = parts.join(', ');
+                                            }
+                                            if (addrLine) {
+                                                addressHtml = `
+                                                    <div class="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-4 flex items-start gap-3 text-xs">
+                                                        <i class="ph-bold ph-map-pin text-xl text-primary shrink-0 mt-0.5"></i>
+                                                        <div>
+                                                            <p class="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1">Delivery Address</p>
+                                                            <p class="text-white font-medium leading-relaxed">${addrLine}</p>
+                                                        </div>
+                                                    </div>
+                                                `;
+                                            }
+                                        }
+
+                                        body.innerHTML = `
+                                            <div class="bg-[#181818] border border-white/5 rounded-2xl p-5 relative">
+                                                <h3 class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-4 flex items-center gap-2">
+                                                    <i class="ph-bold ph-path text-primary"></i> Live Fulfillment Progress (OrderFulfillment Database)
+                                                </h3>
+                                                
+                                                <div class="relative pt-4 pb-2">
+                                                    <div class="absolute top-6 left-[10%] right-[10%] h-1 bg-white/10 rounded-full"></div>
+                                                    <div class="absolute top-6 left-[10%] h-1 bg-gradient-to-r from-[#ff5100] to-primary rounded-full transition-all duration-500" style="width: calc(${barWidth} * 0.8);"></div>
+                                                    
+                                                    <div class="flex justify-between relative z-10 text-[10px] uppercase font-bold">
+                                                        <div class="flex flex-col items-center gap-1.5 ${stepIndex >= 1 ? 'text-primary' : 'text-gray-500'}">
+                                                            <div class="w-5 h-5 rounded-full ${stepIndex >= 1 ? 'bg-primary' : 'bg-white/10'} flex items-center justify-center">
+                                                                <i class="ph-bold ph-check text-[9px] text-white"></i>
+                                                            </div>
+                                                            <span>Order Placed</span>
+                                                        </div>
+                                                        <div class="flex flex-col items-center gap-1.5 ${stepIndex >= 2 ? 'text-primary' : 'text-gray-500'}">
+                                                            <div class="w-5 h-5 rounded-full ${stepIndex >= 2 ? 'bg-primary' : 'bg-white/10'} flex items-center justify-center">
+                                                                <i class="ph-bold ph-check text-[9px] text-white"></i>
+                                                            </div>
+                                                            <span>Processing</span>
+                                                        </div>
+                                                        <div class="flex flex-col items-center gap-1.5 ${stepIndex >= 3 ? 'text-primary' : 'text-gray-500'}">
+                                                            <div class="w-5 h-5 rounded-full ${stepIndex >= 3 ? 'bg-primary' : 'bg-white/10'} flex items-center justify-center">
+                                                                <i class="ph-bold ph-check text-[9px] text-white"></i>
+                                                            </div>
+                                                            <span>Building</span>
+                                                        </div>
+                                                        <div class="flex flex-col items-center gap-1.5 ${stepIndex >= 4 ? 'text-primary' : 'text-gray-500'}">
+                                                            <div class="w-5 h-5 rounded-full ${stepIndex >= 4 ? 'bg-primary' : 'bg-white/10'} flex items-center justify-center">
+                                                                <i class="ph-bold ph-check text-[9px] text-white"></i>
+                                                            </div>
+                                                            <span>Quality Check</span>
+                                                        </div>
+                                                        <div class="flex flex-col items-center gap-1.5 ${stepIndex >= 5 ? 'text-green-400' : 'text-gray-500'}">
+                                                            <div class="w-5 h-5 rounded-full ${stepIndex >= 5 ? 'bg-green-500' : 'bg-white/10'} flex items-center justify-center">
+                                                                <i class="ph-bold ph-check text-[9px] text-white"></i>
+                                                            </div>
+                                                            <span>Delivered</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            ${addressHtml}
+
+                                            ${order.shipment_details ? `
+                                            <div class="bg-primary/10 border border-primary/20 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4 text-xs">
+                                                <div class="flex items-center gap-3">
+                                                    <i class="ph-bold ph-truck text-2xl text-primary"></i>
+                                                    <div>
+                                                        <p class="font-bold text-white">Courier: ${order.shipment_details.courier || 'Express Shipping'}</p>
+                                                        <p class="text-gray-400">Tracking #: <span class="text-primary font-mono font-bold">${order.shipment_details.tracking_number || 'N/A'}</span></p>
+                                                    </div>
+                                                </div>
+                                                <span class="bg-primary text-white font-bold px-3 py-1 rounded-full text-[10px] uppercase">
+                                                    ${order.shipment_details.status || 'In Transit'}
+                                                </span>
+                                            </div>
+                                            ` : ''}
+
+                                            <div>
+                                                <h3 class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">Order Items</h3>
+                                                <div class="flex flex-col gap-2">
+                                                    ${itemsHtml}
+                                                </div>
+                                            </div>
+
+                                            <div class="border-t border-white/10 pt-4 flex flex-col gap-2 text-xs">
+                                                <div class="flex justify-between text-gray-400">
+                                                    <span>Subtotal</span>
+                                                    <span class="text-white font-medium">₱${Number(order.total || 0).toLocaleString()}</span>
+                                                </div>
+                                                <div class="flex justify-between text-gray-400">
+                                                    <span>Shipping Fee</span>
+                                                    <span class="text-white font-medium">₱${Number(order.shipping_fee || 150).toLocaleString()}</span>
+                                                </div>
+                                                <div class="flex justify-between text-base font-black text-white pt-2 border-t border-white/10">
+                                                    <span>Total Paid</span>
+                                                    <span class="text-transparent bg-clip-text bg-gradient-to-r from-primary to-[#ff8c33]">₱${Number(order.total || 0).toLocaleString()}</span>
+                                                </div>
+                                            </div>
+                                        `;
+                                    }
+                                };
+
+                                window.closeOrderModal = function() {
+                                    const modal = document.getElementById('order-details-modal');
+                                    if (modal) {
+                                        modal.classList.add('hidden');
+                                        modal.classList.remove('flex');
+                                        modal.style.display = 'none';
+                                    }
+                                };
+                            })();
+                        </script>
+
+                        @php
+                            $catCounts = ['to-pay' => 0, 'to-ship' => 0, 'to-receive' => 0, 'completed' => 0, 'cancelled' => 0];
+                            foreach ($orders as $_o) {
+                                $_st = strtoupper($_o->fulfillment_status ?? 'NEW');
+                                if (($_o->payment_status ?? '') === 'unpaid' && strtolower($_o->payment_method ?? '') !== 'cod') {
+                                    $catCounts['to-pay']++;
+                                } elseif (in_array($_st, ['NEW', 'PENDING', 'PACKING', 'PROCESSING', 'BUILDING', 'READY_TO_SHIP'])) {
+                                    $catCounts['to-ship']++;
+                                } elseif (in_array($_st, ['SHIPPED', 'OUT_FOR_DELIVERY'])) {
+                                    $catCounts['to-receive']++;
+                                } elseif (in_array($_st, ['DELIVERED', 'COMPLETED'])) {
+                                    $catCounts['completed']++;
+                                } elseif (in_array($_st, ['CANCELLED'])) {
+                                    $catCounts['cancelled']++;
+                                } else {
+                                    $catCounts['to-ship']++;
+                                }
+                            }
+                        @endphp
+
+                        <!-- Filter Tabs with Count Badges -->
+                        <div class="flex overflow-x-auto gap-1 sm:gap-2 bg-white/[0.03] border border-white/[0.06] rounded-2xl p-1.5 mb-8 scrollbar-hide" id="oh-filter-bar">
+                            <button type="button" onclick="window.filterOrderHistory('all', this)" data-oh-filter="all" class="oh-tab-btn active-oh-tab bg-white/10 text-white font-bold rounded-xl py-2.5 px-4 whitespace-nowrap text-xs transition-all duration-200 flex items-center gap-2">
+                                <i class="ph-bold ph-list-bullets"></i> All Orders
+                                <span class="bg-primary/20 text-primary text-[10px] font-black px-1.5 py-0.5 rounded-md min-w-[20px] text-center">{{ count($orders) }}</span>
+                            </button>
+                            <button type="button" onclick="window.filterOrderHistory('to-pay', this)" data-oh-filter="to-pay" class="oh-tab-btn text-gray-400 hover:text-white hover:bg-white/5 font-medium rounded-xl py-2.5 px-4 whitespace-nowrap text-xs transition-all duration-200 flex items-center gap-2">
+                                <i class="ph ph-credit-card"></i> To Pay
+                                @if($catCounts['to-pay'] > 0)
+                                    <span class="bg-white/10 text-gray-300 text-[10px] font-black px-1.5 py-0.5 rounded-md min-w-[20px] text-center">{{ $catCounts['to-pay'] }}</span>
+                                @endif
+                            </button>
+                            <button type="button" onclick="window.filterOrderHistory('to-ship', this)" data-oh-filter="to-ship" class="oh-tab-btn text-gray-400 hover:text-white hover:bg-white/5 font-medium rounded-xl py-2.5 px-4 whitespace-nowrap text-xs transition-all duration-200 flex items-center gap-2">
+                                <i class="ph ph-package"></i> To Ship
+                                @if($catCounts['to-ship'] > 0)
+                                    <span class="bg-white/10 text-gray-300 text-[10px] font-black px-1.5 py-0.5 rounded-md min-w-[20px] text-center">{{ $catCounts['to-ship'] }}</span>
+                                @endif
+                            </button>
+                            <button type="button" onclick="window.filterOrderHistory('to-receive', this)" data-oh-filter="to-receive" class="oh-tab-btn text-gray-400 hover:text-white hover:bg-white/5 font-medium rounded-xl py-2.5 px-4 whitespace-nowrap text-xs transition-all duration-200 flex items-center gap-2">
+                                <i class="ph ph-truck"></i> To Receive
+                                @if($catCounts['to-receive'] > 0)
+                                    <span class="bg-white/10 text-gray-300 text-[10px] font-black px-1.5 py-0.5 rounded-md min-w-[20px] text-center">{{ $catCounts['to-receive'] }}</span>
+                                @endif
+                            </button>
+                            <button type="button" onclick="window.filterOrderHistory('completed', this)" data-oh-filter="completed" class="oh-tab-btn text-gray-400 hover:text-white hover:bg-white/5 font-medium rounded-xl py-2.5 px-4 whitespace-nowrap text-xs transition-all duration-200 flex items-center gap-2">
+                                <i class="ph ph-check-circle"></i> Completed
+                                @if($catCounts['completed'] > 0)
+                                    <span class="bg-white/10 text-gray-300 text-[10px] font-black px-1.5 py-0.5 rounded-md min-w-[20px] text-center">{{ $catCounts['completed'] }}</span>
+                                @endif
+                            </button>
+                            <button type="button" onclick="window.filterOrderHistory('cancelled', this)" data-oh-filter="cancelled" class="oh-tab-btn text-gray-400 hover:text-white hover:bg-white/5 font-medium rounded-xl py-2.5 px-4 whitespace-nowrap text-xs transition-all duration-200 flex items-center gap-2">
+                                <i class="ph ph-x-circle"></i> Cancelled
+                                @if($catCounts['cancelled'] > 0)
+                                    <span class="bg-white/10 text-gray-300 text-[10px] font-black px-1.5 py-0.5 rounded-md min-w-[20px] text-center">{{ $catCounts['cancelled'] }}</span>
+                                @endif
+                            </button>
+                        </div>
+
+                        <!-- Orders List Container -->
+                        <div class="flex flex-col gap-5" id="order-history-list">
+                            @forelse($orders as $order)
+                                @php
+                                    $status = strtoupper($order->fulfillment_status ?? 'NEW');
+                                    
+                                    $filterCat = 'to-ship';
+                                    if (($order->payment_status ?? '') === 'unpaid' && strtolower($order->payment_method ?? '') !== 'cod') {
+                                        $filterCat = 'to-pay';
+                                    } elseif (in_array($status, ['NEW', 'PENDING', 'PACKING', 'PROCESSING', 'BUILDING', 'READY_TO_SHIP'])) {
+                                        $filterCat = 'to-ship';
+                                    } elseif (in_array($status, ['SHIPPED', 'OUT_FOR_DELIVERY'])) {
+                                        $filterCat = 'to-receive';
+                                    } elseif (in_array($status, ['DELIVERED', 'COMPLETED'])) {
+                                        $filterCat = 'completed';
+                                    } elseif (in_array($status, ['CANCELLED'])) {
+                                        $filterCat = 'cancelled';
+                                    }
+
+                                    $stepIndex = 1;
+                                    $badgeText = 'Order Placed';
+                                    $barWidth = '0%';
+
+                                    switch ($status) {
+                                        case 'NEW':
+                                        case 'PENDING':
+                                            $stepIndex = 1; $badgeText = 'Order Placed'; $barWidth = '0%'; break;
+                                        case 'PACKING':
+                                        case 'PROCESSING':
+                                            $stepIndex = 2; $badgeText = 'Processing'; $barWidth = '25%'; break;
+                                        case 'BUILDING':
+                                        case 'READY_TO_SHIP':
+                                            $stepIndex = 3; $badgeText = 'Building Phase'; $barWidth = '50%'; break;
+                                        case 'OUT_FOR_DELIVERY':
+                                            $stepIndex = 4; $badgeText = 'Out for Delivery'; $barWidth = '75%'; break;
+                                        case 'SHIPPED':
+                                            $stepIndex = 4; $badgeText = 'Shipped'; $barWidth = '75%'; break;
+                                        case 'DELIVERED':
+                                        case 'COMPLETED':
+                                            $stepIndex = 5; $badgeText = 'Completed'; $barWidth = '100%'; break;
+                                        case 'CANCELLED':
+                                            $stepIndex = 0; $badgeText = 'Cancelled'; $barWidth = '0%'; break;
+                                        default:
+                                            $stepIndex = 1; $badgeText = str_replace('_', ' ', $status); $barWidth = '20%'; break;
+                                    }
+
+                                    $firstItemName = optional($order->items->first())->name ?? ($order->fulfillment_details->product_name ?? 'Custom PC Build');
+                                    $itemCount = $order->items->count();
+
+                                    $statusColorClass = $status === 'CANCELLED' 
+                                        ? 'text-red-400 border-red-500/30 bg-red-500/10' 
+                                        : ($status === 'DELIVERED' || $status === 'COMPLETED' 
+                                            ? 'text-green-400 border-green-500/30 bg-green-500/10' 
+                                            : 'text-primary border-primary/30 bg-primary/10');
+
+                                    $progressBarColor = $status === 'CANCELLED' 
+                                        ? 'bg-red-500' 
+                                        : ($status === 'DELIVERED' || $status === 'COMPLETED' 
+                                            ? 'bg-gradient-to-r from-green-500 to-emerald-400' 
+                                            : 'bg-gradient-to-r from-[#ff5100] to-primary');
+                                @endphp
+
+                                <!-- Order Card -->
+                                <div class="order-history-card group relative bg-[#0f0f0f] border border-white/[0.06] rounded-2xl overflow-hidden transition-all duration-300 hover:border-primary/30 hover:shadow-[0_0_30px_rgba(255,107,0,0.08)]" data-category="{{ $filterCat }}" data-order-id="{{ $order->id }}">
+                                    
+                                    <!-- Top Gradient Accent -->
+                                    <div class="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                                    
+                                    <!-- Card Body -->
+                                    <div class="p-5 sm:p-6 cursor-pointer" onclick="window._openOrderModal('{{ $order->id }}')">
+                                        <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                                            <!-- Left: Product Info -->
+                                            <div class="flex items-start gap-4 flex-1 min-w-0">
+                                                <div class="w-14 h-14 bg-gradient-to-br from-primary/20 to-primary/5 rounded-xl flex items-center justify-center border border-primary/10 shrink-0 group-hover:border-primary/30 group-hover:from-primary/30 transition-all duration-300">
+                                                    <i class="ph-bold ph-desktop text-2xl text-primary"></i>
+                                                </div>
+                                                <div class="min-w-0 flex-1">
+                                                    <h3 class="text-base font-bold text-white group-hover:text-primary transition-colors duration-200 flex items-center gap-2 truncate">
+                                                        {{ $firstItemName }}
+                                                        @if($itemCount > 1)
+                                                            <span class="text-[10px] font-medium text-gray-500 bg-white/5 px-1.5 py-0.5 rounded-md border border-white/5 shrink-0">(+{{ $itemCount - 1 }})</span>
+                                                        @endif
+                                                    </h3>
+                                                    <p class="text-xs text-gray-500 mt-1 flex items-center gap-1.5">
+                                                        <span class="font-mono text-gray-400">#{{ $order->tracking_number ?? ('TF-' . strtoupper(substr($order->id, 0, 8))) }}</span>
+                                                        <span class="text-gray-600">•</span>
+                                                        {{ $order->created_at ? $order->created_at->diffForHumans() : 'recently' }}
+                                                    </p>
+                                                    
+                                                    <!-- Inline Mini Progress -->
+                                                    @if($status !== 'CANCELLED')
+                                                    <div class="mt-3 flex items-center gap-2">
+                                                        <div class="flex-1 h-1 bg-white/[0.06] rounded-full overflow-hidden max-w-[160px]">
+                                                            <div class="{{ $progressBarColor }} h-full rounded-full transition-all duration-500" style="width: {{ $barWidth }}"></div>
+                                                        </div>
+                                                        <span class="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">{{ $badgeText }}</span>
+                                                    </div>
+                                                    @endif
+                                                </div>
+                                            </div>
+
+                                            <!-- Right: Price & Badge -->
+                                            <div class="flex sm:flex-col items-center sm:items-end gap-3 sm:gap-1.5 shrink-0">
+                                                <p class="text-lg font-black text-transparent bg-clip-text bg-gradient-to-r from-primary to-[#ff8c33]">₱{{ number_format($order->total, 2) }}</p>
+                                                <span class="text-[10px] font-bold {{ $statusColorClass }} border px-2 py-0.5 rounded-md uppercase tracking-wider">
+                                                    {{ $badgeText }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Card Footer: Actions -->
+                                    <div class="border-t border-white/[0.04] bg-white/[0.015] px-5 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
+                                        <div class="flex items-center gap-2 text-xs text-gray-500">
+                                            <span class="w-1.5 h-1.5 rounded-full {{ $status === 'CANCELLED' ? 'bg-red-500' : 'bg-green-500 animate-pulse' }}"></span>
+                                            <span>Live Status from <strong class="text-gray-400">OrderFulfillment DB</strong></span>
+                                            @if(isset($order->shipment_details->tracking_number))
+                                                <span class="text-gray-600 hidden sm:inline">|</span>
+                                                <span class="hidden sm:inline text-gray-400 font-mono">{{ $order->shipment_details->tracking_number }}</span>
+                                            @endif
+                                        </div>
+                                        
+                                        <div class="flex items-center gap-2">
+                                            @if($filterCat === 'to-pay')
+                                                <button type="button" onclick="event.stopPropagation(); alert('Redirecting to Payment Gateway for Order #{{ $order->id }}...')" class="bg-primary hover:bg-[#e56000] text-white px-4 py-1.5 rounded-lg font-bold text-[11px] transition-all shadow-lg shadow-primary/20 hover:shadow-primary/40">
+                                                    <i class="ph-bold ph-credit-card text-xs mr-1"></i> Pay Now
+                                                </button>
+                                                <button type="button" onclick="event.stopPropagation(); if(confirm('Cancel this order?')) alert('Cancel request submitted.')" class="bg-white/5 hover:bg-red-500/10 text-red-400 border border-white/10 hover:border-red-500/30 px-3 py-1.5 rounded-lg font-bold text-[11px] transition-all">
+                                                    Cancel
+                                                </button>
+                                            @elseif($filterCat === 'to-receive')
+                                                <button type="button" onclick="event.stopPropagation(); alert('Order confirmed as received! Thank you.')" class="bg-green-600 hover:bg-green-500 text-white px-4 py-1.5 rounded-lg font-bold text-[11px] transition-all shadow-lg shadow-green-500/20 flex items-center gap-1">
+                                                    <i class="ph-bold ph-check text-xs"></i> Confirm Received
+                                                </button>
+                                            @elseif($filterCat === 'completed')
+                                                <a href="{{ route('ecommerce.prebuilt-pcs') }}" onclick="event.stopPropagation();" class="bg-white/5 hover:bg-white/10 text-white border border-white/10 px-4 py-1.5 rounded-lg font-bold text-[11px] transition-all flex items-center gap-1">
+                                                    <i class="ph-bold ph-arrows-counter-clockwise text-xs"></i> Buy Again
+                                                </a>
+                                            @endif
+                                            
+                                            <button type="button" onclick="event.stopPropagation(); window._openOrderModal('{{ $order->id }}')" class="text-primary hover:text-white font-bold text-[11px] flex items-center gap-1 hover:underline underline-offset-2 transition-colors">
+                                                View Details <i class="ph-bold ph-arrow-right text-xs group-hover:translate-x-0.5 transition-transform"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            @empty
+                                <!-- Empty State -->
+                                <div class="py-20 flex flex-col items-center justify-center text-center" id="oh-empty-state">
+                                    <div class="w-20 h-20 bg-white/[0.03] border border-white/[0.06] rounded-2xl flex items-center justify-center mb-5">
+                                        <i class="ph ph-receipt text-4xl text-gray-600"></i>
+                                    </div>
+                                    <h3 class="text-lg font-bold text-white mb-2">No Order History Found</h3>
+                                    <p class="text-gray-500 text-sm max-w-xs">When you place orders, your complete order history and real-time build tracking will appear here.</p>
+                                    <a href="{{ route('ecommerce.prebuilt-pcs') }}" class="mt-6 bg-gradient-to-r from-primary to-[#ff8c33] hover:from-[#ff8c33] hover:to-primary text-white px-6 py-2.5 rounded-xl text-sm font-bold transition-all shadow-lg shadow-primary/20 hover:shadow-primary/40 transform hover:-translate-y-0.5">
+                                        Browse PCs & Parts
+                                    </a>
+                                </div>
+                            @endforelse
+
+                            <div class="py-16 hidden flex-col items-center justify-center text-center" id="oh-no-match">
+                                <div class="w-16 h-16 bg-white/[0.03] border border-white/[0.06] rounded-2xl flex items-center justify-center mb-4">
+                                    <i class="ph ph-funnel text-3xl text-gray-600"></i>
+                                </div>
+                                <h3 class="text-base font-bold text-white mb-1">No orders in this category</h3>
+                                <p class="text-gray-500 text-xs">Try selecting a different filter tab above.</p>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- PANE: VOUCHERS -->
                     <div id="pane-vouchers" class="content-pane hidden">
-
-                    <div class="border-b border-white/10 pb-4 mb-6 relative z-10">
-                            <h2 class="text-2xl font-black text-white">My Vouchers</h2>
-                            <p class="text-sm text-gray-400 mt-1">Manage and use your discount codes</p>
-                        </div>
                         
                         <!-- Add Voucher Input -->
                         <div class="bg-[#13131a]/50 border border-white/5 rounded-xl p-5 md:p-6 mb-8 shadow-inner flex flex-col md:flex-row items-center gap-4">
@@ -875,10 +1243,6 @@
 
                     <!-- PANE: FORGE POINTS -->
                     <div id="pane-forge-points" class="content-pane hidden">
-                        <div class="border-b border-white/10 pb-4 mb-8 relative z-10">
-                            <h2 class="text-2xl font-black text-white">Forge Points</h2>
-                            <p class="text-sm text-gray-400 mt-1">Your reward balance</p>
-                        </div>
                         <div class="py-10 flex flex-col items-center justify-center text-center">
                             <div class="relative w-32 h-32 flex items-center justify-center mb-6">
                                 <!-- Glow -->
@@ -966,11 +1330,26 @@
                                 }
                             });
 
-                            // 4. Update URL conditionally
+                            // 4. Update Header Title & Subtitle
+                            const headerTitles = {
+                                'pane-profile': { title: 'Profile', sub: 'Manage your personal profile and account settings.' },
+                                'pane-bank-cards': { title: 'Bank & Cards', sub: 'Manage your payment methods and credit cards.' },
+                                'pane-addresses': { title: 'Addresses', sub: 'Manage your delivery and shipping addresses.' },
+                                'pane-password': { title: 'Change Password', sub: 'Update your account security and password.' },
+                                'pane-order-history': { title: 'Order History', sub: 'Track live fulfillment status, view past purchases, and inspect build specifications.' },
+                                'pane-vouchers': { title: 'My Vouchers', sub: 'Manage and use your discount codes.' },
+                                'pane-forge-points': { title: 'Forge Points', sub: 'Your reward balance and membership tier.' }
+                            };
+                            const headerTitleEl = document.getElementById('account-header-title');
+                            const headerSubEl = document.getElementById('account-header-sub');
+                            if (headerTitles[targetId]) {
+                                if (headerTitleEl) headerTitleEl.textContent = headerTitles[targetId].title;
+                                if (headerSubEl) headerSubEl.textContent = headerTitles[targetId].sub;
+                            }
+
+                            // 5. Update URL conditionally
                             if (updateHistory) {
-                                let path = '/account/profile';
-                                if (targetId === 'pane-purchases') path = '/account/purchases';
-                                window.history.pushState({pane: targetId}, '', path + '#' + targetId.replace('pane-', ''));
+                                window.history.pushState({pane: targetId}, '', window.location.pathname + '#' + targetId.replace('pane-', ''));
                             }
                         }
 
@@ -981,7 +1360,7 @@
                                 const targetId = link.getAttribute('data-target');
                                 
                                 if (link.classList.contains('main-category-link')) {
-                                    // If clicking a main category (Purchases, Vouchers, etc.)
+                                    // If clicking a main category (Order History, Vouchers, etc.)
                                     document.querySelectorAll('.category-dropdown').forEach(dropdown => {
                                         dropdown.style.maxHeight = '0px';
                                         dropdown.classList.remove('pb-2', 'py-1', 'mt-2', 'border-white/10');
@@ -1025,8 +1404,8 @@
                                 dd.classList.add('border-white/10', 'mt-2');
                                 dd.classList.remove('opacity-0', 'border-transparent');
                             }
-                        } else if (path.includes('/purchases')) {
-                            openPane('pane-purchases', false);
+                        } else if (path.includes('/order-history') || path.includes('/purchases')) {
+                            openPane('pane-order-history', false);
                             // Close the account details dropdown by default
                             document.querySelectorAll('.category-dropdown').forEach(dropdown => {
                                 dropdown.style.maxHeight = '0px';
@@ -2049,9 +2428,297 @@
                     submitBtn.innerHTML = originalBtnText;
                     submitBtn.disabled = false;
                 });
-            });
         }
     });
+
+    function filterPurchases(category, btn) {
+        const tabs = document.querySelectorAll('.purchases-tab-btn');
+        tabs.forEach(tab => {
+            tab.classList.remove('text-primary', 'font-bold', 'border-primary');
+            tab.classList.add('text-gray-400', 'font-medium', 'border-transparent');
+        });
+
+        btn.classList.remove('text-gray-400', 'font-medium', 'border-transparent');
+        btn.classList.add('text-primary', 'font-bold', 'border-primary');
+
+        const cards = document.querySelectorAll('.purchase-order-card');
+        let visibleCount = 0;
+
+        cards.forEach(card => {
+            if (category === 'all' || card.dataset.category === category) {
+                card.classList.remove('hidden');
+                visibleCount++;
+            } else {
+                card.classList.add('hidden');
+            }
+        });
+
+        const emptyState = document.getElementById('purchases-empty-state');
+        const noFilterMatch = document.getElementById('purchases-no-filter-match');
+
+        if (cards.length > 0) {
+            if (emptyState) emptyState.classList.add('hidden');
+            if (noFilterMatch) {
+                if (visibleCount === 0) {
+                    noFilterMatch.classList.remove('hidden');
+                    noFilterMatch.classList.add('flex');
+                } else {
+                    noFilterMatch.classList.add('hidden');
+                    noFilterMatch.classList.remove('flex');
+                }
+            }
+        }
+    }
+
+    window.filterOrderHistory = function(category, btn) {
+        const tabs = document.querySelectorAll('.oh-tab-btn');
+        tabs.forEach(tab => {
+            tab.classList.remove('bg-white/10', 'text-white', 'font-bold', 'active-oh-tab');
+            tab.classList.add('text-gray-400', 'font-medium');
+        });
+
+        if (btn) {
+            btn.classList.remove('text-gray-400', 'font-medium');
+            btn.classList.add('bg-white/10', 'text-white', 'font-bold', 'active-oh-tab');
+        }
+
+        const cards = document.querySelectorAll('.order-history-card');
+        let visibleCount = 0;
+
+        cards.forEach(card => {
+            const cardCat = card.getAttribute('data-category');
+            if (category === 'all' || cardCat === category) {
+                card.style.display = 'block';
+                visibleCount++;
+            } else {
+                card.style.display = 'none';
+            }
+        });
+
+        const noMatch = document.getElementById('oh-no-match');
+        const emptyState = document.getElementById('oh-empty-state');
+        if (cards.length > 0) {
+            if (emptyState) emptyState.style.display = 'none';
+            if (noMatch) {
+                if (visibleCount === 0) {
+                    noMatch.style.display = 'flex';
+                } else {
+                    noMatch.style.display = 'none';
+                }
+            }
+        }
+    };
+
+    // Event listener binding for tab filter buttons
+    document.addEventListener('click', function(e) {
+        const tabBtn = e.target.closest('[data-oh-filter]');
+        if (tabBtn) {
+            const cat = tabBtn.getAttribute('data-oh-filter');
+            window.filterOrderHistory(cat, tabBtn);
+        }
+    });
+
+    const userAccountOrders = @json($orders);
+
+    window.openOrderModal = window._openOrderModal = function(orderId) {
+        const modal = document.getElementById('order-details-modal');
+        const body = document.getElementById('modal-order-body');
+        const title = document.getElementById('modal-order-title');
+        const sub = document.getElementById('modal-order-sub');
+        const badge = document.getElementById('modal-order-badge');
+
+        if (!modal) return;
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+
+        const order = userAccountOrders.find(o => String(o.id) === String(orderId));
+
+        if (!order) {
+            body.innerHTML = `<p class="text-gray-400 text-center py-8">Order details could not be loaded.</p>`;
+            return;
+        }
+
+        const trackingNo = order.tracking_number || ('TF-' + String(order.id).substring(0, 8).toUpperCase());
+        title.textContent = `Order #${trackingNo}`;
+        sub.textContent = `Placed on ${order.created_at ? new Date(order.created_at).toLocaleDateString() : 'N/A'}`;
+        
+        const status = (order.fulfillment_status || 'NEW').toUpperCase();
+        badge.textContent = status;
+
+        let stepIndex = 1;
+        let barWidth = '0%';
+
+        switch (status) {
+            case 'NEW':
+            case 'PENDING':
+                stepIndex = 1; barWidth = '0%'; break;
+            case 'PACKING':
+            case 'PROCESSING':
+                stepIndex = 2; barWidth = '25%'; break;
+            case 'BUILDING':
+            case 'READY_TO_SHIP':
+                stepIndex = 3; barWidth = '50%'; break;
+            case 'OUT_FOR_DELIVERY':
+            case 'SHIPPED':
+                stepIndex = 4; barWidth = '75%'; break;
+            case 'DELIVERED':
+            case 'COMPLETED':
+                stepIndex = 5; barWidth = '100%'; break;
+            default:
+                stepIndex = 1; barWidth = '20%'; break;
+        }
+
+        let itemsHtml = '';
+        if (order.items && order.items.length > 0) {
+            order.items.forEach(item => {
+                itemsHtml += `
+                    <div class="flex items-center justify-between p-3.5 bg-black/40 border border-white/5 rounded-xl">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
+                                <i class="ph-bold ph-cpu text-xl"></i>
+                            </div>
+                            <div>
+                                <h4 class="text-sm font-bold text-white">${item.name}</h4>
+                                <p class="text-xs text-gray-400">Qty: ${item.quantity || 1} • ₱${Number(item.price || 0).toLocaleString()}</p>
+                            </div>
+                        </div>
+                        <span class="text-sm font-bold text-primary">₱${(Number(item.price || 0) * Number(item.quantity || 1)).toLocaleString()}</span>
+                    </div>
+                `;
+            });
+        } else if (order.fulfillment_details) {
+            itemsHtml = `
+                <div class="flex items-center justify-between p-3.5 bg-black/40 border border-white/5 rounded-xl">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
+                            <i class="ph-bold ph-desktop text-xl"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-sm font-bold text-white">${order.fulfillment_details.product_name}</h4>
+                            <p class="text-xs text-gray-400">Qty: ${order.fulfillment_details.qty || 1}</p>
+                        </div>
+                    </div>
+                    <span class="text-sm font-bold text-primary">₱${Number(order.fulfillment_details.product_amount || order.total).toLocaleString()}</span>
+                </div>
+            `;
+        }
+
+        body.innerHTML = `
+            <div class="bg-[#181818] border border-white/5 rounded-2xl p-5 relative">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-4 flex items-center gap-2">
+                    <i class="ph-bold ph-path text-primary"></i> Live Fulfillment Progress (OrderFulfillment Database)
+                </h3>
+                
+                <div class="relative pt-4 pb-2">
+                    <div class="absolute top-6 left-[10%] right-[10%] h-1 bg-white/10 rounded-full"></div>
+                    <div class="absolute top-6 left-[10%] h-1 bg-gradient-to-r from-[#ff5100] to-primary rounded-full transition-all duration-500" style="width: calc(${barWidth} * 0.8);"></div>
+                    
+                    <div class="flex justify-between relative z-10 text-[10px] uppercase font-bold">
+                        <div class="flex flex-col items-center gap-1.5 ${stepIndex >= 1 ? 'text-primary' : 'text-gray-500'}">
+                            <div class="w-5 h-5 rounded-full ${stepIndex >= 1 ? 'bg-primary' : 'bg-white/10'} flex items-center justify-center">
+                                <i class="ph-bold ph-check text-[9px] text-white"></i>
+                            </div>
+                            <span>Order Placed</span>
+                        </div>
+                        <div class="flex flex-col items-center gap-1.5 ${stepIndex >= 2 ? 'text-primary' : 'text-gray-500'}">
+                            <div class="w-5 h-5 rounded-full ${stepIndex >= 2 ? 'bg-primary' : 'bg-white/10'} flex items-center justify-center">
+                                <i class="ph-bold ph-check text-[9px] text-white"></i>
+                            </div>
+                            <span>Processing</span>
+                        </div>
+                        <div class="flex flex-col items-center gap-1.5 ${stepIndex >= 3 ? 'text-primary' : 'text-gray-500'}">
+                            <div class="w-5 h-5 rounded-full ${stepIndex >= 3 ? 'bg-primary' : 'bg-white/10'} flex items-center justify-center">
+                                <i class="ph-bold ph-check text-[9px] text-white"></i>
+                            </div>
+                            <span>Building</span>
+                        </div>
+                        <div class="flex flex-col items-center gap-1.5 ${stepIndex >= 4 ? 'text-primary' : 'text-gray-500'}">
+                            <div class="w-5 h-5 rounded-full ${stepIndex >= 4 ? 'bg-primary' : 'bg-white/10'} flex items-center justify-center">
+                                <i class="ph-bold ph-check text-[9px] text-white"></i>
+                            </div>
+                            <span>Quality Check</span>
+                        </div>
+                        <div class="flex flex-col items-center gap-1.5 ${stepIndex >= 5 ? 'text-green-400' : 'text-gray-500'}">
+                            <div class="w-5 h-5 rounded-full ${stepIndex >= 5 ? 'bg-green-500' : 'bg-white/10'} flex items-center justify-center">
+                                <i class="ph-bold ph-check text-[9px] text-white"></i>
+                            </div>
+                            <span>Delivered</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            ${order.shipment_details ? `
+            <div class="bg-primary/10 border border-primary/20 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4 text-xs">
+                <div class="flex items-center gap-3">
+                    <i class="ph-bold ph-truck text-2xl text-primary"></i>
+                    <div>
+                        <p class="font-bold text-white">Courier: ${order.shipment_details.courier || 'Express Shipping'}</p>
+                        <p class="text-gray-400">Tracking #: <span class="text-primary font-mono font-bold">${order.shipment_details.tracking_number || 'N/A'}</span></p>
+                    </div>
+                </div>
+                <span class="bg-primary text-white font-bold px-3 py-1 rounded-full text-[10px] uppercase">
+                    ${order.shipment_details.status || 'In Transit'}
+                </span>
+            </div>
+            ` : ''}
+
+            <div>
+                <h3 class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">Order Items</h3>
+                <div class="flex flex-col gap-2">
+                    ${itemsHtml}
+                </div>
+            </div>
+
+            <div class="border-t border-white/10 pt-4 flex flex-col gap-2 text-xs">
+                <div class="flex justify-between text-gray-400">
+                    <span>Subtotal</span>
+                    <span class="text-white font-medium">₱${Number(order.total || 0).toLocaleString()}</span>
+                </div>
+                <div class="flex justify-between text-gray-400">
+                    <span>Shipping Fee</span>
+                    <span class="text-white font-medium">₱150.00</span>
+                </div>
+                <div class="flex justify-between text-base font-black text-white pt-2 border-t border-white/10">
+                    <span>Total Paid</span>
+                    <span class="text-transparent bg-clip-text bg-gradient-to-r from-primary to-[#ff8c33]">₱${Number(order.total || 0).toLocaleString()}</span>
+                </div>
+            </div>
+        `;
+    };
+
+    window.closeOrderModal = function() {
+        const modal = document.getElementById('order-details-modal');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+    };
 </script>
+
+<!-- Interactive Order Details Modal Container -->
+<div id="order-details-modal" class="fixed inset-0 z-[120] hidden items-center justify-center p-4 sm:p-6 overflow-y-auto">
+    <div class="fixed inset-0 bg-black/80 backdrop-blur-md" onclick="closeOrderModal()"></div>
+    <div class="bg-[#121212] border border-white/10 rounded-3xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl relative p-6 sm:p-8 z-10">
+        <div class="flex items-start justify-between border-b border-white/10 pb-4 mb-6">
+            <div>
+                <h2 class="text-xl sm:text-2xl font-black text-white flex items-center gap-3">
+                    <span id="modal-order-title">Order Details</span>
+                    <span id="modal-order-badge" class="text-xs font-bold text-primary border border-primary/30 bg-primary/10 px-2.5 py-0.5 rounded-lg uppercase tracking-wider"></span>
+                </h2>
+                <p class="text-xs text-gray-400 mt-1" id="modal-order-sub"></p>
+            </div>
+            <button type="button" onclick="closeOrderModal()" class="w-9 h-9 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-gray-400 hover:text-white flex items-center justify-center transition-colors">
+                <i class="ph-bold ph-x text-lg"></i>
+            </button>
+        </div>
+
+        <div class="flex flex-col gap-6" id="modal-order-body">
+            <div class="py-12 flex justify-center items-center">
+                <i class="ph-bold ph-spinner animate-spin text-3xl text-primary"></i>
+            </div>
+        </div>
+    </div>
+</div>
 </body>
 </html>

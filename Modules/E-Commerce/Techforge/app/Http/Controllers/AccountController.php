@@ -83,6 +83,11 @@ class AccountController extends Controller
 
             $order->setAttribute('fulfillment_status', strtoupper($fulfillment->status ?? $shipment->status ?? $order->status ?? 'NEW'));
             $order->setAttribute('shipment_details', $shipment);
+            $address = $order->shipping_address;
+            if (is_string($address)) {
+                $address = json_decode($address, true);
+            }
+            $order->setAttribute('shipping_address_parsed', $address);
             if (! $order->tracking_number && $shipment?->tracking_number) {
                 $order->setAttribute('tracking_number', $shipment->tracking_number);
             }

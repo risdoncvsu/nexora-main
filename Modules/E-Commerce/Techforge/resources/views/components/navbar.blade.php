@@ -119,7 +119,7 @@
                     <a href="{{ route('ecommerce.account.profile', ['store' => $store]) }}" class="flex items-center gap-3 px-5 py-2.5 text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-colors">
                         <i class="ph ph-user-circle text-lg text-gray-400"></i> My Account
                     </a>
-                    <a href="{{ route('ecommerce.account.order-history', ['store' => $store]) }}#purchases" class="flex items-center gap-3 px-5 py-2.5 text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-colors">
+                    <a href="{{ route('ecommerce.account.order-history', ['store' => $store]) }}#order-history" class="flex items-center gap-3 px-5 py-2.5 text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-colors">
                         <i class="ph ph-receipt text-lg text-gray-400"></i> Order History
                     </a>
 
