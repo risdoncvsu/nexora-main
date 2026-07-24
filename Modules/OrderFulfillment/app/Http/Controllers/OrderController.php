@@ -4,7 +4,9 @@ namespace Modules\OrderFulfillment\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Modules\OrderFulfillment\Models\Order;
 use Modules\OrderFulfillment\Models\OrderItem;
 use Modules\OrderFulfillment\Models\PackingMaterial;
@@ -23,7 +25,9 @@ class OrderController extends Controller
      */
     public function show($id)
     {
-        $order = Order::with('items')->findOrFail($id);
+        $order = Order::findOrFail($id);
+        $this->attachLineItems(collect([$order]));
+
         return view('orders.show', compact('order'));
     }
 
@@ -32,7 +36,8 @@ class OrderController extends Controller
      */
     public function index()
     {
-        $orders       = Order::with('items')->orderByDesc('created_at')->get();
+        $orders       = Order::orderByDesc('created_at')->get();
+        $this->attachLineItems($orders);
         $total        = Order::count();
         $inPacking    = Order::where('status', 'PACKING')->count();
         // "In shipping" = every non-delivered shipping status — dispatched
@@ -221,5 +226,35 @@ class OrderController extends Controller
             'success' => true,
             'status'  => 'CANCELLED',
         ]);
+    }
+
+    /**
+     * Keep the Orders screen usable while upgrading existing installations.
+     * Older fulfillment databases only store the summary fields on orders;
+     * newer ones also have client-scoped order_items.  Supplying a synthetic
+     * single line item for the former avoids querying a missing table and
+     * preserves the same UI contract for both record formats.
+     */
+    private function attachLineItems(Collection $orders): void
+    {
+        if ($orders->isEmpty()) {
+            return;
+        }
+
+        if (Schema::connection('order_fulfillment')->hasTable('order_items')) {
+            $orders->load('items');
+            return;
+        }
+
+        $orders->each(function (Order $order): void {
+            $order->setRelation('items', collect([
+                new OrderItem([
+                    'order_id'       => $order->id,
+                    'product_name'   => $order->product_name ?: 'Storefront order',
+                    'qty'            => (int) ($order->qty ?: 1),
+                    'product_amount' => (float) ($order->product_amount ?: 0),
+                ]),
+            ]));
+        });
     }
 }

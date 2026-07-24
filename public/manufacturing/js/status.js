@@ -124,6 +124,7 @@ async function saveChanges() {
     const autoFinish = allReady && order.status === 'Building';
 
     const payload = {
+        workOrderId: order.id,
         orderIndex:  editingOrderIndex,
         partChanges: pendingChanges,
         sendToQC:    pendingQC,
@@ -156,6 +157,8 @@ function getStatusPill(status) {
         'Building': 'bg-yellow-400 text-yellow-900',
         'Pending':  'bg-red-500 text-white',
         'Finished': 'bg-green-500 text-white',
+        'Completed':'bg-green-500 text-white',
+        'Rework':   'bg-orange-500 text-white',
         'QC Check': 'bg-blue-400 text-blue-900',
         'Cancelled':'bg-gray-400 text-gray-900',
     };
@@ -175,8 +178,10 @@ function confirmCancelOrder() {
 }
 
 async function cancelOrder() {
+    const order = workOrdersData[editingOrderIndex];
     const payload = {
         cancelOrder: true,
+        workOrderId: order.id,
         orderIndex:  editingOrderIndex,
         _token: document.querySelector('meta[name="csrf-token"]').content,
     };
