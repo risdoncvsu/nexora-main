@@ -252,7 +252,7 @@ class PackingController extends Controller
             //    Create the shipment + update the order on the default DB.
             //    If anything here fails, we must give the materials back.
             try {
-                $result = DB::transaction(function () use ($validated, $order, $id) {
+                $result = DB::connection('order_fulfillment')->transaction(function () use ($validated, $order, $id) {
 
                     $trackingNumber = strtoupper($validated['courier']) . '-' . time();
                     $shipmentId = $this->generateUniqueShipmentId();
@@ -265,11 +265,11 @@ class PackingController extends Controller
                         $order->load('items');
                     }
                     $items = $this->buildOrderItems($order);
-                    $totalQty = (int) $items->sum('qty');
+                    $totalQty = max(1, (int) $items->sum('qty'));
                     $totalAmount = $items->sum('amount_raw');
                     $productName = $items->count() > 1
                         ? $items->pluck('name')->implode(', ')
-                        : $order->product_name;
+                        : (string) ($items->first()['name'] ?? 'Order items');
 
                     Shipment::create([
                         'shipment_id'     => $shipmentId,
@@ -416,11 +416,16 @@ class PackingController extends Controller
             })->values();
         }
 
-        $rawAmount = $order->product_amount * $order->qty;
+        // Legacy e-commerce orders only stored the customer and shipping
+        // details. They may not have product_name, qty, or product_amount
+        // columns, so never read those attributes directly here.
+        $qty = max(1, (int) ($order->getAttribute('qty') ?? 1));
+        $productName = (string) ($order->getAttribute('product_name') ?? 'Order items');
+        $rawAmount = (float) ($order->getAttribute('product_amount') ?? 0) * $qty;
 
         return collect([[
-            'name'       => $order->product_name,
-            'qty'        => $order->qty,
+            'name'       => $productName,
+            'qty'        => $qty,
             'amount'     => number_format($rawAmount, 2),
             'amount_raw' => $rawAmount,
         ]]);
