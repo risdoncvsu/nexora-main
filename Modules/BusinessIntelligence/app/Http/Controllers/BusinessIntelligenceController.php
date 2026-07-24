@@ -629,46 +629,133 @@ class BusinessIntelligenceController
                 return [];
             }
 
-            $schema = Schema::connection('order_fulfillment');
-            if (!$schema->hasTable('order_items') || !$schema->hasColumn('order_items', 'client_id')) {
-                return [];
+            $products = $this->orderFulfillmentTopProducts($clientId);
+            if (!empty($products)) {
+                return $products;
             }
 
-            $connection = DB::connection('order_fulfillment');
-            $windowStart = now()->subDays(30);
-            $priorStart = now()->subDays(60);
-
-            $base = fn () => $connection->table('order_items')->where('client_id', $clientId);
-
-            $current = (clone $base())
-                ->where('created_at', '>=', $windowStart)
-                ->selectRaw('product_name, SUM(qty) as units, SUM(qty * product_amount) as revenue')
-                ->groupBy('product_name')->orderByDesc('units')->limit(10)->get();
-
-            // If nothing landed in the last 30 days, fall back to all-time so
-            // the card still shows the client's products.
-            if ($current->isEmpty()) {
-                $current = (clone $base())
-                    ->selectRaw('product_name, SUM(qty) as units, SUM(qty * product_amount) as revenue')
-                    ->groupBy('product_name')->orderByDesc('units')->limit(10)->get();
+            $products = $this->ecommerceTopProducts($clientId);
+            if (!empty($products)) {
+                return $products;
             }
 
-            $prev = (clone $base())
-                ->whereBetween('created_at', [$priorStart, $windowStart])
-                ->selectRaw('product_name, SUM(qty) as units')
-                ->groupBy('product_name')->pluck('units', 'product_name');
-
-            return $current->map(fn ($row) => [
-                'name' => (string) $row->product_name,
-                'units_sold' => (int) $row->units,
-                'prev_units' => (int) ($prev[$row->product_name] ?? 0),
-                'revenue' => (float) $row->revenue,
-            ])->all();
+            return $this->ecommerceCatalogProducts($clientId);
         } catch (\Throwable) {
             return [];
         }
     }
 
+    private function orderFulfillmentTopProducts(int $clientId): array
+    {
+        $schema = Schema::connection('order_fulfillment');
+        if (!$schema->hasTable('order_items')
+            || !$schema->hasColumn('order_items', 'client_id')
+            || !$schema->hasColumn('order_items', 'product_name')
+            || !$schema->hasColumn('order_items', 'qty')
+            || !$schema->hasColumn('order_items', 'product_amount')) {
+            return [];
+        }
+
+        $connection = DB::connection('order_fulfillment');
+        $windowStart = now()->subDays(30);
+        $priorStart = now()->subDays(60);
+        $base = fn () => $connection->table('order_items')->where('client_id', $clientId);
+
+        $current = (clone $base())
+            ->where('created_at', '>=', $windowStart)
+            ->selectRaw('product_name as name, SUM(qty) as units, SUM(qty * product_amount) as revenue')
+            ->groupBy('product_name')->orderByDesc('units')->limit(10)->get();
+
+        if ($current->isEmpty()) {
+            $current = (clone $base())
+                ->selectRaw('product_name as name, SUM(qty) as units, SUM(qty * product_amount) as revenue')
+                ->groupBy('product_name')->orderByDesc('units')->limit(10)->get();
+        }
+
+        $prev = (clone $base())
+            ->whereBetween('created_at', [$priorStart, $windowStart])
+            ->selectRaw('product_name, SUM(qty) as units')
+            ->groupBy('product_name')->pluck('units', 'product_name');
+
+        return $this->formatTopProductRows($current, $prev);
+    }
+
+    private function ecommerceTopProducts(int $clientId): array
+    {
+        $schema = Schema::connection('ecommerce');
+        if (!$schema->hasTable('order_items')
+            || !$schema->hasTable('orders')
+            || !$schema->hasColumn('orders', 'client_id')
+            || !$schema->hasColumn('order_items', 'order_id')
+            || !$schema->hasColumn('order_items', 'name')
+            || !$schema->hasColumn('order_items', 'quantity')
+            || !$schema->hasColumn('order_items', 'price')) {
+            return [];
+        }
+
+        $connection = DB::connection('ecommerce');
+        $windowStart = now()->subDays(30);
+        $priorStart = now()->subDays(60);
+        $base = fn () => $connection->table('order_items')
+            ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->where('orders.client_id', $clientId);
+
+        $current = (clone $base())
+            ->where('order_items.created_at', '>=', $windowStart)
+            ->selectRaw('order_items.name as name, SUM(order_items.quantity) as units, SUM(order_items.quantity * order_items.price) as revenue')
+            ->groupBy('order_items.name')->orderByDesc('units')->limit(10)->get();
+
+        if ($current->isEmpty()) {
+            $current = (clone $base())
+                ->selectRaw('order_items.name as name, SUM(order_items.quantity) as units, SUM(order_items.quantity * order_items.price) as revenue')
+                ->groupBy('order_items.name')->orderByDesc('units')->limit(10)->get();
+        }
+
+        $prev = (clone $base())
+            ->whereBetween('order_items.created_at', [$priorStart, $windowStart])
+            ->selectRaw('order_items.name, SUM(order_items.quantity) as units')
+            ->groupBy('order_items.name')->pluck('units', 'order_items.name');
+
+        return $this->formatTopProductRows($current, $prev);
+    }
+
+    private function ecommerceCatalogProducts(int $clientId): array
+    {
+        $schema = Schema::connection('ecommerce');
+        if (!$schema->hasTable('products')
+            || !$schema->hasColumn('products', 'client_id')
+            || !$schema->hasColumn('products', 'name')) {
+            return [];
+        }
+
+        $select = ['name'];
+        $hasPrice = $schema->hasColumn('products', 'price');
+        if ($hasPrice) {
+            $select[] = 'price';
+        }
+
+        return DB::connection('ecommerce')->table('products')
+            ->where('client_id', $clientId)
+            ->orderBy('name')
+            ->limit(10)
+            ->get($select)
+            ->map(fn ($row) => [
+                'name' => (string) $row->name,
+                'units_sold' => 0,
+                'prev_units' => 0,
+                'revenue' => $hasPrice ? (float) $row->price : 0.0,
+            ])->all();
+    }
+
+    private function formatTopProductRows($current, $prev): array
+    {
+        return $current->map(fn ($row) => [
+            'name' => (string) $row->name,
+            'units_sold' => (int) $row->units,
+            'prev_units' => (int) ($prev[$row->name] ?? 0),
+            'revenue' => (float) $row->revenue,
+        ])->all();
+    }
     /**
      * Operational efficiency for the dashboard, computed from the
      * Manufacturing and Order Fulfillment databases. Always returns the
