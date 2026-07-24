@@ -13,7 +13,6 @@ Route::get('dashboard', [DashboardController::class, 'shell'])->name('finance.da
 Route::get('overview', [DashboardController::class, 'overview'])->name('finance.overview');
 Route::get('/test-order', function () {return view('finance::test-order');});
 
-Route::get('invoicedash', function () {return view('finance::invoicedash');})->name('finance.invoicedash');
 Route::get('invoicedash', [InvoiceController::class, 'index'])->name('finance.invoicedash');
 Route::put('/invoice/{invoice}', [InvoiceController::class, 'update'])->name('invoice.update');
 Route::put('/invoice/{invoice}/reject',[InvoiceController::class, 'reject'])->name('invoice.reject');

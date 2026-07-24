@@ -525,18 +525,25 @@ outstanding_amount: Number(inv.outstanding_amount ?? 0),
     client_name: inv.order?.customer_name ?? "",
     client_address: inv.order?.address ?? "",
 
-    product_name: inv.order?.items?.[0]?.product_name ?? "",
+    product_name: inv.order?.items?.[0]?.product_name ?? inv.order?.product_name ?? "",
 
-qty: Number(inv.order?.items?.[0]?.qty ?? 0),
+qty: Number(inv.order?.items?.[0]?.qty ?? inv.order?.qty ?? 0),
 
-unit_price: Number(inv.order?.items?.[0]?.product_amount ?? 0),
+unit_price: Number(inv.order?.items?.[0]?.product_amount ?? inv.order?.product_amount ?? 0),
 
     payment_method: inv.payment_method ?? "",
     payment_status: inv.payment_status ?? "",
     reference_number: inv.reference_number ?? "",
     payment_details: inv.payment_details ?? "",
 
-    items: inv.order?.items ?? [],
+    // Order Fulfillment deliberately keeps a summary row rather than an
+    // order_items table. Preserve the detail-printing UI with a single
+    // summary line when that is the only data available.
+    items: inv.order?.items ?? (inv.order ? [{
+        product_name: inv.order.product_name,
+        qty: inv.order.qty,
+        product_amount: inv.order.product_amount,
+    }] : []),
 
 status: getInvoiceStatus(inv)
 }));

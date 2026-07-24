@@ -1,7 +1,6 @@
 <?php
 
 namespace Modules\Finance\Http\Controllers;
-use Modules\Finance\Models\order;
 
 use Modules\Finance\Models\Invoice;
 use Carbon\Carbon;
@@ -31,13 +30,10 @@ class InvoiceController extends Controller
     }
    private function getInvoiceValue(Invoice $invoice): float
 {
-    if (!$invoice->order) {
-        return 0;
-    }
-
-    return (float) $invoice->order->items->sum(function ($item) {
-        return $item->qty * $item->product_amount;
-    });
+    // Order Fulfillment stores its canonical order summary on orders; it does
+    // not own an order_items table. The accounting record is therefore the
+    // authoritative amount when an invoice is edited.
+    return (float) $invoice->invoice_amount + (float) $invoice->shipping_fee;
 }
 
     /**
@@ -65,7 +61,7 @@ private function calculateOverdue(Collection $invoices): float
    public function index()
 {
 
-    $invoices = Invoice::with('order.items')
+    $invoices = Invoice::with('order')
     ->latest('issue_date')
     ->get();
 
