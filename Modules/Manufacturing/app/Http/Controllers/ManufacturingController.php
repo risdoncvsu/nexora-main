@@ -289,12 +289,42 @@ class ManufacturingController extends Controller
 
     public function assignWorker(Request $request): JsonResponse
     {
-        $order = WorkOrder::find($request->input('orderId'));
+        $validated = $request->validate([
+            'orderId' => ['required', 'string'],
+            'workerId' => ['required', 'integer'],
+        ]);
+
+        $order = WorkOrder::find($validated['orderId']);
         if (!$order) {
             return response()->json(['success' => false, 'message' => 'Work order not found.'], 404);
         }
-        $order->update(['assigned' => $request->input('workerName')]);
-        return response()->json(['success' => true]);
+
+        $worker = DB::connection('hr')->table('employees')
+            ->where('id', $validated['workerId'])
+            ->where('client_id', $order->client_id)
+            ->where('approval_status', 'Active')
+            ->where(function ($query): void {
+                $query->whereRaw("LOWER(COALESCE(department, '')) LIKE ?", ['%production%'])
+                    ->orWhereRaw("LOWER(COALESCE(position, '')) LIKE ?", ['%production%'])
+                    ->orWhereRaw("LOWER(COALESCE(position, '')) LIKE ?", ['%manufacturing%']);
+            })
+            ->first();
+
+        if (! $worker) {
+            return response()->json(['success' => false, 'message' => 'Select an active Production Management employee.'], 422);
+        }
+
+        $name = trim(implode(' ', array_filter([$worker->first_name, $worker->middle_name, $worker->last_name, $worker->suffix])));
+        $changes = [
+            'assigned_employee_id' => $worker->id,
+            'assigned' => $name,
+        ];
+        if ($order->status === 'Pending') {
+            $changes['status'] = 'Building';
+        }
+        $order->update($changes);
+
+        return response()->json(['success' => true, 'status' => $changes['status'] ?? $order->status]);
     }
 
     // ── Requisitions / inventory ─────────────────────────────────────────────

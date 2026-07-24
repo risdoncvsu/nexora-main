@@ -3,10 +3,10 @@
 namespace Modules\Manufacturing\Services;
 
 use Modules\Manufacturing\Models\WorkOrder;
-use Modules\Manufacturing\Models\Worker;
 use Modules\Manufacturing\Models\QcSession;
 use Modules\Manufacturing\Models\ReworkOrder;
 use Modules\Manufacturing\Models\Requisition;
+use Illuminate\Support\Facades\DB;
 
 class ManufacturingDataService
 {
@@ -36,7 +36,8 @@ class ManufacturingDataService
                 : $wo->due,
             'dueDate'  => optional($wo->due_date)->toDateString(),
             'source'   => $wo->source,
-            'assigned' => $wo->assigned,
+            'assigned' => $wo->assigned ?: 'Unassigned',
+            'assignedEmployeeId' => $wo->assigned_employee_id,
             'range'    => $wo->range,
             'createdAt'=> optional($wo->created_at)->toDateTimeString(),
             'parts'    => $wo->parts->map(fn ($p) => [
@@ -51,11 +52,24 @@ class ManufacturingDataService
     // ── Workers ──────────────────────────────────────────────────────────────
     public function workers(): array
     {
-        return Worker::orderBy('id')->get()->map(fn ($w) => [
-            'id'    => $w->id,
-            'name'  => $w->name,
-            'role'  => $w->role,
-            'notes' => $w->notes,
+        $workers = DB::connection('hr')->table('employees')
+            ->where('approval_status', 'Active')
+            ->where(function ($query): void {
+                $query->whereRaw("LOWER(COALESCE(department, '')) LIKE ?", ['%production%'])
+                    ->orWhereRaw("LOWER(COALESCE(position, '')) LIKE ?", ['%production%'])
+                    ->orWhereRaw("LOWER(COALESCE(position, '')) LIKE ?", ['%manufacturing%']);
+            });
+
+        if (! (config('nexora.root_admin_module_testing') && auth()->user()?->role === 'root_admin')) {
+            $workers->where('client_id', session('employee_client_id'));
+        }
+
+        return $workers->orderBy('last_name')->orderBy('first_name')->get()->map(fn ($employee) => [
+            'id'         => (int) $employee->id,
+            'employeeId' => $employee->employee_id,
+            'name'       => trim(implode(' ', array_filter([$employee->first_name, $employee->middle_name, $employee->last_name, $employee->suffix]))),
+            'role'       => $employee->position ?: 'Production Staff',
+            'notes'      => $employee->department,
         ])->values()->all();
     }
 
