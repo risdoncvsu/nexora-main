@@ -53,6 +53,7 @@ Route::middleware([\Modules\Ecommerce\Http\Middleware\RequireEcommerceAuth::clas
     Route::get('/account/purchases', [\Modules\Ecommerce\Http\Controllers\AccountController::class, 'index'])->name('account.purchases');
     Route::get('/account/order-history', [\Modules\Ecommerce\Http\Controllers\AccountController::class, 'orderHistory'])->name('account.order-history');
     Route::get('/account/orders/{id}', [\Modules\Ecommerce\Http\Controllers\AccountController::class, 'showOrder'])->name('account.orders.show');
+    Route::post('/account/orders/{id}/received', [\Modules\Ecommerce\Http\Controllers\AccountController::class, 'confirmReceived'])->name('account.orders.received');
 
     Route::post('/account/profile', [\Modules\Ecommerce\Http\Controllers\AccountController::class, 'updateProfile'])->name('account.profile.update');
 

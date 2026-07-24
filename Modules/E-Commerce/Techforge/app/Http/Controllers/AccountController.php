@@ -41,6 +41,57 @@ class AccountController extends Controller
         ]);
     }
 
+    public function confirmReceived(Request $request, string $id)
+    {
+        $user = Auth::guard('ecommerce')->user();
+        $order = Order::query()
+            ->where('user_id', $user->id)
+            ->whereKey($id)
+            ->firstOrFail();
+
+        $clientId = app(EcommerceClientContext::class)->clientId();
+        $fulfillmentSchema = Schema::connection('order_fulfillment');
+
+        if ($fulfillmentSchema->hasTable('shipments')) {
+            $shipmentQuery = DB::connection('order_fulfillment')
+                ->table('shipments')
+                ->where('order_id', $order->id);
+            if ($clientId !== null && $fulfillmentSchema->hasColumn('shipments', 'client_id')) {
+                $shipmentQuery->where('client_id', $clientId);
+            }
+
+            $driverIds = $fulfillmentSchema->hasColumn('shipments', 'delivery_man_id')
+                ? $shipmentQuery->pluck('delivery_man_id')->filter()->all()
+                : [];
+            $shipmentQuery->update(['status' => 'DELIVERED', 'updated_at' => now()]);
+
+            if ($driverIds !== [] && $fulfillmentSchema->hasTable('delivery_men')) {
+                $drivers = DB::connection('order_fulfillment')->table('delivery_men')->whereIn('id', $driverIds);
+                if ($clientId !== null && $fulfillmentSchema->hasColumn('delivery_men', 'client_id')) {
+                    $drivers->where('client_id', $clientId);
+                }
+                $drivers->update(['status' => 'AVAILABLE', 'updated_at' => now()]);
+            }
+        }
+
+        if ($fulfillmentSchema->hasTable('orders')) {
+            $fulfillmentOrder = DB::connection('order_fulfillment')
+                ->table('orders')
+                ->where('id', $order->id);
+            if ($clientId !== null && $fulfillmentSchema->hasColumn('orders', 'client_id')) {
+                $fulfillmentOrder->where('client_id', $clientId);
+            }
+            $fulfillmentOrder->update(['status' => 'DELIVERED', 'updated_at' => now()]);
+        }
+
+        $order->update(['status' => 'delivered']);
+
+        return response()->json([
+            'success' => true,
+            'status' => 'DELIVERED',
+        ]);
+    }
+
     /**
      * Load an authenticated customer's orders and enrich them with the
      * fulfillment and shipment status for the same storefront client.

@@ -1099,7 +1099,7 @@
                                                     Cancel
                                                 </button>
                                             @elseif($filterCat === 'to-receive')
-                                                <button type="button" onclick="event.stopPropagation(); alert('Order confirmed as received! Thank you.')" class="bg-green-600 hover:bg-green-500 text-white px-4 py-1.5 rounded-lg font-bold text-[11px] transition-all shadow-lg shadow-green-500/20 flex items-center gap-1">
+                                                <button type="button" onclick="event.stopPropagation(); window.confirmOrderReceived('{{ $order->id }}')" class="bg-green-600 hover:bg-green-500 text-white px-4 py-1.5 rounded-lg font-bold text-[11px] transition-all shadow-lg shadow-green-500/20 flex items-center gap-1">
                                                     <i class="ph-bold ph-check text-xs"></i> Confirm Received
                                                 </button>
                                             @elseif($filterCat === 'completed')
@@ -2469,6 +2469,29 @@
             }
         }
     }
+
+    window.confirmOrderReceived = async function(orderId) {
+        if (!window.confirm('Confirm that you received this order?')) {
+            return;
+        }
+
+        const endpoint = @json(route('ecommerce.account.orders.received', ['id' => '__ORDER_ID__']));
+        const response = await fetch(endpoint.replace('__ORDER_ID__', encodeURIComponent(orderId)), {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+            },
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+            alert(result.message || 'Unable to confirm receipt. Please try again.');
+            return;
+        }
+
+        alert('Order confirmed as received. Thank you.');
+        window.location.reload();
+    };
 
     window.filterOrderHistory = function(category, btn) {
         const tabs = document.querySelectorAll('.oh-tab-btn');
