@@ -23,7 +23,7 @@ return new class extends Migration
                 $table->string('customer_name'); $table->string('product_name'); $table->unsignedInteger('qty'); $table->decimal('amount', 14, 2)->default(0);
                 $table->string('courier')->nullable(); $table->string('box_used')->nullable(); $table->string('tracking_number')->nullable();
                 $table->string('status')->default('SHIPPED'); $table->text('address')->nullable(); $table->date('due_date')->nullable();
-                $table->string('delivery_man_id')->nullable(); $table->timestamp('shipped_at')->nullable(); $table->timestamps();
+                $table->string('delivery_man_id')->nullable(); $table->timestamp('shipped_at')->nullable(); $table->timestamp('out_for_delivery_at')->nullable(); $table->timestamps();
             },
             'delivery_men' => function (Blueprint $table): void {
                 $table->string('id')->primary(); $table->unsignedBigInteger('client_id')->index(); $table->string('name');

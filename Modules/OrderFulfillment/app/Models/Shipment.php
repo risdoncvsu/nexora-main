@@ -26,10 +26,12 @@ class Shipment extends Model
         'due_date',
         'delivery_man_id',
         'shipped_at',
+        'out_for_delivery_at',
     ];
 
     protected $casts = [
         'shipped_at' => 'datetime',
+        'out_for_delivery_at' => 'datetime',
     ];
 
     public function deliveryMan()

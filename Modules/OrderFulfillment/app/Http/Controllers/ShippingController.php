@@ -4,6 +4,7 @@ namespace Modules\OrderFulfillment\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Modules\OrderFulfillment\Models\Order;
 use Modules\OrderFulfillment\Models\Shipment;
 use Modules\OrderFulfillment\Models\DeliveryMan;
@@ -30,22 +31,28 @@ class ShippingController extends Controller
         // promotion above — the difference is DELIVERED also needs to free
         // up the driver (a plain mass ->update() can't do that per-row), so
         // this loops each shipment individually instead.
-        Shipment::where('status', 'OUT_FOR_DELIVERY')
-            ->whereNotNull('out_for_delivery_at')
-            ->where('out_for_delivery_at', '<=', now()->subHour())
-            ->get()
-            ->each(function (Shipment $shipment) {
-                DB::transaction(function () use ($shipment) {
-                    // Mirrors onto the parent Order via Shipment::booted()'s
-                    // `updated` hook, same as every other status change here.
-                    $shipment->update(['status' => 'DELIVERED']);
+        // Some existing installations predate this timestamp column.  Do
+        // not make the whole Shipping screen unavailable while the additive
+        // migration is being deployed; the normal shipping workflow remains
+        // usable and the timer resumes automatically once it is present.
+        if (Schema::connection('order_fulfillment')->hasColumn('shipments', 'out_for_delivery_at')) {
+            Shipment::where('status', 'OUT_FOR_DELIVERY')
+                ->whereNotNull('out_for_delivery_at')
+                ->where('out_for_delivery_at', '<=', now()->subHour())
+                ->get()
+                ->each(function (Shipment $shipment) {
+                    DB::transaction(function () use ($shipment) {
+                        // Mirrors onto the parent Order via Shipment::booted()'s
+                        // `updated` hook, same as every other status change here.
+                        $shipment->update(['status' => 'DELIVERED']);
 
-                    if ($shipment->delivery_man_id) {
-                        DeliveryMan::where('id', $shipment->delivery_man_id)
-                            ->update(['status' => DeliveryMan::STATUS_AVAILABLE]);
-                    }
+                        if ($shipment->delivery_man_id) {
+                            DeliveryMan::where('id', $shipment->delivery_man_id)
+                                ->update(['status' => DeliveryMan::STATUS_AVAILABLE]);
+                        }
+                    });
                 });
-            });
+        }
 
         $shipments = Shipment::select(
             'shipment_id',
@@ -202,11 +209,16 @@ class ShippingController extends Controller
         }
 
         DB::transaction(function () use ($shipment, $driver) {
-            $shipment->update([
+            $changes = [
                 'delivery_man_id'     => $driver->id,
                 'status'              => 'OUT_FOR_DELIVERY',
-                'out_for_delivery_at' => now(),
-            ]);
+            ];
+
+            if (Schema::connection('order_fulfillment')->hasColumn('shipments', 'out_for_delivery_at')) {
+                $changes['out_for_delivery_at'] = now();
+            }
+
+            $shipment->update($changes);
 
             $driver->update(['status' => DeliveryMan::STATUS_UNAVAILABLE]);
         });
