@@ -82,6 +82,9 @@ let expenseData = {
   selectedRange: "LAST 6 MONTHS"
 };
 
+setExpenseData(@json($expenseData ?? []));
+document.getElementById("rangeBtnLabel").textContent = expenseData.selectedRange;
+
 function setExpenseData(data) {
   if (!data || typeof data !== 'object') {
     console.warn('Invalid expense data received');
@@ -404,22 +407,8 @@ document.addEventListener("click", (e) => {
 });
 
 function selectRange(label){
-  closeAllMenus();
-  expenseData.selectedRange = label;
-  document.getElementById("rangeBtnLabel").textContent = label;
-
-  if (label === "LAST WEEK") {
-    expenseData.months = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
-  } else if (label === "LAST MONTH") {
-    expenseData.months = ["Week 1","Week 2","Week 3","Week 4"];
-  } else if (label === "LAST YEAR") {
-    expenseData.months = ["Aug","Sep","Oct","Nov","Dec","Jan","Feb","Mar","Apr","May","Jun","Jul"];
-  } else {
-    expenseData.months = ["Jan","Feb","Mar","Apr","May","Jun"];
-  }
-
-  renderAll();
-  renderRangeMenu();
+  const ranges = {"LAST WEEK":"week","LAST MONTH":"month","LAST YEAR":"year","LAST 6 MONTHS":"6months"};
+  window.location.href = `${window.location.pathname}?range=${ranges[label]}`;
 }
 
 function renderAll(){

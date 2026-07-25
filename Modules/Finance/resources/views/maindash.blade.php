@@ -290,15 +290,15 @@
     <div id="splash">
         <div class="circle"></div>
         <div class="brand">
-            <img src="{{asset('images/Nexora_Logo_Transparent.png')}}" class="logo" alt="Logo">
-            <img src="{{asset('images/Banner Name White.png')}}" class="banner" alt="Banner">
+            <img src="{{ asset('finance/images/Nexora_Logo_Transparent.png') }}" class="logo" alt="Logo">
+            <img src="{{ asset('finance/images/Banner Name White.png') }}" class="banner" alt="Banner">
         </div>
     </div>
 
         <!-- Top Navigation -->
         <header class="header">
             <a href="" class="nexora-logo" id="headerLogoBtn">
-                <img src="{{asset('images/Banner Transparent.png')}}" alt="Nexora Logo">
+                <img src="{{ asset('finance/images/Banner Transparent.png') }}" alt="Nexora Logo">
             </a>
 
         <!-- TOP RIGHT MENU USER -->

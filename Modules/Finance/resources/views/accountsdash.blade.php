@@ -471,7 +471,7 @@ async function saveAccount() {
         let method = "POST";
 
         if (editingAccountId !== null) {
-            url = `/accounts/${editingAccountId}`;
+            url = `/finance/accounts/${editingAccountId}`;
             method = "PUT";
         }
 
@@ -546,7 +546,7 @@ async function deleteAccount(id) {
 
     try {
 
-        const response = await fetch(`/accounts/${id}`, {
+        const response = await fetch(`/finance/accounts/${id}`, {
             method: "DELETE",
             headers: {
                 "X-CSRF-TOKEN": "{{ csrf_token() }}",
