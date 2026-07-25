@@ -70,7 +70,12 @@ class PackingController extends Controller
                     }
                 })
                     ->orWhereRaw('LOWER(box_size) = LOWER(?)', [$materialName]);
-            });
+            })
+            // Legacy rows may use a singular name ("Silica Gel") while the
+            // catalog import uses "Silica Gel Packs". Prefer the stocked row
+            // so an older zero-stock alias cannot block a valid shipment.
+            ->orderByDesc('stock_qty')
+            ->orderByDesc('id');
     }
 
     /**
