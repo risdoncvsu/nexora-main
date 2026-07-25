@@ -74,12 +74,11 @@ class PackingController extends Controller
     }
 
     /**
-     * Older Inventory installations recorded cartons and boxes as ordinary
+     * Older Inventory installations recorded packing supplies as ordinary
      * catalog items. Packing consumes the dedicated packing_materials table,
-     * so import those existing box records the first time Fulfillment needs
-     * them. Existing packing rows retain their workflow-managed stock.
+     * so keep the recognized packaging rows available to the packing flow.
      */
-    private function importCatalogBoxes(): void
+    private function syncCatalogPackingMaterials(): void
     {
         $schema = Schema::connection(self::INVENTORY_CONN);
         $clientId = (int) session('employee_client_id');
@@ -97,13 +96,19 @@ class PackingController extends Controller
                 $query->whereRaw("LOWER(items.name) LIKE '%box%'")
                     ->orWhereRaw("LOWER(items.name) LIKE '%carton%'")
                     ->orWhereRaw("LOWER(items.name) LIKE '%package%'")
+                    ->orWhereRaw("LOWER(items.name) LIKE '%foam%insert%'")
+                    ->orWhereRaw("LOWER(items.name) LIKE '%silica%gel%'")
+                    ->orWhereRaw("LOWER(items.name) LIKE '%packing%tape%'")
+                    ->orWhereRaw("LOWER(items.name) LIKE '%bubble%wrap%'")
+                    ->orWhereRaw("LOWER(items.name) LIKE '%fragile%tape%'")
                     ->orWhereRaw("LOWER(categories.name) LIKE '%box%'")
                     ->orWhereRaw("LOWER(categories.name) LIKE '%carton%'");
             })
-            ->select('items.id', 'items.name')
+            ->select('items.id', 'items.name', 'categories.name as category_name')
             ->distinct()
             ->get();
 
+        $catalogMaterials = [];
         foreach ($boxItems as $item) {
             $name = trim((string) $item->name);
             if ($name === '') {
@@ -111,27 +116,23 @@ class PackingController extends Controller
             }
 
             $normalized = strtolower($name);
+            $category = strtolower((string) $item->category_name);
+            $isBox = str_contains($normalized, 'box')
+                || str_contains($normalized, 'carton')
+                || str_contains($normalized, 'package')
+                || str_contains($category, 'box')
+                || str_contains($category, 'carton');
+            $packingName = match (true) {
+                str_contains($normalized, 'foam') && str_contains($normalized, 'insert') => 'Foam Inserts',
+                str_contains($normalized, 'silica') && str_contains($normalized, 'gel') => 'Silica Gel Packs',
+                str_contains($normalized, 'packing') && str_contains($normalized, 'tape') => 'Packing Tape',
+                str_contains($normalized, 'bubble') && str_contains($normalized, 'wrap') => 'Bubble Wrap',
+                str_contains($normalized, 'fragile') && str_contains($normalized, 'tape') => 'Fragile Tape',
+                default => $name,
+            };
             $size = str_contains($normalized, 'small') ? 'Small'
                 : (str_contains($normalized, 'medium') ? 'Medium'
                     : (str_contains($normalized, 'large') ? 'Large' : 'Standard'));
-            $existingMaterial = $this->packingMaterialQuery()
-                ->whereRaw('LOWER(name) = LOWER(?)', [$name])
-                ->first();
-
-            if ($existingMaterial) {
-                if (! $existingMaterial->is_box || ! $existingMaterial->box_size) {
-                    $inventory->table('packing_materials')
-                        ->where('id', $existingMaterial->id)
-                        ->update([
-                            'is_box' => true,
-                            'box_size' => $existingMaterial->box_size ?: $size,
-                            'updated_at' => now(),
-                        ]);
-                }
-
-                continue;
-            }
-
             $availableStock = $hasStockLevels
                 ? (int) $inventory->table('stock_levels')
                     ->where('client_id', $clientId)
@@ -139,13 +140,43 @@ class PackingController extends Controller
                     ->sum(DB::raw('stock - reserved_quantity'))
                 : 0;
 
+            if (! isset($catalogMaterials[$packingName])) {
+                $catalogMaterials[$packingName] = [
+                    'stock_qty' => 0,
+                    'is_box' => $isBox,
+                    'box_size' => $isBox ? $size : null,
+                ];
+            }
+
+            $catalogMaterials[$packingName]['stock_qty'] += max(0, $availableStock);
+        }
+
+        foreach ($catalogMaterials as $packingName => $material) {
+            $existingMaterial = $this->packingMaterialQuery()
+                ->whereRaw('LOWER(name) = LOWER(?)', [$packingName])
+                ->first();
+
+            if ($existingMaterial) {
+                $changes = [];
+                if ($material['is_box']) {
+                    $changes['is_box'] = true;
+                    $changes['box_size'] = $existingMaterial->box_size ?: $material['box_size'];
+                }
+
+                if ($changes) {
+                    $changes['updated_at'] = now();
+                    $inventory->table('packing_materials')->where('id', $existingMaterial->id)->update($changes);
+                }
+                continue;
+            }
+
             $inventory->table('packing_materials')->insert([
                 'client_id' => $clientId,
-                'name' => $name,
-                'stock_qty' => max(0, $availableStock),
+                'name' => $packingName,
+                'stock_qty' => $material['stock_qty'],
                 'low_stock_threshold' => 5,
-                'is_box' => true,
-                'box_size' => $size,
+                'is_box' => $material['is_box'],
+                'box_size' => $material['box_size'],
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
@@ -170,7 +201,7 @@ class PackingController extends Controller
             ? PackingError::count()
             : 0;
 
-        $this->importCatalogBoxes();
+        $this->syncCatalogPackingMaterials();
 
         $materials = Schema::connection(self::INVENTORY_CONN)->hasTable('packing_materials')
             ? $this->packingMaterialQuery()->get()
@@ -267,15 +298,14 @@ class PackingController extends Controller
         // want to return JSON — never let an exception fall through to
         // Laravel's HTML error page, since the frontend expects JSON.
         try {
-            // Figure out which materials this shipment requires.
-            $shipmentCount = Shipment::count();
-            $isBonusShipment = (($shipmentCount + 1) % 10 == 0);
+            $this->syncCatalogPackingMaterials();
 
-            $requiredMaterials = [
-                $validated['box'],
-                'Foam Inserts',
-                'Silica Gel Packs',
-            ];
+            // Standard packing requires the selected box, foam inserts, and
+            // silica gel. Every tenth shipment also consumes the additional
+            // protective supplies below.
+            $shipmentCount = Shipment::count();
+            $isBonusShipment = (($shipmentCount + 1) % 10 === 0);
+            $requiredMaterials = [$validated['box'], 'Foam Inserts', 'Silica Gel Packs'];
 
             if ($isBonusShipment) {
                 $requiredMaterials = array_merge($requiredMaterials, [
