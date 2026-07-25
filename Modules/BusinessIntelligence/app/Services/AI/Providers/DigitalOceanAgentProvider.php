@@ -36,9 +36,15 @@ class DigitalOceanAgentProvider implements AIProviderInterface
                 // The Agent endpoint chooses its deployed model; this required
                 // field is intentionally ignored by DigitalOcean.
                 'model' => (string) config('ai.providers.digitalocean-agent.model', 'ignored'),
+                // Agent Platform owns its system instructions in the Agent
+                // configuration and rejects system/developer messages here.
+                // Keep Nexora's request-specific BI constraints with the
+                // user prompt instead.
                 'messages' => [
-                    ['role' => 'system', 'content' => $systemPrompt],
-                    ['role' => 'user', 'content' => $userPrompt],
+                    [
+                        'role' => 'user',
+                        'content' => "Nexora BI request constraints:\n{$systemPrompt}\n\n{$userPrompt}",
+                    ],
                 ],
                 'temperature' => $thinkingLevel === 'low' ? 0.3 : ($thinkingLevel === 'medium' ? 0.5 : 0.7),
                 // BI answers are intended for the compact chat panel. Keeping
