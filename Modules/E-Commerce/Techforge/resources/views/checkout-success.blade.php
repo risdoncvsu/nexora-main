@@ -64,12 +64,12 @@
                 </div>
                 <div class="mt-4 sm:mt-0 sm:text-right">
                     <p class="text-sm text-gray-500 font-bold uppercase tracking-widest mb-1">Date</p>
-                    <p class="text-white font-medium">{{ $order->created_at->format('M d, Y h:i A') }}</p>
+                    <p class="text-white font-medium">{{ $order->created_at?->format('M d, Y h:i A') ?? 'Just now' }}</p>
                 </div>
             </div>
 
             <div class="space-y-4 mb-6 max-h-[30vh] overflow-y-auto pr-2">
-                @foreach($order->items as $item)
+                @forelse($order->items as $item)
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-3">
                         <div class="w-8 h-8 rounded bg-white/5 flex items-center justify-center text-xs font-bold text-gray-400">
@@ -79,7 +79,9 @@
                     </div>
                     <p class="text-sm text-white font-bold shrink-0">₱{{ number_format($item->price * $item->quantity, 2) }}</p>
                 </div>
-                @endforeach
+                @empty
+                <p class="text-sm text-gray-400">Your order has been received and is being prepared.</p>
+                @endforelse
             </div>
 
             <div class="border-t border-white/10 pt-4 space-y-2">

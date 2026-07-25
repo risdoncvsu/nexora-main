@@ -8,6 +8,7 @@ use Modules\Ecommerce\Models\Order;
 use App\Services\ErpIntegrationService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Modules\Ecommerce\Support\EcommerceClientContext;
 
 class CheckoutController extends Controller
@@ -145,9 +146,22 @@ class CheckoutController extends Controller
         ]);
     }
 
-    public function success($id)
+    public function success(string $id)
     {
-        $order = Order::with('items')->where('user_id', Auth::guard('ecommerce')->id())->findOrFail($id);
+        $order = Order::query()
+            ->whereKey($id)
+            ->where('user_id', Auth::guard('ecommerce')->id())
+            ->firstOrFail();
+
+        // Orders placed before the storefront schema was fully installed can
+        // still be confirmed even when their optional line-item table is not
+        // yet available. The order remains client- and customer-scoped.
+        if (Schema::connection('ecommerce')->hasTable('order_items')) {
+            $order->load('items');
+        } else {
+            $order->setRelation('items', collect());
+        }
+
         return view('ecommerce::checkout-success', compact('order'));
     }
 }
