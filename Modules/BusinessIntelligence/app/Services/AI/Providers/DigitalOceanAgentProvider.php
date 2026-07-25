@@ -14,8 +14,8 @@ class DigitalOceanAgentProvider implements AIProviderInterface
         bool $jsonMode = false,
         string $thinkingLevel = 'low'
     ): array {
-        $apiKey = (string) config('ai.providers.digitalocean_agent.api_key');
-        $baseUrl = rtrim((string) config('ai.providers.digitalocean_agent.base_url'), '/');
+        $apiKey = (string) config('ai.providers.digitalocean-agent.api_key');
+        $baseUrl = rtrim((string) config('ai.providers.digitalocean-agent.base_url'), '/');
 
         if ($apiKey === '' || $baseUrl === '') {
             throw new RuntimeException('DigitalOcean Agent credentials are not configured.');
@@ -26,13 +26,13 @@ class DigitalOceanAgentProvider implements AIProviderInterface
         }
 
         $response = Http::retry(2, 300, throw: false)
-            ->timeout((int) config('ai.providers.digitalocean_agent.timeout', 60))
+            ->timeout((int) config('ai.providers.digitalocean-agent.timeout', 60))
             ->acceptJson()
             ->withToken($apiKey)
             ->post($baseUrl.'/api/v1/chat/completions?agent=true', [
                 // The Agent endpoint chooses its deployed model; this required
                 // field is intentionally ignored by DigitalOcean.
-                'model' => (string) config('ai.providers.digitalocean_agent.model', 'ignored'),
+                'model' => (string) config('ai.providers.digitalocean-agent.model', 'ignored'),
                 'messages' => [
                     ['role' => 'system', 'content' => $systemPrompt],
                     ['role' => 'user', 'content' => $userPrompt],
