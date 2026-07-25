@@ -14,6 +14,7 @@ return new class extends Migration
     {
         Schema::create('orders', function (Blueprint $table) {
             $table->uuid('id')->primary();
+            $table->unsignedBigInteger('client_id')->nullable()->index();
             $table->foreignId('user_id')->nullable()->constrained()->onDelete('set null');
             $table->string('status')->default('pending'); // pending, paid, processing, shipped, delivered, cancelled
             $table->decimal('total', 10, 2);

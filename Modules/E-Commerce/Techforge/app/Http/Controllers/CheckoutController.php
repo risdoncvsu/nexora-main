@@ -128,8 +128,15 @@ class CheckoutController extends Controller
 
         return $order;
         });
-        } catch (\RuntimeException $exception) {
-            return response()->json(['success' => false, 'message' => $exception->getMessage()], 422);
+        } catch (\Throwable $exception) {
+            report($exception);
+
+            return response()->json([
+                'success' => false,
+                'message' => $exception instanceof \RuntimeException
+                    ? $exception->getMessage()
+                    : 'We could not finalize this order. Please try again shortly.',
+            ], 422);
         }
 
         return response()->json([

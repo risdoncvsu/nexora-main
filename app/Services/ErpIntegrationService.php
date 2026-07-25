@@ -276,11 +276,30 @@ class ErpIntegrationService
     private function createFulfillmentOrder(int $clientId, string $orderId, string $customer, string $product, int $quantity, float $amount, object $order, iterable $items): void
     {
         $db = DB::connection('order_fulfillment');
-        if ($db->table('orders')->where('id', $orderId)->exists()) return;
+        $this->requireTable('order_fulfillment', 'orders');
         $address = is_array($order->shipping_address) ? implode(', ', array_filter($order->shipping_address)) : null;
-        $db->table('orders')->insert(['id' => $orderId, 'client_id' => $clientId, 'customer_name' => $customer ?: 'Customer', 'product_name' => $product ?: 'Storefront order', 'qty' => $quantity, 'product_amount' => $amount, 'status' => 'NEW', 'address' => $address, 'due_date' => now()->addDays(3)->toDateString(), 'created_at' => now(), 'updated_at' => now()]);
+
+        // A retried checkout must not reset an order that Fulfillment has
+        // already moved into packing or shipping.
+        $db->table('orders')->insertOrIgnore([
+            'id' => $orderId,
+            'client_id' => $clientId,
+            'customer_name' => $customer ?: 'Customer',
+            'product_name' => $product ?: 'Storefront order',
+            'qty' => $quantity,
+            'product_amount' => $amount,
+            'status' => 'NEW',
+            'address' => $address,
+            'due_date' => now()->addDays(3)->toDateString(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
         if (! Schema::connection('order_fulfillment')->hasTable('order_items')) {
+            return;
+        }
+
+        if ($db->table('order_items')->where('client_id', $clientId)->where('order_id', $orderId)->exists()) {
             return;
         }
 
@@ -323,9 +342,33 @@ class ErpIntegrationService
     private function createFinanceInvoice(int $clientId, string $orderId, float $amount, float $shipping, string $paymentStatus): void
     {
         $db = DB::connection('finance');
-        if ($db->table('invoice')->where('nexora_client_id', $clientId)->where('order_id', $orderId)->exists()) return;
+        $this->requireTable('finance', 'invoice');
         $paid = strtolower($paymentStatus) === 'paid';
-        $this->insertAvailable('finance', 'invoice', ['nexora_client_id' => $clientId, 'issue_date' => now()->toDateString(), 'due_date' => now()->addDays(14)->toDateString(), 'invoice_amount' => $amount - $shipping, 'discount' => 0, 'shipping_fee' => $shipping, 'paid_amount' => $paid ? $amount : 0, 'outstanding_amount' => $paid ? 0 : $amount, 'payment_method' => null, 'reference_number' => 'ECOM-'.$orderId, 'payment_details' => 'Automatically generated from ecommerce checkout', 'payment_status' => $paid ? 'Paid' : 'Unpaid', 'status' => $paid ? 'Paid' : 'Pending', 'payment_date' => $paid ? now()->toDateString() : null, 'order_id' => $orderId, 'created_at' => now(), 'updated_at' => now()]);
+        $invoice = [
+            'issue_date' => now()->toDateString(),
+            'due_date' => now()->addDays(14)->toDateString(),
+            'invoice_amount' => $amount - $shipping,
+            'discount' => 0,
+            'shipping_fee' => $shipping,
+            'paid_amount' => $paid ? $amount : 0,
+            'outstanding_amount' => $paid ? 0 : $amount,
+            'payment_method' => null,
+            'reference_number' => 'ECOM-'.$orderId,
+            'payment_details' => 'Automatically generated from ecommerce checkout',
+            'payment_status' => $paid ? 'Paid' : 'Unpaid',
+            'status' => $paid ? 'Paid' : 'Pending',
+            'payment_date' => $paid ? now()->toDateString() : null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+
+        // Finance owns payment state. A checkout retry must never turn a
+        // paid or reconciled invoice back into its original pending state.
+        $db->table('invoice')->insertOrIgnore([
+            'nexora_client_id' => $clientId,
+            'order_id' => $orderId,
+            ...$invoice,
+        ]);
     }
 
     private function writeBiSnapshot(int $clientId): void
@@ -352,5 +395,12 @@ class ErpIntegrationService
     {
         $columns = $this->columns[$connection.'.'.$table] ??= Schema::connection($connection)->getColumnListing($table);
         DB::connection($connection)->table($table)->insert(array_intersect_key($attributes, array_flip($columns)));
+    }
+
+    private function requireTable(string $connection, string $table): void
+    {
+        if (! Schema::connection($connection)->hasTable($table)) {
+            throw new RuntimeException("The {$connection} {$table} schema is not installed.");
+        }
     }
 }

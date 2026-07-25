@@ -21,10 +21,18 @@ class InstallEcommerceSchema extends Command
             $baseMigration->up();
         }
 
-        return $this->call('migrate', [
+        $exitCode = $this->call('migrate', [
             '--database' => 'ecommerce',
             '--path' => 'Modules/E-Commerce/Techforge/database/migrations',
             '--force' => true,
         ]);
+
+        if ($exitCode !== self::SUCCESS) {
+            return $exitCode;
+        }
+
+        // Repair older deployed schemas whose migration ledger predates
+        // client-scoped storefront orders.
+        return $this->call('ecommerce:ensure-client-columns');
     }
 }
