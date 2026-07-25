@@ -6,7 +6,7 @@ echo "Starting container; waiting for services..."
 MAX_RETRIES=20
 RETRY_COUNT=0
 
-until php artisan migrate --force; do
+until php artisan migrate --database=hr --path=Modules/HR/database/migrations --force; do
   RETRY_COUNT=$((RETRY_COUNT+1))
   if [ "$RETRY_COUNT" -ge "$MAX_RETRIES" ]; then
     echo "Migrations failed after $RETRY_COUNT attempts"

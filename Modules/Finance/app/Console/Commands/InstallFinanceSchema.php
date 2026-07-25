@@ -13,7 +13,22 @@ class InstallFinanceSchema extends Command
 
     public function handle(): int
     {
+        $exitCode = $this->call('migrate', [
+            '--database' => 'finance',
+            '--path' => 'Modules/Finance/database/migrations',
+            '--force' => true,
+        ]);
+
+        if ($exitCode !== self::SUCCESS) {
+            return $exitCode;
+        }
+
         $schema = Schema::connection('finance');
+        if (! $schema->hasTable('invoice')) {
+            $baseMigration = require __DIR__.'/../../database/migrations/2026_07_24_000001_create_finance_invoice_table.php';
+            $baseMigration->up();
+        }
+
         foreach (['accounts', 'invoice', 'expenses', 'sales'] as $table) {
             if (! $schema->hasTable($table) || $schema->hasColumn($table, 'nexora_client_id')) {
                 continue;
