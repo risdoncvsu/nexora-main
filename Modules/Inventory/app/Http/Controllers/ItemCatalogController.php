@@ -237,6 +237,10 @@ class ItemCatalogController extends Controller
 
         $validated['is_box'] = $request->boolean('is_box');
 
+        if (preg_match('/^\s*(?:silica\s*)?gels?\s*$/i', $validated['name'])) {
+            $validated['name'] = 'Silica Gel Packs';
+        }
+
         OrderFulfillment::create($validated);
 
         return redirect()->route('inventory.item-catalog')->with('success', 'Packing material added.');

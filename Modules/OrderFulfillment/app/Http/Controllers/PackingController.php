@@ -53,7 +53,7 @@ class PackingController extends Controller
     private function findPackingMaterial(string $materialName)
     {
         $variants = match (strtolower(trim($materialName))) {
-            'silica gel packs' => ['silica gel packs', 'silica gel', 'silica gels'],
+            'silica gel packs' => ['silica gel packs', 'silica gel', 'silica gels', 'gel', 'gels'],
             'foam inserts' => ['foam inserts', 'foam insert'],
             'bubble wrap' => ['bubble wrap', 'bubble wraps'],
             'packing tape' => ['packing tape', 'packing tapes'],
@@ -103,6 +103,7 @@ class PackingController extends Controller
                     ->orWhereRaw("LOWER(items.name) LIKE '%package%'")
                     ->orWhereRaw("LOWER(items.name) LIKE '%foam%insert%'")
                     ->orWhereRaw("LOWER(items.name) LIKE '%silica%gel%'")
+                    ->orWhereRaw("LOWER(items.name) IN ('gel', 'gels')")
                     ->orWhereRaw("LOWER(items.name) LIKE '%packing%tape%'")
                     ->orWhereRaw("LOWER(items.name) LIKE '%bubble%wrap%'")
                     ->orWhereRaw("LOWER(items.name) LIKE '%fragile%tape%'")
@@ -129,7 +130,7 @@ class PackingController extends Controller
                 || str_contains($category, 'carton');
             $packingName = match (true) {
                 str_contains($normalized, 'foam') && str_contains($normalized, 'insert') => 'Foam Inserts',
-                str_contains($normalized, 'silica') && str_contains($normalized, 'gel') => 'Silica Gel Packs',
+                (bool) preg_match('/\b(?:silica\s*)?gels?\b/', $normalized) => 'Silica Gel Packs',
                 str_contains($normalized, 'packing') && str_contains($normalized, 'tape') => 'Packing Tape',
                 str_contains($normalized, 'bubble') && str_contains($normalized, 'wrap') => 'Bubble Wrap',
                 str_contains($normalized, 'fragile') && str_contains($normalized, 'tape') => 'Fragile Tape',

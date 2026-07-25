@@ -11,6 +11,34 @@ class BackfillPackingMaterials extends Command
 
     protected $description = 'Copy already-received packaging supplies into Order Fulfillment packing materials';
 
+    /** @return array{name:string,is_box:bool,box_size:?string}|null */
+    private function materialMeta(string $name): ?array
+    {
+        $normalized = strtolower(trim($name));
+        $isBox = str_contains($normalized, 'box') || str_contains($normalized, 'carton');
+
+        if (! $isBox && ! preg_match('/bubble\s*wrap|packing\s*tape|foam\s*insert|(?:silica\s*)?gels?|fragile\s*tape/', $normalized)) {
+            return null;
+        }
+
+        $boxSize = $isBox
+            ? (str_contains($normalized, 'small') ? 'Small' : (str_contains($normalized, 'medium') ? 'Medium' : (str_contains($normalized, 'large') ? 'Large' : 'Standard')))
+            : null;
+
+        return [
+            'name' => match (true) {
+                $isBox => $name,
+                (bool) preg_match('/bubble\s*wrap/', $normalized) => 'Bubble Wrap',
+                (bool) preg_match('/packing\s*tape/', $normalized) => 'Packing Tape',
+                (bool) preg_match('/foam\s*insert/', $normalized) => 'Foam Inserts',
+                (bool) preg_match('/(?:silica\s*)?gels?/', $normalized) => 'Silica Gel Packs',
+                default => 'Fragile Tape',
+            },
+            'is_box' => $isBox,
+            'box_size' => $boxSize,
+        ];
+    }
+
     public function handle(): int
     {
         $clientId = (int) $this->argument('clientId');
@@ -26,24 +54,20 @@ class BackfillPackingMaterials extends Command
         $updated = 0;
         foreach ($supplies as $supply) {
             $name = (string) $supply->name;
-            $normalized = strtolower($name);
-            $isBox = str_contains($normalized, 'box');
-            if (! $isBox && ! preg_match('/bubble\s*wrap|packing\s*tape|foam\s*insert|silica\s*gel|fragile\s*tape/', $normalized)) {
+            $meta = $this->materialMeta($name);
+            if (! $meta) {
                 continue;
             }
 
-            $boxSize = $isBox
-                ? (str_contains($normalized, 'small') ? 'Small' : (str_contains($normalized, 'medium') ? 'Medium' : (str_contains($normalized, 'large') ? 'Large' : 'Standard')))
-                : null;
             $row = $inventory->table('packing_materials')
                 ->where('client_id', $clientId)
-                ->whereRaw('LOWER(name) = LOWER(?)', [$name])
+                ->whereRaw('LOWER(name) = LOWER(?)', [$meta['name']])
                 ->first();
 
             $values = [
                 'stock_qty' => (int) $supply->stock_qty,
-                'is_box' => $isBox,
-                'box_size' => $boxSize,
+                'is_box' => $meta['is_box'],
+                'box_size' => $meta['box_size'],
                 'updated_at' => now(),
             ];
             if ($row) {
@@ -51,7 +75,7 @@ class BackfillPackingMaterials extends Command
             } else {
                 $inventory->table('packing_materials')->insert($values + [
                     'client_id' => $clientId,
-                    'name' => $name,
+                    'name' => $meta['name'],
                     'low_stock_threshold' => 5,
                     'created_at' => now(),
                 ]);
