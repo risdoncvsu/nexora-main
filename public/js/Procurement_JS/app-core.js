@@ -12,7 +12,8 @@
 
   async function loadNotifications(panel){
     if(!panel) return;
-    panel.innerHTML = '<div style="padding:12px;text-align:center;color:#7b8796">Loading notifications…</div>';
+    // No "Loading…" placeholder — the panel keeps its current content until the
+    // fresh list is ready, so opening it never flashes a loading state.
     try{
       const headers = { 'X-Requested-With': 'XMLHttpRequest' };
       // Fetch recent requisitions
@@ -82,6 +83,49 @@
     }
   });
 
+  /* ---------- Live stats: poll dashboard cards + sidebar badges (no refresh) ---------- */
+  function setLiveStat(id, val){
+    const el = document.getElementById(id);
+    if(!el || val == null) return;
+    if(String(el.textContent).trim() !== String(val)){
+      el.textContent = val;
+      el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump');
+    }
+  }
+  function setLiveBadge(selector, val){
+    const el = document.querySelector(selector);
+    if(!el || val == null) return;
+    if(el.textContent.trim() !== String(val)){
+      el.textContent = val;
+      el.classList.toggle('red', Number(val) > 0);
+      el.classList.remove('badge-pulse'); void el.offsetWidth; el.classList.add('badge-pulse');
+    }
+  }
+  async function pollLiveStats(){
+    try{
+      const res = await fetch(procurementUrl('live-stats'), { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } });
+      if(!res.ok) return;
+      const j = await res.json();
+      if(!j) return;
+      if(j.cards){
+        setLiveStat('dash-stat-po',  j.cards.activePos);
+        setLiveStat('dash-stat-sup', j.cards.suppliers);
+        setLiveStat('dash-stat-req', j.cards.requisitions);
+        setLiveStat('dash-stat-inv', j.cards.deliveries);
+      }
+      if(j.badges){
+        setLiveBadge("a[href*='purchase-orders'] .nav-badge", j.badges.purchaseOrders);
+        setLiveBadge("a[href*='requisitions'] .nav-badge", j.badges.requisitions);
+        setLiveBadge("a[href*='deliveries'] .nav-badge", j.badges.deliveries);
+      }
+    }catch(err){ /* keep last known values */ }
+  }
+  window.pollLiveStats = pollLiveStats;
+  document.addEventListener('DOMContentLoaded', ()=>{
+    pollLiveStats();
+    setInterval(pollLiveStats, 15000);
+  });
+
   function showPage(page, navEl){
     ALL_PAGES.forEach(p => {
       const sec = document.getElementById('page-' + p);
@@ -104,6 +148,55 @@
     if(page === 'requisitions' || page === 'purchase-orders' || page === 'deliveries'){
       updateStatusCounts();
     }
+  }
+
+  // Hook called after adding a record and when opening a status-chart page.
+  // It must exist: several flows (submitAddPO / submitAddDelivery / showPage)
+  // call it, and while it was missing those handlers threw a ReferenceError on
+  // this line — right before closing their modal — which is why the Add PO and
+  // Log Delivery modals stayed open after a successful submit.
+  //
+  // The per-status chart counts are rendered server-side from full-table
+  // totals (the PO table itself only loads the 8 most recent rows), so we must
+  // NOT recompute them from the DOM here — that would undercount. The live
+  // cards/badges are refreshed separately by pollLiveStats(); the chart totals
+  // refresh on the next page load.
+  function updateStatusCounts(){ /* intentionally a no-op — see note above */ }
+
+  /* ---------- Theme (light / dark) ---------- */
+  function applyStoredTheme(){
+    const saved = localStorage.getItem('procurement-theme');
+    if(saved) document.documentElement.setAttribute('data-theme', saved);
+  }
+  function toggleTheme(){
+    const current = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+    const next = current === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('procurement-theme', next);
+  }
+  applyStoredTheme();
+
+  /* ---------- Profile dropdown ---------- */
+  function toggleProfileMenu(e){
+    if(e) e.stopPropagation();
+    document.getElementById('profile-dropdown')?.classList.toggle('open');
+  }
+  document.addEventListener('click', (e) => {
+    const menu = document.querySelector('.profile-menu');
+    if(menu && !menu.contains(e.target)){
+      document.getElementById('profile-dropdown')?.classList.remove('open');
+    }
+  });
+
+  // Requisitions page tabs: "Requests" (the requisition table) and
+  // "Defect Items" (placeholder table, built out later).
+  function switchReqTab(tab, el){
+    document.querySelectorAll('#req-tabs .tab').forEach(t => t.classList.remove('active'));
+    if(el) el.classList.add('active');
+    const requests = document.getElementById('req-tab-requests');
+    const defects = document.getElementById('req-tab-defects');
+    if(requests) requests.classList.toggle('hidden', tab !== 'requests');
+    if(defects) defects.classList.toggle('hidden', tab !== 'defects');
   }
 
   function animateDashboard(){
