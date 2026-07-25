@@ -73,6 +73,85 @@ class PackingController extends Controller
             });
     }
 
+    /**
+     * Older Inventory installations recorded cartons and boxes as ordinary
+     * catalog items. Packing consumes the dedicated packing_materials table,
+     * so import those existing box records the first time Fulfillment needs
+     * them. Existing packing rows retain their workflow-managed stock.
+     */
+    private function importCatalogBoxes(): void
+    {
+        $schema = Schema::connection(self::INVENTORY_CONN);
+        $clientId = (int) session('employee_client_id');
+
+        if ($clientId < 1 || ! $schema->hasTable('packing_materials') || ! $schema->hasTable('items')) {
+            return;
+        }
+
+        $inventory = DB::connection(self::INVENTORY_CONN);
+        $hasStockLevels = $schema->hasTable('stock_levels');
+        $boxItems = $inventory->table('items')
+            ->leftJoin('categories', 'categories.id', '=', 'items.category_id')
+            ->where('items.client_id', $clientId)
+            ->where(function ($query): void {
+                $query->whereRaw("LOWER(items.name) LIKE '%box%'")
+                    ->orWhereRaw("LOWER(items.name) LIKE '%carton%'")
+                    ->orWhereRaw("LOWER(items.name) LIKE '%package%'")
+                    ->orWhereRaw("LOWER(categories.name) LIKE '%box%'")
+                    ->orWhereRaw("LOWER(categories.name) LIKE '%carton%'");
+            })
+            ->select('items.id', 'items.name')
+            ->distinct()
+            ->get();
+
+        foreach ($boxItems as $item) {
+            $name = trim((string) $item->name);
+            if ($name === '') {
+                continue;
+            }
+
+            $normalized = strtolower($name);
+            $size = str_contains($normalized, 'small') ? 'Small'
+                : (str_contains($normalized, 'medium') ? 'Medium'
+                    : (str_contains($normalized, 'large') ? 'Large' : 'Standard'));
+            $existingMaterial = $this->packingMaterialQuery()
+                ->whereRaw('LOWER(name) = LOWER(?)', [$name])
+                ->first();
+
+            if ($existingMaterial) {
+                if (! $existingMaterial->is_box || ! $existingMaterial->box_size) {
+                    $inventory->table('packing_materials')
+                        ->where('id', $existingMaterial->id)
+                        ->update([
+                            'is_box' => true,
+                            'box_size' => $existingMaterial->box_size ?: $size,
+                            'updated_at' => now(),
+                        ]);
+                }
+
+                continue;
+            }
+
+            $availableStock = $hasStockLevels
+                ? (int) $inventory->table('stock_levels')
+                    ->where('client_id', $clientId)
+                    ->where('item_id', $item->id)
+                    ->sum(DB::raw('stock - reserved_quantity'))
+                : 0;
+
+            $inventory->table('packing_materials')->insert([
+                'client_id' => $clientId,
+                'name' => $name,
+                'stock_qty' => max(0, $availableStock),
+                'low_stock_threshold' => 5,
+                'is_box' => true,
+                'box_size' => $size,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+    }
+
     public function index()
     {
         $packingOrders = Order::where('status', 'PACKING')
@@ -90,6 +169,8 @@ class PackingController extends Controller
         $packingError = $this->fulfillmentSchema()->hasTable('packing_errors')
             ? PackingError::count()
             : 0;
+
+        $this->importCatalogBoxes();
 
         $materials = Schema::connection(self::INVENTORY_CONN)->hasTable('packing_materials')
             ? $this->packingMaterialQuery()->get()
