@@ -420,11 +420,20 @@
                 console.log("Status:", response.status);
                 console.log("Response:", body);
 
-                if (!response.ok) {
-                    throw new Error(`Server error ${response.status}: ${body}`);
+                let data;
+                try {
+                    data = JSON.parse(body);
+                } catch (_) {
+                    data = null;
                 }
 
-                const data = JSON.parse(body);
+                if (!response.ok) {
+                    throw new Error(data?.message || `The BI service returned an unexpected response (${response.status}).`);
+                }
+
+                if (!data?.message) {
+                    throw new Error('The BI service returned an invalid response. Please try again shortly.');
+                }
 
                 thinkingMsg.remove();
 

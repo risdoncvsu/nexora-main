@@ -123,7 +123,12 @@ class BusinessIntelligenceController
             return response()->json(['message' => 'AI Insights is not configured yet. Contact your system administrator.'], 503);
         }
 
-        $metrics = $this->metrics($clientId);
+        $metrics = $this->recentDashboardSnapshot($clientId);
+        if ($metrics === null) {
+            return response()->json([
+                'message' => 'BI is preparing the latest client metrics. Open the BI dashboard once, wait a moment, then try again.',
+            ], 503);
+        }
 
         try {
             $answer = trim($this->aiProvider()->generate(
@@ -1439,6 +1444,37 @@ class BusinessIntelligenceController
         } catch (\Throwable) {
             // BI must remain read-only and available when its optional
             // snapshot store is temporarily unavailable.
+        }
+    }
+
+    /**
+     * Chat must not fan out to every module database during an interactive
+     * request. The dashboard already writes the current, client-scoped metric
+     * bundle to BI; reuse that bounded snapshot for the agent prompt.
+     */
+    private function recentDashboardSnapshot(int $clientId): ?array
+    {
+        if (!config('database.connections.business_intelligence.url')) {
+            return null;
+        }
+
+        try {
+            $schema = Schema::connection('business_intelligence');
+            if (!$schema->hasTable('bi_snapshots')) {
+                return null;
+            }
+
+            $snapshot = DB::connection('business_intelligence')->table('bi_snapshots')
+                ->where('client_id', $clientId)
+                ->where('source', 'live-dashboard')
+                ->where('captured_at', '>=', now()->subMinutes(15))
+                ->value('payload');
+
+            $metrics = is_string($snapshot) ? json_decode($snapshot, true) : $snapshot;
+
+            return is_array($metrics) ? $metrics : null;
+        } catch (\Throwable) {
+            return null;
         }
     }
 
