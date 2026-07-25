@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -22,6 +23,12 @@ return new class extends Migration
 
         // Only the PostgreSQL tenant databases carry this drift.
         if ($conn->getDriverName() !== 'pgsql') {
+            return;
+        }
+
+        // A point-in-time restore can leave this branch without the base
+        // Inventory schema while Laravel's migration ledger remains ahead.
+        if (! Schema::connection('inventory')->hasTable('categories')) {
             return;
         }
 
@@ -49,6 +56,10 @@ return new class extends Migration
         $conn = DB::connection('inventory');
 
         if ($conn->getDriverName() !== 'pgsql') {
+            return;
+        }
+
+        if (! Schema::connection('inventory')->hasTable('categories')) {
             return;
         }
 
