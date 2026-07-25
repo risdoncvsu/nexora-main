@@ -141,8 +141,7 @@ class BusinessIntelligenceController
                 return response()->json(['message' => 'AI Insights returned no answer. Please try again.'], 502);
             }
 
-            $this->recordConversation($clientId, 'user', $validated['message'], true);
-            $this->recordConversation($clientId, 'assistant', $answer, true);
+            $this->recordConversationPair($clientId, $validated['message'], $answer);
 
             return response()->json(['message' => $answer]);
         } catch (\Throwable $exception) {
@@ -1469,11 +1468,6 @@ class BusinessIntelligenceController
         }
 
         try {
-            $schema = Schema::connection('business_intelligence');
-            if (!$schema->hasTable('bi_snapshots')) {
-                return null;
-            }
-
             $snapshot = DB::connection('business_intelligence')->table('bi_snapshots')
                 ->where('client_id', $clientId)
                 ->where('source', 'live-dashboard')
@@ -1488,25 +1482,37 @@ class BusinessIntelligenceController
         }
     }
 
-    private function recordConversation(int $clientId, string $role, string $message, bool $usedAi): void
+    private function recordConversationPair(int $clientId, string $userMessage, string $assistantMessage): void
     {
         if (!config('database.connections.business_intelligence.url')) {
             return;
         }
 
         try {
-            if (!Schema::connection('business_intelligence')->hasTable('bi_ai_conversations')) {
-                return;
-            }
+            $timestamp = now();
 
+            // The schema installer creates this table at startup. One bulk
+            // write keeps the interactive response from waiting on several
+            // separate Neon round trips after the Agent has answered.
             DB::connection('business_intelligence')->table('bi_ai_conversations')->insert([
-                'client_id' => $clientId,
-                'employee_id' => session('employee_id'),
-                'role' => $role,
-                'message' => $message,
-                'used_ai' => $usedAi,
-                'created_at' => now(),
-                'updated_at' => now(),
+                [
+                    'client_id' => $clientId,
+                    'employee_id' => session('employee_id'),
+                    'role' => 'user',
+                    'message' => $userMessage,
+                    'used_ai' => true,
+                    'created_at' => $timestamp,
+                    'updated_at' => $timestamp,
+                ],
+                [
+                    'client_id' => $clientId,
+                    'employee_id' => session('employee_id'),
+                    'role' => 'assistant',
+                    'message' => $assistantMessage,
+                    'used_ai' => true,
+                    'created_at' => $timestamp,
+                    'updated_at' => $timestamp,
+                ],
             ]);
         } catch (\Throwable) {
             // Conversation auditing must not prevent the client from using BI.
