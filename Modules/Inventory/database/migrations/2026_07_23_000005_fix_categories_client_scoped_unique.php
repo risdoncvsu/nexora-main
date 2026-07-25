@@ -6,13 +6,14 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    public $withinTransaction = false;
     /**
      * The live `categories` table was created by an earlier schema revision
      * that made `name` GLOBALLY unique (constraint `categories_name_unique`).
      * The module design intends categories to be unique *per client*
      * (`unique(['client_id', 'name'])`) so separate tenants can each have
      * common names like "CPU". The drift meant one client claiming "CPU"
-     * blocked every other client from ever creating it — which crashed the
+     * blocked every other client from ever creating it â€” which crashed the
      * stock-receiving auto-category step with a duplicate-key violation.
      *
      * This migration corrects the live schema to match the intended design.

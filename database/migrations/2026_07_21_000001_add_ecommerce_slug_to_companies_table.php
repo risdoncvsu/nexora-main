@@ -8,6 +8,7 @@ use Illuminate\Support\Str;
 
 return new class extends Migration
 {
+    public $withinTransaction = false;
     public function up(): void
     {
         Schema::table('companies', function (Blueprint $table): void {

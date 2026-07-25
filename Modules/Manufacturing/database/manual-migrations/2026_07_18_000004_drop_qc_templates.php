@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
+    public $withinTransaction = false;
     protected $connection = 'manufacturing';
 
     public function up(): void
@@ -21,7 +22,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        // Intentionally left blank — qc_templates is retired in favor of
+        // Intentionally left blank â€” qc_templates is retired in favor of
         // config('nexora.benchmarkTargets').
     }
 };
