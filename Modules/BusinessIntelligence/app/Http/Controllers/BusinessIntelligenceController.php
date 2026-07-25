@@ -163,12 +163,18 @@ class BusinessIntelligenceController
             default => 7,
         };
         $clientId = $this->clientId($request);
-        $rows = collect($this->remember($clientId, "forecast_{$days}", fn (): array => $this->financeInvoiceQuery($clientId)
+        // Persist scalar data only. Older cache entries stored query result
+        // objects, which can become __PHP_Incomplete_Class after deployments.
+        $rows = collect($this->remember($clientId, "forecast_{$days}_v2", fn (): array => $this->financeInvoiceQuery($clientId)
                 ?->whereDate('issue_date', '>=', now()->subDays($days - 1))
             ->selectRaw('DATE(issue_date) as day, COALESCE(SUM(paid_amount), 0) as total')
             ->groupBy('day')
             ->orderBy('day')
             ->get()
+            ->map(fn ($row): array => [
+                'day' => (string) $row->day,
+                'total' => (float) $row->total,
+            ])
             ->all() ?? []))->keyBy('day');
 
         $labels = [];
@@ -176,7 +182,7 @@ class BusinessIntelligenceController
         for ($i = $days - 1; $i >= 0; $i--) {
             $day = now()->subDays($i)->toDateString();
             $labels[] = $days === 365 ? now()->subDays($i)->format('M') : now()->subDays($i)->format('M d');
-            $sales[] = (float) ($rows->get($day)->total ?? 0);
+            $sales[] = (float) data_get($rows->get($day), 'total', 0);
         }
 
         return response()->json(compact('labels', 'sales'));
