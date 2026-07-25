@@ -723,6 +723,8 @@
   function submitAddPO(e){
     e.preventDefault();
     const form = e.target;
+    if(form.dataset.submitting === '1') return;
+
     const modal = form.closest('.modal-overlay');
     const d = Object.fromEntries(new FormData(form).entries());
     const items = collectPoItemRows(modal);
@@ -736,6 +738,14 @@
     const itemSummary = items.map(it => it.name).join(', ');
     const poDate = todayISO();
     const priorityLabel = d.priority || 'Normal';
+    const submitButton = form.querySelector('button[type="submit"]');
+    form.dataset.submitting = '1';
+    if(submitButton) submitButton.disabled = true;
+
+    const releaseSubmission = () => {
+      delete form.dataset.submitting;
+      if(submitButton) submitButton.disabled = false;
+    };
 
     fetch(procurementUrl('purchase-orders'), {
       method: 'POST',
@@ -754,6 +764,7 @@
     }).then(res => res.json().then(json => ({ ok: res.ok, json }))).then(({ ok, json }) => {
       if(!ok){
         showToast(json?.message || 'Unable to save purchase order right now.', 'no');
+        releaseSubmission();
         return;
       }
       if(json && json.po_number) d.po = json.po_number;
@@ -802,10 +813,12 @@
       initRowActionButtons();
       updateStatusCounts();
       showToast(`Purchase Order ${d.po} created`, 'ok');
+      releaseSubmission();
       closeAddModal('po');
       if(typeof pollLiveStats === 'function') pollLiveStats();
     }).catch(() => {
       showToast('Unable to save purchase order right now.', 'no');
+      releaseSubmission();
     });
   }
 
