@@ -25,8 +25,10 @@ class DigitalOceanAgentProvider implements AIProviderInterface
             $userPrompt .= "\n\nReturn only a valid JSON object. Do not use Markdown fences.";
         }
 
-        $response = Http::retry(2, 300, throw: false)
-            ->timeout((int) config('ai.providers.digitalocean-agent.timeout', 60))
+        // This runs inside a browser request behind App Platform's proxy.
+        // Do not retry here: multiple 60-second attempts cause the proxy to
+        // return its own 504 before Laravel can return a useful JSON error.
+        $response = Http::timeout((int) config('ai.providers.digitalocean-agent.timeout', 25))
             ->acceptJson()
             ->withToken($apiKey)
             ->post($baseUrl.'/api/v1/chat/completions?agent=true', [
@@ -38,7 +40,10 @@ class DigitalOceanAgentProvider implements AIProviderInterface
                     ['role' => 'user', 'content' => $userPrompt],
                 ],
                 'temperature' => $thinkingLevel === 'low' ? 0.3 : ($thinkingLevel === 'medium' ? 0.5 : 0.7),
-                'max_tokens' => 2000,
+                // BI answers are intended for the compact chat panel. Keeping
+                // the completion bounded also keeps the HTTP request below the
+                // hosting proxy's response deadline.
+                'max_tokens' => 800,
             ]);
 
         if ($response->failed()) {

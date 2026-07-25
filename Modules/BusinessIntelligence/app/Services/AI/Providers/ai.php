@@ -32,7 +32,7 @@ return [
             'api_key' => env('DO_AGENT_API_KEY'),
             'base_url' => env('DO_AGENT_BASE_URL'),
             'model' => env('DO_AGENT_MODEL', 'ignored'),
-            'timeout' => (int) env('DO_AGENT_TIMEOUT', 60),
+            'timeout' => (int) env('DO_AGENT_TIMEOUT', 25),
         ],
 
         'openai' => [
