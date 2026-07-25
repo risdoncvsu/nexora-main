@@ -20,35 +20,11 @@ class OrderFulfillmentAccess
             ]);
         }
 
-        $department = strtolower((string) session('employee_department', ''));
-        $position = strtolower((string) session('employee_position', ''));
-        $assignment = $department.' '.$position;
-
-        $orderFulfillmentTerms = [
-            'fulfillment',
-            'fulfilment',
-            'fullfilment',
-            'operations',
-            'order',
-            'shipping',
-            'logistics',
-            'dispatch',
-            'delivery',
-            'courier',
-            'packing',
-            'returns',
-            'warehouse',
-            'distribution',
-            'material',
-            'stock',
-        ];
-
-        abort_unless(
-            collect($orderFulfillmentTerms)->contains(
-                fn (string $term): bool => str_contains($assignment, $term)
-            ),
-            403
-        );
+        // HR department and position values are free-form onboarding data,
+        // not an authoritative module-permission source. Applying a keyword
+        // gate here made every Order Fulfillment route fail for otherwise
+        // active, client-scoped employees. Tenant isolation is enforced by
+        // the Order Fulfillment models' client_id scope.
 
         return $next($request);
     }
