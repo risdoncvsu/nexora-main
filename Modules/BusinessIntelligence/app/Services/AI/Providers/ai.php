@@ -10,7 +10,16 @@ return [
     // Nexora already provisions DigitalOcean inference for the ERP. Keep an
     // explicit AI_PROVIDER override, but use that configured service by
     // default instead of silently selecting OpenAI when no OpenAI key exists.
-    'default' => env('AI_PROVIDER', env('DO_INFERENCE_API_KEY') ? 'digitalocean' : 'openai'),
+    // Prefer an Agent Platform endpoint whenever it is configured. The ERP
+    // may retain legacy DO_INFERENCE_* variables even when Serverless
+    // Inference is unavailable for the account. AI_PROVIDER can still select
+    // another provider explicitly.
+    'default' => env(
+        'AI_PROVIDER',
+        env('DO_AGENT_API_KEY') && env('DO_AGENT_BASE_URL')
+            ? 'digitalocean-agent'
+            : (env('DO_INFERENCE_API_KEY') ? 'digitalocean' : 'openai')
+    ),
 
     'providers' => [
 
@@ -33,6 +42,7 @@ return [
             'base_url' => env('DO_AGENT_BASE_URL'),
             'model' => env('DO_AGENT_MODEL', 'ignored'),
             'timeout' => (int) env('DO_AGENT_TIMEOUT', 25),
+            'connect_timeout' => (int) env('DO_AGENT_CONNECT_TIMEOUT', 5),
         ],
 
         'openai' => [

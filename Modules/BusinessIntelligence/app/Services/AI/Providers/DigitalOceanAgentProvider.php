@@ -28,7 +28,8 @@ class DigitalOceanAgentProvider implements AIProviderInterface
         // This runs inside a browser request behind App Platform's proxy.
         // Do not retry here: multiple 60-second attempts cause the proxy to
         // return its own 504 before Laravel can return a useful JSON error.
-        $response = Http::timeout((int) config('ai.providers.digitalocean-agent.timeout', 25))
+        $response = Http::connectTimeout((int) config('ai.providers.digitalocean-agent.connect_timeout', 5))
+            ->timeout((int) config('ai.providers.digitalocean-agent.timeout', 25))
             ->acceptJson()
             ->withToken($apiKey)
             ->post($baseUrl.'/api/v1/chat/completions?agent=true', [
