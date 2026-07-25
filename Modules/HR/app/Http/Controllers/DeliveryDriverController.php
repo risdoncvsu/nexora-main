@@ -35,16 +35,27 @@ class DeliveryDriverController extends Controller
             'plate_number' => ['nullable', 'string', 'max:50'],
         ]);
 
+        $clientId = (int) session('employee_client_id');
+        if ($clientId < 1) {
+            return back()->withErrors(['employee_id' => 'Your client session has expired. Sign in again before adding a delivery driver.']);
+        }
+
         $employee = Employee::findOrFail($data['employee_id']);
 
-        DeliveryDriver::create([
-            'employee_id' => $employee->id,
-            'courier_provider' => DeliveryDriver::normalizeCourier($data['courier_provider']),
-            'vehicle_type' => $data['vehicle_type'] ?: null,
-            'plate_number' => $data['plate_number'] ?: null,
-            'is_active' => true,
-            'availability' => DeliveryDriver::STATUS_AVAILABLE,
-        ]);
+        $driver = DeliveryDriver::firstOrCreate(
+            ['client_id' => $clientId, 'employee_id' => $employee->id],
+            [
+                'courier_provider' => DeliveryDriver::normalizeCourier($data['courier_provider']),
+                'vehicle_type' => $data['vehicle_type'] ?: null,
+                'plate_number' => $data['plate_number'] ?: null,
+                'is_active' => true,
+                'availability' => DeliveryDriver::STATUS_AVAILABLE,
+            ],
+        );
+
+        if (! $driver->wasRecentlyCreated) {
+            return back()->withErrors(['employee_id' => 'This employee is already assigned as a delivery driver.']);
+        }
 
         return back()->with('success', "{$employee->first_name} {$employee->last_name} is now available for delivery assignment.");
     }
