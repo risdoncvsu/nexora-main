@@ -321,10 +321,27 @@ class StockReceivingController extends Controller
             ->where('id', $validated['warehouse_id'])
             ->update(['last_activity_at' => now()]);
 
-        DB::connection('procurement')
+        $procurement = DB::connection('procurement');
+        $procurement
             ->table('deliveries')
             ->where('id', $delivery->id)
-            ->update(['status' => 'delivered']);
+            ->update(['status' => 'delivered', 'updated_at' => now()]);
+
+        // Receiving is the event that confirms goods reached the warehouse.
+        // Keep the PO in sync, but do not mark a split PO as delivered until
+        // every non-cancelled shipment attached to it has been received.
+        if ($delivery->purchase_order_id) {
+            $hasOutstandingDelivery = $procurement->table('deliveries')
+                ->where('purchase_order_id', $delivery->purchase_order_id)
+                ->whereNotIn('status', ['delivered', 'completed', 'cancelled'])
+                ->exists();
+
+            if (! $hasOutstandingDelivery) {
+                $procurement->table('purchase_orders')
+                    ->where('id', $delivery->purchase_order_id)
+                    ->update(['status' => 'delivered', 'updated_at' => now()]);
+            }
+        }
 
         return true;
     }
