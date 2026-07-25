@@ -100,8 +100,10 @@
 
             {{-- Sidebar footer – classic divider + version + toggle --}}
             <div class="sidebar-footer">
-                <i data-lucide="info" class="footer-icon"></i>
-                <span>NEXORA BI v1.0.0</span>
+                <div class="sidebar-version">
+                    <i data-lucide="info" class="footer-icon"></i>
+                    <span>NEXORA BI v1.0.0</span>
+                </div>
 
                 <div class="theme-switch-wrapper">
                     <i data-lucide="sun" class="theme-switch-icon"></i>
