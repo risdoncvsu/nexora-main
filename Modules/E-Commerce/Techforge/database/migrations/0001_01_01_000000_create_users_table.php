@@ -6,13 +6,16 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    public $withinTransaction = false;
     /**
      * Run the migrations.
      */
     public function up(): void
     {
-        if (! Schema::hasTable('users')) {
-            Schema::create('users', function (Blueprint $table) {
+        $schema = Schema::connection('ecommerce');
+
+        if (! $schema->hasTable('users')) {
+            $schema->create('users', function (Blueprint $table) {
                 $table->id();
                 $table->uuid('client_id')->nullable()->index();
                 $table->string('name');
@@ -24,8 +27,8 @@ return new class extends Migration
             });
         }
 
-        if (! Schema::hasTable('password_reset_tokens')) {
-            Schema::create('password_reset_tokens', function (Blueprint $table) {
+        if (! $schema->hasTable('password_reset_tokens')) {
+            $schema->create('password_reset_tokens', function (Blueprint $table) {
                 $table->string('email')->primary();
                 $table->string('token');
                 $table->timestamp('created_at')->nullable();
