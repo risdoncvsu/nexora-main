@@ -192,7 +192,11 @@ class BusinessIntelligenceController
     public function liveFeed(Request $request): JsonResponse
     {
         $clientId = $this->clientId($request);
-        $metrics = $this->metrics($clientId);
+        // The layout polls this endpoint in the background. Reusing the
+        // dashboard snapshot prevents each poll from reopening every module
+        // database connection and competing with interactive AI chat.
+        $metrics = $clientId ? $this->recentDashboardSnapshot($clientId) : null;
+        $metrics ??= $this->metrics($clientId);
 
         $alerts = array_map(
             fn (array $a): array => $this->alert($a['severity'], $a['icon'], $a['department_label'], $a['title'], $a['message'], $a['metrics']),
