@@ -26,6 +26,8 @@ class OrderFulfillmentAccess
 
         $orderFulfillmentTerms = [
             'fulfillment',
+            'fulfilment',
+            'fullfilment',
             'operations',
             'order',
             'shipping',
@@ -35,6 +37,10 @@ class OrderFulfillmentAccess
             'courier',
             'packing',
             'returns',
+            'warehouse',
+            'distribution',
+            'material',
+            'stock',
         ];
 
         abort_unless(
