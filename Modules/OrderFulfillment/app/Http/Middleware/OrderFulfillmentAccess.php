@@ -24,11 +24,23 @@ class OrderFulfillmentAccess
         $position = strtolower((string) session('employee_position', ''));
         $assignment = $department.' '.$position;
 
+        $orderFulfillmentTerms = [
+            'fulfillment',
+            'operations',
+            'order',
+            'shipping',
+            'logistics',
+            'dispatch',
+            'delivery',
+            'courier',
+            'packing',
+            'returns',
+        ];
+
         abort_unless(
-            str_contains($assignment, 'fulfillment')
-                || str_contains($assignment, 'operations')
-                || str_contains($assignment, 'order')
-                || str_contains($assignment, 'shipping'),
+            collect($orderFulfillmentTerms)->contains(
+                fn (string $term): bool => str_contains($assignment, $term)
+            ),
             403
         );
 
