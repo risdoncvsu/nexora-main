@@ -55,8 +55,7 @@ class DigitalOceanProvider implements AIProviderInterface
                 $body['response_format'] = ['type' => 'json_object'];
             }
 
-            $response = Http::withoutVerifying()
-                ->retry(2, 300, throw: false)
+            $response = Http::retry(2, 300, throw: false)
                 ->timeout($this->timeout)
                 ->acceptJson()
                 ->withToken($this->apiKey)

@@ -1,6 +1,7 @@
 <?php
 
 use Modules\BusinessIntelligence\Services\AI\Providers\DigitalOceanProvider;
+use Modules\BusinessIntelligence\Services\AI\Providers\DigitalOceanAgentProvider;
 use Modules\BusinessIntelligence\Services\AI\Providers\GeminiProvider;
 use Modules\BusinessIntelligence\Services\AI\Providers\OpenAIProvider;
 
@@ -21,6 +22,17 @@ return [
             'model' => env('DO_INFERENCE_MODEL'),
             'base_url' => env('DO_INFERENCE_BASE_URL', 'https://inference.do-ai.run/v1'),
             'timeout' => (int) env('DO_INFERENCE_TIMEOUT', 60),
+        ],
+
+        // DigitalOcean Agent Platform endpoint. Keep this separate from
+        // Serverless Inference: it uses an agent-scoped access key and the
+        // customer-specific /api/v1/chat/completions?agent=true endpoint.
+        'digitalocean-agent' => [
+            'driver' => DigitalOceanAgentProvider::class,
+            'api_key' => env('DO_AGENT_API_KEY'),
+            'base_url' => env('DO_AGENT_BASE_URL'),
+            'model' => env('DO_AGENT_MODEL', 'ignored'),
+            'timeout' => (int) env('DO_AGENT_TIMEOUT', 60),
         ],
 
         'openai' => [
