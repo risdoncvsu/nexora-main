@@ -5,12 +5,20 @@ namespace App\Http\Middleware;
 use App\Services\ErpIntegrationService;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
 
 class AuditModuleAction
 {
     public function handle(Request $request, Closure $next): Response
     {
+        // BI records chat conversations in its own client-scoped audit table.
+        // Do not make the interactive response wait for a second write to the
+        // ITSM database after the AI provider has already answered.
+        if ($request->routeIs('bi.ai.chat')) {
+            return $next($request);
+        }
+
         $clientId = (int) (session('employee_client_id') ?: $request->attributes->get('ecommerce_company')?->id ?: $request->user()?->company_id);
         $department = $this->department($request);
         $actor = session('employee_name') ?: $request->user()?->username ?: $request->user()?->email;
@@ -24,11 +32,18 @@ class AuditModuleAction
             return $response;
         }
 
-        app(ErpIntegrationService::class)->recordAudit($clientId, 'action.'.strtolower($request->method()), $department, [
-            'route' => $request->route()?->getName(),
-            'path' => '/'.$request->path(),
-            'actor' => $actor,
-        ]);
+        try {
+            app(ErpIntegrationService::class)->recordAudit($clientId, 'action.'.strtolower($request->method()), $department, [
+                'route' => $request->route()?->getName(),
+                'path' => '/'.$request->path(),
+                'actor' => $actor,
+            ]);
+        } catch (\Throwable $exception) {
+            Log::warning('ERP audit logging failed after a completed request.', [
+                'route' => $request->route()?->getName(),
+                'exception' => $exception->getMessage(),
+            ]);
+        }
 
         return $response;
     }
