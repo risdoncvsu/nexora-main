@@ -287,14 +287,20 @@
     if(record.type === 'po'){
       const poItemsMarkup = record.items?.length ? `<div class="supplier-product-inline">${record.items.map(it => `<span class="supplier-product-tag">${htmlEscape(it.name || 'Item')} · Qty ${Number(it.qty||0)}${it.unitPrice ? ' · ₱'+Number(it.unitPrice).toFixed(2) : ''}</span>`).join('')}</div>` : `<div class="modal-helper">${htmlEscape(record.item)}</div>`;
       body = `<div class="detail-grid"><div class="detail-card"><h4>Order overview</h4><div class="modal-row"><span>PO number</span><span>${htmlEscape(record.po)}</span></div><div class="modal-row"><span>Supplier</span><span>${htmlEscape(record.supplier)}</span></div><div class="modal-row"><span>Category</span><span>${htmlEscape(record.category)}</span></div><div class="modal-row"><span>Total quantity</span><span>${record.qty || '—'}</span></div></div><div class="detail-card"><h4>Commercial details</h4><div class="modal-row"><span>Total amount</span><span>${money(record.amount)}</span></div><div class="modal-row"><span>Unit price</span><span>${record.unitPrice}</span></div><div class="modal-row"><span>Priority</span><span>${priorityBadge(record.priority || 'Normal')}</span></div><div class="modal-row"><span>Delivery status</span><span>${htmlEscape(record.delivery)}</span></div><div class="modal-row"><span>Status</span><span>${htmlEscape(record.status)}</span></div><div class="modal-row"><span>Date & time</span><span>${htmlEscape(record.date)} · ${htmlEscape(record.time)}</span></div></div><div class="detail-card full"><h4>Items</h4>${poItemsMarkup}</div><div class="detail-card full"><h4>Workflow</h4><div class="modal-row"><span>Requested by</span><span>${htmlEscape(record.requestedBy)}</span></div><div class="modal-row"><span>Expected delivery</span><span>${htmlEscape(record.expected)}</span></div></div></div><div class="detail-note"><b>Remarks</b><br>${htmlEscape(record.remarks)}</div>`;
-      // Approve / Reject are no longer done from the PO view modal (approval
-      // happens elsewhere). Pending POs can still be cancelled; everything else
-      // is view-only.
       const statusKey = String(record.status || '').toLowerCase();
       if(statusKey === 'pending'){
         setViewActions(
-          {label:'Close', className:'btn-view', onClick:closeViewModal},
-          {label:'Cancel PO', className:'btn-danger', onClick:()=> openCancelModalFromRow(row)}
+          {label:'Cancel PO', className:'btn-danger', onClick:()=> openCancelModalFromRow(row)},
+          {label:'Approve PO', className:'btn-approve', onClick:()=>{
+            persistPurchaseOrderStatus(row, 'Approved').then(() => {
+              updateRowStatus(row, 'Approved');
+              closeViewModal();
+              showToast(`${record.po} approved for fulfillment`, 'ok');
+              if(typeof pollLiveStats === 'function') pollLiveStats();
+            }).catch(err => {
+              showToast(err?.message || 'Unable to approve this purchase order. It was not changed.', 'no');
+            });
+          }}
         );
       } else {
         setViewActions(
