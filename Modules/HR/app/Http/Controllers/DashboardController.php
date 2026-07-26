@@ -13,19 +13,22 @@ class DashboardController extends Controller
     {
         $role = session('employee_role');
         $department = strtolower(trim(session('employee_department', '')));
+        $clientId = (int) session('employee_client_id');
 
         if ($role !== 'admin' && $department !== 'human resources') {
             return redirect()->route('hr.employee.dashboard');
         }
 
         $employeeCount = Employee::count();
-        $presentToday = Attendance::whereDate('attendance_date', today())
+        $presentToday = Attendance::where('client_id', $clientId)
+            ->whereDate('attendance_date', today())
             ->whereNotNull('time_in')
             ->whereNull('time_out')
             ->count();
 
         $currentYear = today()->year;
         $monthStats = Attendance::selectRaw('EXTRACT(MONTH FROM attendance_date)::int as month, COUNT(*) as present_days')
+            ->where('client_id', $clientId)
             ->whereYear('attendance_date', $currentYear)
             ->whereNotNull('time_in')
             ->where(function ($q) {

@@ -8,6 +8,7 @@ use Modules\HR\Http\Controllers\AttendanceController;
 use Modules\HR\Http\Controllers\EmployeeOnboardingController;
 use Modules\HR\Http\Controllers\ReportsAnalyticsController;
 use Modules\HR\Http\Controllers\DeliveryDriverController;
+use Modules\HR\Http\Controllers\LeaveRequestController;
 use Modules\HR\Models\Attendance;
 
 Route::get('/', function () {
@@ -20,6 +21,14 @@ Route::middleware('hr.access')->group(function () {
 
     Route::get('/employee-dashboard', [DashboardController::class, 'employeeIndex'])
         ->name('employee.dashboard');
+
+    Route::get('/employee-attendance', [ReportsAnalyticsController::class, 'selfAttendance'])
+        ->name('employee.attendance');
+
+    Route::get('/employee-leave', [LeaveRequestController::class, 'employeeLeave'])
+        ->name('employee.leave');
+    Route::post('/employee-leave', [LeaveRequestController::class, 'store'])
+        ->name('employee.leave.submit');
 
     Route::post('/logout', function () {
         session()->forget(['employee_logged_in', 'employee_role', 'employee_department', 'employee_id', 'employee_code']);
@@ -68,9 +77,17 @@ Route::middleware('hr.access')->group(function () {
     Route::get('/reports-analytics/leave', [ReportsAnalyticsController::class, 'leave'])
         ->name('reports-analytics.leave');
 
+    Route::get('/leave-management', [LeaveRequestController::class, 'index'])
+        ->name('leave-management.index');
+    Route::get('/leave-requests/{leaveRequest}', [LeaveRequestController::class, 'show'])
+        ->name('leave-requests.show');
+    Route::post('/leave-requests/{leaveRequest}/review', [LeaveRequestController::class, 'review'])
+        ->name('leave-requests.review');
+
     Route::get('/attendance/today-count', function () {
         return response()->json([
             'count' => Attendance::whereDate('attendance_date', today())
+                ->where('client_id', (int) session('employee_client_id'))
                 ->whereNotNull('time_in')
                 ->whereNull('time_out')
                 ->count()

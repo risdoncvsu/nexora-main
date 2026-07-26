@@ -60,6 +60,10 @@ class AttendanceController extends Controller
                 return back()->with('error', 'No clock-in found for today.');
             }
 
+            if (! $attendance->client_id) {
+                $attendance->client_id = $employee->client_id;
+            }
+
             if ($attendance->time_out) {
                 return back()->with('error', 'This employee already clocked out today.');
             }
@@ -82,6 +86,10 @@ class AttendanceController extends Controller
             'employee_id' => $employee->id,
             'attendance_date' => $today,
         ]);
+
+        if (! $attendance->client_id) {
+            $attendance->client_id = $employee->client_id;
+        }
 
         if ($attendance->exists && $attendance->time_in) {
             if ($attendance->time_out) {

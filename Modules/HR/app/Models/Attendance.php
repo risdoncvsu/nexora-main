@@ -10,6 +10,20 @@ class Attendance extends Model
 {
     protected $connection = 'hr';
 
+    protected static function booted(): void
+    {
+        // Clock-in is intentionally available from the shared kiosk and does
+        // not have an HR session. Derive the client from the employee record
+        // so attendance remains safely scoped in reports.
+        static::creating(function (self $attendance): void {
+            if (! $attendance->client_id && $attendance->employee_id) {
+                $attendance->client_id = Employee::withoutGlobalScopes()
+                    ->whereKey($attendance->employee_id)
+                    ->value('client_id');
+            }
+        });
+    }
+
     /** Fallback allotted work time when employee schedule is missing. */
     public const ALLOTTED_WORK_MINUTES = 9 * 60;
 
@@ -24,6 +38,7 @@ class Attendance extends Model
         'time_out',
         'time_out_image',
         'status',
+        'client_id',
     ];
 
     public function employee(): BelongsTo

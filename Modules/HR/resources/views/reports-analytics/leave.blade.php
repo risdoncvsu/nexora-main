@@ -204,7 +204,7 @@
 
     <div class="px-[10px] py-[15px] text-center text-[11.9px] font-light uppercase tracking-wide text-white border-r border-white/[0.15]">Status</div>
 
-    <div class="px-[10px] py-[15px] text-center text-[11.9px] font-light uppercase tracking-wide text-white">Report</div>
+    <div class="px-[10px] py-[15px] text-center text-[11.9px] font-light uppercase tracking-wide text-white">Action</div>
 
 </div>
 

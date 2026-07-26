@@ -25,7 +25,7 @@
           @if(!empty($isHr))
             You are viewing the employee dashboard. Use the button below to return to the HR dashboard anytime.
           @else
-            This is your secured employee dashboard. You can only stay here and log out from this area.
+            This is your secured employee dashboard. You can view your attendance, submit leave requests, and log out from this area.
           @endif
         </p>
       </div>
@@ -58,10 +58,21 @@
       <article class="rounded-3xl border border-white/10 bg-[#10233D] p-6 shadow-[0_20px_60px_rgba(0,0,0,.18)]">
         <p class="text-sm uppercase tracking-[0.4em] text-slate-400">Navigation</p>
         <div class="mt-6 space-y-4">
-          <div class="rounded-3xl bg-[#132B52] p-4 text-slate-200">
-            <p class="font-semibold">You may use this page only.</p>
-            <p class="mt-2 text-sm text-slate-400">Other pages are restricted and will redirect back here.</p>
-          </div>
+          @if(empty($isHr))
+            <a href="{{ route('hr.employee.attendance') }}" class="block rounded-3xl bg-[#132B52] p-4 text-slate-200 no-underline transition hover:bg-[#1B3A6B]">
+              <p class="font-semibold">My attendance</p>
+              <p class="mt-2 text-sm text-slate-400">View your own attendance record and work-time history.</p>
+            </a>
+            <a href="{{ route('hr.employee.leave') }}" class="block rounded-3xl bg-[#132B52] p-4 text-slate-200 no-underline transition hover:bg-[#1B3A6B]">
+              <p class="font-semibold">My leave requests</p>
+              <p class="mt-2 text-sm text-slate-400">Submit a request and check its HR review status.</p>
+            </a>
+          @else
+            <div class="rounded-3xl bg-[#132B52] p-4 text-slate-200">
+              <p class="font-semibold">HR manager view</p>
+              <p class="mt-2 text-sm text-slate-400">Use the HR dashboard to manage employee records and leave requests.</p>
+            </div>
+          @endif
           <div class="rounded-3xl bg-[#132B52] p-4 text-slate-200">
             <p class="font-semibold">Sign out safely</p>
             <form method="POST" action="{{ route('hr.logout') }}" class="mt-3">

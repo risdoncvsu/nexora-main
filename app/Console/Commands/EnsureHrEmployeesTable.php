@@ -129,8 +129,112 @@ class EnsureHrEmployeesTable extends Command
                 ->update(['client_id' => DB::raw('itsm_company_id')]);
         }
 
-        $this->info('Verified the HR employees table.');
+        $this->backfillClientIds('attendances');
+
+        $this->ensureLeaveRequestsTable($schema);
+
+        $this->info('Verified the HR employees and leave-request tables.');
 
         return self::SUCCESS;
+    }
+
+    /**
+     * HR is deployed against a separate connection and this command is what
+     * the application runs during startup. Keep the leave schema here rather
+     * than relying on the default-connection module migrations.
+     */
+    private function ensureLeaveRequestsTable($schema): void
+    {
+        if (! $schema->hasTable('leave_requests')) {
+            $schema->create('leave_requests', function (Blueprint $table): void {
+                $table->id();
+                $table->unsignedBigInteger('client_id')->nullable()->index();
+                $table->unsignedBigInteger('employee_id');
+                $table->string('type')->nullable();
+                $table->date('from_date')->nullable();
+                $table->date('to_date')->nullable();
+                $table->decimal('total_days', 5, 2)->nullable();
+                $table->text('reason')->nullable();
+                $table->json('attachments')->nullable();
+                $table->string('status')->default('pending')->index();
+                $table->text('status_note')->nullable();
+                $table->string('reference_id')->nullable()->unique();
+                $table->string('reviewed_by_name')->nullable();
+                $table->string('reviewed_by_position')->nullable();
+                $table->timestamp('reviewed_at')->nullable();
+                $table->timestamps();
+            });
+        }
+
+        $schema->table('leave_requests', function (Blueprint $table) use ($schema): void {
+            if (! $schema->hasColumn('leave_requests', 'client_id')) {
+                $table->unsignedBigInteger('client_id')->nullable()->index();
+            }
+            if (! $schema->hasColumn('leave_requests', 'employee_id')) {
+                $table->unsignedBigInteger('employee_id')->nullable();
+            }
+            if (! $schema->hasColumn('leave_requests', 'type')) {
+                $table->string('type')->nullable();
+            }
+            if (! $schema->hasColumn('leave_requests', 'from_date')) {
+                $table->date('from_date')->nullable();
+            }
+            if (! $schema->hasColumn('leave_requests', 'to_date')) {
+                $table->date('to_date')->nullable();
+            }
+            if (! $schema->hasColumn('leave_requests', 'total_days')) {
+                $table->decimal('total_days', 5, 2)->nullable();
+            }
+            if (! $schema->hasColumn('leave_requests', 'reason')) {
+                $table->text('reason')->nullable();
+            }
+            if (! $schema->hasColumn('leave_requests', 'attachments')) {
+                $table->json('attachments')->nullable();
+            }
+            if (! $schema->hasColumn('leave_requests', 'status')) {
+                $table->string('status')->default('pending')->index();
+            }
+            if (! $schema->hasColumn('leave_requests', 'status_note')) {
+                $table->text('status_note')->nullable();
+            }
+            if (! $schema->hasColumn('leave_requests', 'reference_id')) {
+                $table->string('reference_id')->nullable()->unique();
+            }
+            if (! $schema->hasColumn('leave_requests', 'reviewed_by_name')) {
+                $table->string('reviewed_by_name')->nullable();
+            }
+            if (! $schema->hasColumn('leave_requests', 'reviewed_by_position')) {
+                $table->string('reviewed_by_position')->nullable();
+            }
+            if (! $schema->hasColumn('leave_requests', 'reviewed_at')) {
+                $table->timestamp('reviewed_at')->nullable();
+            }
+        });
+
+        // If a standalone HR deployment created leave requests before this
+        // integration, inherit the employee's client so old records are not
+        // invisible or exposed across clients after tenant scoping is enabled.
+        $this->backfillClientIds('leave_requests');
+    }
+
+    private function backfillClientIds(string $table): void
+    {
+        $database = DB::connection('hr');
+
+        $database->table($table)
+            ->select(['id', 'employee_id'])
+            ->whereNull('client_id')
+            ->orderBy('id')
+            ->eachById(function (object $record) use ($database, $table): void {
+                $clientId = $database->table('employees')
+                    ->where('id', $record->employee_id)
+                    ->value('client_id');
+
+                if ($clientId) {
+                    $database->table($table)
+                        ->where('id', $record->id)
+                        ->update(['client_id' => $clientId]);
+                }
+            });
     }
 }

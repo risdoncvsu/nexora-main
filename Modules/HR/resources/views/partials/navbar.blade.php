@@ -13,6 +13,7 @@
     $isReports = request()->routeIs('hr.reports-analytics.*');
     $isAttendance = request()->routeIs('hr.reports-analytics.attendance-overview') || request()->routeIs('hr.reports-analytics.employee-attendance');
     $isLeave = request()->routeIs('hr.reports-analytics.leave');
+    $isLeaveManagement = request()->routeIs('hr.leave-management.*') || request()->routeIs('hr.leave-requests.*');
 @endphp
 
 <header class="w-full h-[150px] bg-[#132B52] flex items-center justify-between pl-[1px] pr-[5px] border-b border-white/5 shadow-[0_1px_0_rgba(255,255,255,.03)_inset] sticky top-0 z-[1000]">
@@ -72,13 +73,14 @@
 
             <div class="relative group">
                 <a href="{{ route('hr.employee.dashboard') }}"
-                   class="{{ $navLink }}">
+                   class="{{ $navLink }} {{ $isLeaveManagement ? $navActive : '' }}">
                     Employee Management
                     <svg class="w-3.5 h-3.5 opacity-80 transition-transform duration-300 origin-center group-hover:rotate-180 group-hover:opacity-100" viewBox="0 0 24 24" fill="none">
                         <path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
                 </a>
                 <div class="absolute top-[120%] left-1/2 -translate-x-1/2 translate-y-2.5 w-[220px] bg-[#132B52] rounded-[18px] shadow-[0_20px_45px_rgba(0,0,0,.25),inset_0_1px_0_rgba(21,21,21,.7)] p-2.5 opacity-0 invisible transition-all duration-300 z-[999] group-hover:opacity-100 group-hover:visible group-hover:translate-y-0">
+                    <a href="{{ route('hr.leave-management.index') }}" class="{{ $dropLink }} {{ $isLeaveManagement ? $dropActive : '' }}">Leave Requests</a>
                     <a href="{{ route('hr.reports-analytics.leave') }}" class="{{ $dropLink }}">Leave Record</a>
                     <span class="block text-[#C9DAF8]/60 py-[11px] px-3.5 text-[13px] font-medium cursor-not-allowed" title="This HR feature has not been implemented yet">Resignation Management</span>
                 </div>

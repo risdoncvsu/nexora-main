@@ -36,7 +36,11 @@ class EmployeeAuth
         $department = strtolower(trim(session('employee_department', '')));
 
         if ($role === 'employee' && $department !== 'human resources') {
-            if (! $request->routeIs('hr.employee.dashboard') && ! $request->routeIs('hr.logout')) {
+            if (! $request->routeIs('hr.employee.dashboard')
+                && ! $request->routeIs('hr.employee.attendance')
+                && ! $request->routeIs('hr.employee.leave')
+                && ! $request->routeIs('hr.employee.leave.submit')
+                && ! $request->routeIs('hr.logout')) {
                 return redirect()->route('hr.employee.dashboard');
             }
         }
