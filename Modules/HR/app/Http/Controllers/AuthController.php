@@ -47,11 +47,7 @@ class AuthController extends Controller
             'employee_client_id' => (int) $employee->client_id,
         ]);
 
-        $route = $isHrManager
-            ? 'hr.dashboard'
-            : ($isBiEmployee ? 'bi.dashboard' : 'hr.employee.dashboard');
-
-        return redirect()->route($route);
+        return redirect()->route('employee.portal');
     }
 
     public function logout(Request $request)

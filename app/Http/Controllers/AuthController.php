@@ -61,7 +61,7 @@ class AuthController extends Controller
 
             $this->signInEcommerceAdmin();
 
-            return redirect()->to($this->employeeModuleDestination());
+            return redirect()->route('employee.portal');
         }
 
         return back()->withErrors(['username' => $hrLogin['message']]);
@@ -88,7 +88,7 @@ class AuthController extends Controller
 
         $this->signInEcommerceAdmin();
 
-        return redirect()->to($this->employeeModuleDestination());
+        return redirect()->route('employee.portal');
     }
 
     private function companyAdminDestination($user): string

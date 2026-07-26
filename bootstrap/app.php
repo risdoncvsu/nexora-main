@@ -34,6 +34,7 @@ return Application::configure(basePath: dirname(__DIR__))
         'bi.access' => \Modules\BusinessIntelligence\Http\Middleware\BusinessIntelligenceAccess::class,
             'root.admin' => \App\Http\Middleware\EnsureRootAdmin::class,
             'client.admin' => \App\Http\Middleware\EnsureClientAdmin::class,
+            'employee.portal' => \App\Http\Middleware\EnsureEmployeePortalSession::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

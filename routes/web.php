@@ -20,6 +20,7 @@ use App\Http\Controllers\RolesAndPermissionController;
 use App\Http\Controllers\ApprovalController;
 use App\Http\Controllers\KnowledgeBaseController;
 use App\Http\Controllers\ServiceController;
+use App\Http\Controllers\EmployeePortalController;
 
 Route::get('/login', function () {
     return view('auth.login');
@@ -30,6 +31,13 @@ Route::get('/forgot-password', [PasswordResetController::class, 'create'])->name
 Route::post('/forgot-password', [PasswordResetController::class, 'store'])->name('password.email');
 Route::get('/first-login/password', [AuthController::class, 'showHrFirstLoginPassword'])->name('hr.first-login.password');
 Route::post('/first-login/password', [AuthController::class, 'storeHrFirstLoginPassword'])->name('hr.first-login.password.store');
+
+// Employee accounts are authenticated from HR but land in this ITSM extension
+// first, where they can enter their assigned module or contact their client ITSM team.
+Route::middleware('employee.portal')->prefix('employee')->name('employee.')->group(function () {
+    Route::get('/portal', [EmployeePortalController::class, 'index'])->name('portal');
+    Route::post('/support-tickets', [EmployeePortalController::class, 'storeTicket'])->name('support-tickets.store');
+});
 
 Route::middleware('auth')->group(function () {
 
