@@ -113,7 +113,13 @@
 
         {{-- Profile circle --}}
         <div class="flex items-center justify-end w-[5vw]">
-            <a href="{{ route('login') }}" class="p-1 w-9 h-9 rounded-full bg-white" aria-label="Nexora sign in"><span class="inline-block" aria-hidden="true">&#8226;</span></a>
+            <button type="button" onclick="toggleProfileDropdown()" id="profileTrigger" aria-label="Profile menu"
+                    class="w-9 h-9 rounded-full bg-nexora-sky/20 overflow-hidden flex items-center justify-center flex-shrink-0 cursor-pointer border-0 p-0 hover:opacity-90 transition-opacity">
+                <svg class="w-5 h-5 text-nexora-off-white" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <circle cx="12" cy="8" r="3.25" stroke="currentColor" stroke-width="1.8"/>
+                    <path d="M5 20c.8-3.3 3.3-5 7-5s6.2 1.7 7 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                </svg>
+            </button>
         </div>
     </header>
 
@@ -167,7 +173,7 @@
                     @endphp
 
                     @foreach($orderSubs as $tab)
-                        <a href="{{ $tab['sub'] === 'boms' ? route('manufacturing.boms.index') : '?page=orders&sub='.$tab['sub'] }}"
+                        <a href="{{ '?page=orders&sub='.$tab['sub'] }}"
                            class="flex gap-4 px-3 py-2 pb-4 items-center rounded-md font-medium transition-colors duration-150
                                   {{ ($curSub === $tab['sub'] || ($curSub === '' && $tab['sub'] === 'all'))
                                       ? 'bg-nexora-sky text-white'
@@ -244,32 +250,7 @@
         </main>
     </div>
 
-    {{-- ── UNIVERSAL CONFIRM MODAL ─────────────────────────────────────────── --}}
-    <div id="universal-confirm-backdrop"
-         class="modal-backdrop fixed inset-0 z-[999] flex items-center justify-center hidden"
-         onclick="handleBackdropClick(event, 'universal-confirm-backdrop')">
-        <div class="absolute inset-0 bg-nexora-deep-navy/40 backdrop-blur-sm pointer-events-none"></div>
-        <div onclick="event.stopPropagation()"
-             class="relative z-10 bg-nexora-off-white border border-nexora-corporate/50 rounded-2xl shadow-2xl w-full max-w-sm mx-4 flex flex-col">
-            <div class="px-5 pt-5 pb-3">
-                <h2 id="universal-confirm-title" class="text-base font-bold text-nexora-deep-navy">Are you sure?</h2>
-                <p id="universal-confirm-message" class="text-xs text-nexora-navy-mid mt-1.5 leading-relaxed"></p>
-            </div>
-            <div class="flex gap-2 justify-end px-5 pb-5">
-                <button onclick="closeModal('universal-confirm-backdrop')"
-                        class="px-4 py-1.5 rounded-full text-xs font-medium border border-nexora-corporate/50
-                               text-nexora-navy-mid hover:bg-nexora-slate-200 transition-colors">
-                    Cancel
-                </button>
-                <button id="universal-confirm-btn"
-                        onclick="runConfirmedAction()"
-                        class="px-4 py-1.5 rounded-full text-xs font-semibold bg-nexora-corporate text-white
-                               hover:bg-nexora-navy-mid transition-colors">
-                    Confirm
-                </button>
-            </div>
-        </div>
-    </div>
+    @include('manufacturing::modals')
 
     {{-- ── UNIVERSAL SUCCESS NOTIFICATION ──────────────────────────────────── --}}
     <div id="success-notif" class="fixed inset-0 bg-black/50 flex items-center justify-center z-[999] hidden">

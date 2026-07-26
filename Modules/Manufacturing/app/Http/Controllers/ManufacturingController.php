@@ -10,6 +10,7 @@ use Modules\Manufacturing\Models\Requisition;
 use Modules\Manufacturing\Services\ManufacturingDataService;
 use Modules\Manufacturing\Services\BenchmarkTargetService;
 use Modules\Manufacturing\Services\DueDateService;
+use Modules\Manufacturing\Services\InventoryBridgeService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -58,18 +59,25 @@ class ManufacturingController extends Controller
 
         DB::connection('manufacturing')->transaction(function () use ($order, $partChanges, $sendToQC, $cancelOrder) {
             $partsByPosition = $order->parts->values();
+            $bridge = new InventoryBridgeService();
 
             foreach ($partChanges as $position => $newStatus) {
                 $part = $partsByPosition->get((int) $position);
                 if (!$part) continue;
-                if ($part->status === 'Sourcing' && $newStatus === 'Ready') {
+                if (in_array($part->status, ['Sourcing', 'Missing'], true) && $newStatus === 'Ready') {
                     $part->update(['status' => 'Ready']);
+                    $bridge->consumeReservationForPart($order->id, $part->toArray(), $order->client_id);
                 }
             }
 
             $order->refresh()->load('parts');
 
-            $allReady = $order->parts->every(fn ($p) => $p->status === 'Ready');
+            if ($order->status === 'Pending'
+                && (! empty($order->assigned) || $order->parts->contains(fn ($part) => $part->status === 'Ready'))) {
+                $order->status = 'Building';
+            }
+
+            $allReady = $order->parts->isNotEmpty() && $order->parts->every(fn ($part) => $part->status === 'Ready');
             if ($allReady && $order->status === 'Building') {
                 $order->status = 'Finished';
             }
@@ -177,6 +185,26 @@ class ManufacturingController extends Controller
                         'reason'     => $r['note'] ?: 'Flagged during QC benchmark',
                     ]);
                 }
+
+                // Build replacement requirements from the actual components
+                // behind failed QC checks. The rework screen then controls
+                // stock consumption through the Inventory bridge.
+                $order->loadMissing('parts');
+                collect($flagged)
+                    ->filter(fn (array $result) => $result['verdict'] === 'Fail')
+                    ->map(fn (array $result) => explode('_', $result['checkId'])[0])
+                    ->filter()
+                    ->unique()
+                    ->each(function (string $category) use ($rework, $order): void {
+                        $buildPart = $order->parts->firstWhere('category', $category);
+
+                        if ($buildPart) {
+                            $rework->requiredParts()->create([
+                                'name' => $buildPart->name,
+                                'status' => 'Sourcing',
+                            ]);
+                        }
+                    });
             }
 
             if ($flagged) {
@@ -226,10 +254,28 @@ class ManufacturingController extends Controller
     public function updateRework(Request $request): JsonResponse
     {
         $reworkIndex = (int) $request->input('reworkIndex');
-        $rw = ReworkOrder::orderBy('id')->get()->values()->get($reworkIndex);
+        $rw = ReworkOrder::byPriority()->get()->values()->get($reworkIndex);
 
         if (!$rw) {
             return response()->json(['success' => false, 'message' => 'Rework order not found.'], 404);
+        }
+
+        $workOrder = WorkOrder::find($rw->wo_id);
+        if ($workOrder) {
+            $this->assertCanOperateWorkOrder($workOrder);
+        }
+
+        if ($request->input('status') === 'Ready for QC') {
+            $rw->loadMissing('requiredParts');
+            $allReplaced = $rw->requiredParts->isEmpty()
+                || $rw->requiredParts->every(fn ($part) => $part->status === 'Ready');
+
+            if (! $allReplaced) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'All replacement parts must be grabbed from stock before retesting.',
+                ], 422);
+            }
         }
 
         if ($request->has('status'))     $rw->status   = $request->input('status');
@@ -237,6 +283,46 @@ class ManufacturingController extends Controller
         if ($request->has('notes'))      $rw->notes    = $request->input('notes');
         if ($request->input('escalate')) $rw->escalated_to_inventory = true;
         $rw->save();
+
+        if ($rw->status === 'Ready for QC') {
+            WorkOrder::where('id', $rw->wo_id)->update(['status' => 'QC Check']);
+        }
+
+        return response()->json(['success' => true]);
+    }
+
+    public function grabReplacementPart(Request $request): JsonResponse
+    {
+        $reworkIndex = (int) $request->input('reworkIndex');
+        $partIndex = (int) $request->input('partIndex');
+        $rework = ReworkOrder::with('requiredParts')->byPriority()->get()->values()->get($reworkIndex);
+
+        if (! $rework) {
+            return response()->json(['success' => false, 'message' => 'Rework order not found.'], 404);
+        }
+
+        $workOrder = WorkOrder::find($rework->wo_id);
+        if ($workOrder) {
+            $this->assertCanOperateWorkOrder($workOrder);
+        }
+
+        $part = $rework->requiredParts->values()->get($partIndex);
+        if (! $part) {
+            return response()->json(['success' => false, 'message' => 'Replacement part not found.'], 404);
+        }
+
+        if ($part->status === 'Ready') {
+            return response()->json(['success' => true, 'message' => 'This replacement part has already been grabbed.']);
+        }
+
+        $clientId = (int) session('employee_client_id') ?: null;
+        $grabbed = (new InventoryBridgeService())->grabReplacementFromStock($part->name, 1, $clientId);
+
+        if (! $grabbed) {
+            return response()->json(['success' => false, 'message' => 'No unreserved inventory is available for this replacement part.'], 422);
+        }
+
+        $part->update(['status' => 'Ready']);
 
         return response()->json(['success' => true]);
     }
@@ -246,7 +332,7 @@ class ManufacturingController extends Controller
         $reworkIndex = (int) $request->input('reworkIndex');
         $part        = $request->input('part', []);
 
-        $rw = ReworkOrder::orderBy('id')->get()->values()->get($reworkIndex);
+        $rw = ReworkOrder::byPriority()->get()->values()->get($reworkIndex);
         if (!$rw) {
             return response()->json(['success' => false, 'message' => 'Rework order not found.'], 404);
         }
@@ -266,7 +352,7 @@ class ManufacturingController extends Controller
         $partIndex   = (int) $request->input('partIndex');
         $part        = $request->input('part', []);
 
-        $rw = ReworkOrder::with('requiredParts')->orderBy('id')->get()->values()->get($reworkIndex);
+        $rw = ReworkOrder::with('requiredParts')->byPriority()->get()->values()->get($reworkIndex);
         if (!$rw) {
             return response()->json(['success' => false, 'message' => 'Rework order not found.'], 404);
         }
