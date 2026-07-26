@@ -7,9 +7,12 @@
     .capacity-bar { height: 10px; border-radius: 9999px; background: linear-gradient(90deg, #ef4444 0%, #f0a93e 40%, #22c55e 70%, #22c55e 100%); }
     .capacity-track { height: 10px; border-radius: 9999px; background: #e2e8f0; overflow: hidden; }
 
-    /* Warehouse card shell — cohesive unit with subtle depth and hover lift */
-    .warehouse-card { border-radius: 16px; overflow: hidden; border: 1px solid rgba(15, 35, 70, 0.08); box-shadow: 0 1px 2px rgba(11,30,61,0.05), 0 12px 28px -18px rgba(11, 30, 61, 0.55); transition: transform 0.22s cubic-bezier(0.22,1,0.36,1), box-shadow 0.22s ease; }
-    .warehouse-card:hover { transform: translateY(-3px); box-shadow: 0 2px 6px rgba(11,30,61,0.08), 0 18px 36px -18px rgba(11, 30, 61, 0.6); }
+    /* Warehouse card shell — cohesive unit with subtle depth and hover lift.
+       position/z-index added so the lifted card renders above its grid neighbours
+       (its shadow was being overlapped by adjacent cards during the transition).
+       Duration aligned to 0.28s cubic-bezier to match the dashboard stat cards. */
+    .warehouse-card { position: relative; z-index: 0; border-radius: 16px; overflow: hidden; border: 1px solid rgba(15, 35, 70, 0.08); box-shadow: 0 1px 2px rgba(11,30,61,0.05), 0 12px 28px -18px rgba(11, 30, 61, 0.55); transition: transform 0.28s cubic-bezier(0.22,1,0.36,1), box-shadow 0.28s ease; }
+    .warehouse-card:hover { transform: translateY(-3px); z-index: 2; box-shadow: 0 2px 6px rgba(11,30,61,0.08), 0 18px 36px -18px rgba(11, 30, 61, 0.6); }
 
     /* Toggle switch */
     .wh-toggle { position:relative; display:inline-block; width:44px; height:24px; cursor:pointer; }
@@ -110,7 +113,7 @@
 
     <!-- Add Warehouse Modal -->
     <div id="addWarehouseModal" class="nexora-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="addWarehouseTitle">
-        <div class="nexora-modal">
+        <div class="nexora-modal nexora-modal-md">
             <div class="nexora-modal-logo"></div>
             <div class="nexora-modal-header">
                 <div class="nexora-modal-heading">
@@ -168,7 +171,7 @@
     </div>
     <!-- Toggle Confirmation Modal -->
     <div id="toggleModal" class="nexora-modal-overlay" role="dialog" aria-modal="true">
-        <div class="nexora-modal">
+        <div class="nexora-modal nexora-modal-sm">
             <div class="nexora-modal-logo"></div>
             <div class="nexora-modal-header">
                 <div class="nexora-modal-heading">
@@ -193,7 +196,7 @@
 
     <!-- Edit Warehouse Modal -->
     <div id="editWarehouseModal" class="nexora-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="editWarehouseTitle">
-        <div class="nexora-modal">
+        <div class="nexora-modal nexora-modal-md">
             <div class="nexora-modal-logo"></div>
             <div class="nexora-modal-header">
                 <div class="nexora-modal-heading">

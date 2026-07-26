@@ -4,12 +4,7 @@
 
 @push('styles')
 <style>
-    .status-badge { display: inline-block; padding: 4px 10px; border-radius: 9999px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; border:1px solid transparent; }
-    .status-pending { background: #F0FFF5; color: #D97706; border-color: rgba(217,119,6,0.5); }
-    .status-intransit { background: #F0FFF5; color: #3B82F6; border-color: rgba(59,130,246,0.5); }
-    .status-approved { background: #F0FFF5; color: #0CAE57; border-color: rgba(12,174,87,0.5); }
-    .status-rejected { background: #F0FFF5; color: #DC2626; border-color: rgba(220,38,38,0.5); }
-
+    /* Status badge styles moved to the shared inventory.css (single source). */
     .shipment-row { cursor: pointer; transition: background 0.15s; }
     .shipment-row:hover { background: #f1f5f9; }
 
@@ -267,18 +262,22 @@
             </div>
             <form id="confirmForm" method="POST" action="">
                 @csrf
-                <div style="padding:16px 24px;">
-                    <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid #e2e8f0;">
-                        <div><strong style="color:#475569;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Shipment</strong><br><span id="confirmShipment" style="font-size:14px;font-weight:600;color:#0f172a;"></span></div>
-                        <div><strong style="color:#475569;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Supplier</strong><br><span id="confirmSupplier" style="font-size:14px;color:#0f172a;"></span></div>
-                        <div><strong style="color:#475569;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Warehouse</strong><br><span id="confirmWarehouse" style="font-size:14px;color:#0f172a;"></span></div>
+                {{-- Contrast + alignment fix: labels/values were slate (#475569) and
+                     near-black (#0f172a) on the dark modal, i.e. invisible. Recoloured
+                     for the dark surface and padding removed so the block aligns to the
+                     modal's own 28px edge like every other dialog. --}}
+                <div style="padding:4px 0 0;">
+                    <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid rgba(255,255,255,0.12);">
+                        <div><strong style="color:rgba(255,255,255,0.55);font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Shipment</strong><br><span id="confirmShipment" style="font-size:14px;font-weight:600;color:#fff;"></span></div>
+                        <div><strong style="color:rgba(255,255,255,0.55);font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Supplier</strong><br><span id="confirmSupplier" style="font-size:14px;color:#fff;"></span></div>
+                        <div><strong style="color:rgba(255,255,255,0.55);font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Warehouse</strong><br><span id="confirmWarehouse" style="font-size:14px;color:#fff;"></span></div>
                     </div>
-                    <div style="margin-bottom:8px;"><strong style="color:#475569;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Items to receive</strong></div>
+                    <div style="margin-bottom:8px;"><strong style="color:rgba(255,255,255,0.55);font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Items to receive</strong></div>
                     <ul class="modal-items-list" id="confirmItemsList"></ul>
                 </div>
                 <div class="nexora-modal-actions">
                     <button type="button" onclick="closeConfirmModal()" class="nexora-modal-btn-secondary">Cancel</button>
-                    <button type="submit" class="nexora-modal-btn-primary" style="background:#0CAE57;">Confirm &amp; Receive</button>
+                    <button type="submit" class="nexora-modal-btn-primary nexora-modal-btn-success">Confirm &amp; Receive</button>
                 </div>
             </form>
         </div>

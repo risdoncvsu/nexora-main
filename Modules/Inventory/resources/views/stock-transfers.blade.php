@@ -2,15 +2,7 @@
 
 @section('title', 'Transfers')
 
-@push('styles')
-<style>
-    .status-badge { display: inline-block; padding: 4px 10px; border-radius: 9999px; font-size: 11px; font-weight: 600; text-transform: uppercase; border:1px solid transparent; }
-    .status-pending { background: #F0FFF5; color: #D97706; border-color: rgba(217,119,6,0.5); }
-    .status-approved { background: #F0FFF5; color: #0CAE57; border-color: rgba(12,174,87,0.5); }
-    .status-rejected { background: #F0FFF5; color: #DC2626; border-color: rgba(220,38,38,0.5); }
-    .status-cancelled { background: #F0FFF5; color: #64748B; border-color: rgba(100,116,139,0.5); }
-</style>
-@endpush
+{{-- Status badge styles moved to the shared inventory.css (single source). --}}
 
 @section('content')
 <div class="inv-page">
@@ -126,20 +118,20 @@
                                     <p style="color:#ef4444;font-size:11px;margin:0 0 6px 0;">{{ $message }}</p>
                                 @enderror
                                 @if($transfer->status === 'pending')
-                                    <form method="POST" action="{{ route('inventory.stock-transfers.approve', $transfer) }}" style="display:inline;" onsubmit="return confirm('Approve this transfer?')">
+                                    <form method="POST" action="{{ route('inventory.stock-transfers.approve', $transfer) }}" style="display:inline;">
                                         @csrf
                                         @method('PATCH')
-                                        <button type="submit" class="inv-btn inv-btn-success inv-btn-xs">Approve</button>
+                                        <button type="button" class="inv-btn inv-btn-success inv-btn-xs" onclick="nexoraConfirm({title:'Approve Transfer',message:'Approve this transfer? Stock will be moved between warehouses on approval.',confirmText:'Approve',variant:'success',onConfirm:()=>this.closest('form').submit()})">Approve</button>
                                     </form>
-                                    <form method="POST" action="{{ route('inventory.stock-transfers.reject', $transfer) }}" style="display:inline;" onsubmit="return confirm('Reject this transfer?')">
+                                    <form method="POST" action="{{ route('inventory.stock-transfers.reject', $transfer) }}" style="display:inline;">
                                         @csrf
                                         @method('PATCH')
-                                        <button type="submit" class="inv-btn inv-btn-danger inv-btn-xs">Reject</button>
+                                        <button type="button" class="inv-btn inv-btn-danger inv-btn-xs" onclick="nexoraConfirm({title:'Reject Transfer',message:'Reject this transfer request? This cannot be undone.',confirmText:'Reject',variant:'danger',onConfirm:()=>this.closest('form').submit()})">Reject</button>
                                     </form>
-                                    <form method="POST" action="{{ route('inventory.stock-transfers.cancel', $transfer) }}" style="display:inline;" onsubmit="return confirm('Cancel this transfer request?')">
+                                    <form method="POST" action="{{ route('inventory.stock-transfers.cancel', $transfer) }}" style="display:inline;">
                                         @csrf
                                         @method('PATCH')
-                                        <button type="submit" class="inv-btn inv-btn-neutral inv-btn-xs">Cancel</button>
+                                        <button type="button" class="inv-btn inv-btn-neutral inv-btn-xs" onclick="nexoraConfirm({title:'Cancel Transfer',message:'Cancel this transfer request? This cannot be undone.',confirmText:'Cancel Transfer',cancelText:'Keep',variant:'warning',onConfirm:()=>this.closest('form').submit()})">Cancel</button>
                                     </form>
                                 @else
                                     <span style="color:#94a3b8;font-size:12px;">—</span>
@@ -161,7 +153,7 @@
 </div>
 
     <div id="transferModal" class="nexora-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="newTransferTitle">
-        <div class="nexora-modal">
+        <div class="nexora-modal nexora-modal-md">
             <div class="nexora-modal-logo"></div>
             <div class="nexora-modal-header">
                 <div class="nexora-modal-heading">
@@ -173,47 +165,48 @@
                 <button type="button" onclick="closeTransferModal()" class="nexora-modal-close" aria-label="Close">&times;</button>
             </div>
 
-            <form method="POST" action="{{ route('inventory.stock-transfers.store') }}" novalidate>
+            <form method="POST" action="{{ route('inventory.stock-transfers.store') }}" id="transferForm" novalidate>
                 @csrf
+                <input type="hidden" name="from_warehouse_id" id="from_warehouse_id" value="{{ old('from_warehouse_id') }}">
+                <input type="hidden" name="to_warehouse_id" id="to_warehouse_id" value="{{ old('to_warehouse_id') }}">
+                <input type="hidden" name="item_id" id="transfer_item_id" value="{{ old('item_id') }}">
 
                 <div class="nexora-modal-form">
                     <div>
                         <label class="nexora-modal-label">From Warehouse</label>
-                        <select name="from_warehouse_id" id="from_warehouse_id" class="nexora-modal-select" required>
-                            <option value="">Select Source</option>
-                            @foreach ($warehouses as $wh)
-                                <option value="{{ $wh->id }}" {{ old('from_warehouse_id') == $wh->id ? 'selected' : '' }}>{{ $wh->name }}</option>
-                            @endforeach
-                        </select>
+                        <div class="list-select-search">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="M21 21l-4.35-4.35"/></svg>
+                            <input type="text" id="fromWhSearch" placeholder="Search source..." oninput="renderFromList()" autocomplete="off">
+                        </div>
+                        {{-- il-compact keeps this stacked selector modal within the viewport (no scroll when content fits) --}}
+                        <div class="item-list il-compact" id="fromWhList"></div>
                         @error('from_warehouse_id')<p class="nexora-modal-error">{{ $message }}</p>@enderror
                     </div>
 
                     <div>
+                        <label class="nexora-modal-label">To Warehouse</label>
+                        <div class="list-select-search">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="M21 21l-4.35-4.35"/></svg>
+                            <input type="text" id="toWhSearch" placeholder="Search destination..." oninput="renderToList()" autocomplete="off">
+                        </div>
+                        <div class="item-list il-compact" id="toWhList"></div>
+                        @error('to_warehouse_id')<p class="nexora-modal-error">{{ $message }}</p>@enderror
+                    </div>
+
+                    <div class="nexora-modal-form-full">
                         <label class="nexora-modal-label">Item</label>
-                        <select name="item_id" id="item_id" class="nexora-modal-select" required>
-                            <option value="">Select Source Warehouse First</option>
-                            @foreach ($items as $item)
-                                <option value="{{ $item->id }}" {{ old('item_id') == $item->id ? 'selected' : '' }}>{{ $item->name }}</option>
-                            @endforeach
-                        </select>
+                        <div class="list-select-search">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="M21 21l-4.35-4.35"/></svg>
+                            <input type="text" id="transferItemSearch" placeholder="Search item or SKU..." oninput="renderTransferItemList()" autocomplete="off">
+                        </div>
+                        <div class="item-list il-compact" id="transferItemList"></div>
                         @error('item_id')<p class="nexora-modal-error">{{ $message }}</p>@enderror
                     </div>
 
                     <div>
-                        <label class="nexora-modal-label">To Warehouse</label>
-                        <select name="to_warehouse_id" class="nexora-modal-select" required>
-                            <option value="">Select Destination</option>
-                            @foreach ($warehouses as $wh)
-                                <option value="{{ $wh->id }}" {{ old('to_warehouse_id') == $wh->id ? 'selected' : '' }}>{{ $wh->name }}</option>
-                            @endforeach
-                        </select>
-                        @error('to_warehouse_id')<p class="nexora-modal-error">{{ $message }}</p>@enderror
-                    </div>
-
-                    <div>
                         <label class="nexora-modal-label">Quantity</label>
-                        <input type="number" name="quantity" id="transfer_quantity" value="{{ old('quantity') }}" min="1" class="nexora-modal-input" placeholder="e.g. 50" required>
-                        <span id="transfer_stock_indicator" style="font-size:11px;color:#64748b;display:none;margin-top:4px;"></span>
+                        <input type="number" name="quantity" id="transfer_quantity" value="{{ old('quantity') }}" min="1" class="nexora-modal-input" placeholder="e.g. 50">
+                        <span id="transfer_stock_indicator" style="font-size:11px;color:#90c8ff;display:none;margin-top:4px;"></span>
                         @error('quantity')<p class="nexora-modal-error">{{ $message }}</p>@enderror
                     </div>
 
@@ -239,40 +232,110 @@
     function closeTransferModal() { transferModal.classList.remove('open'); }
     transferModal.addEventListener('click', function(e) { if (e.target === this) closeTransferModal(); });
 
-    @if($errors->any())
-        openTransferModal();
-    @endif
-
-    const stockMap = @json($stockMap ?? []);
+    const warehouses = @json($warehouses);
     const itemsByWarehouse = @json($itemsByWarehouse);
-    const allItems = @json($items);
-    const fromWarehouseSelect = document.getElementById('from_warehouse_id');
-    const itemSelect = document.getElementById('item_id');
+    const stockMap = @json($stockMap ?? []);
+
+    const fromHidden = document.getElementById('from_warehouse_id');
+    const toHidden = document.getElementById('to_warehouse_id');
+    const itemHidden = document.getElementById('transfer_item_id');
+    const fromListEl = document.getElementById('fromWhList');
+    const toListEl = document.getElementById('toWhList');
+    const itemListEl = document.getElementById('transferItemList');
+    const fromSearch = document.getElementById('fromWhSearch');
+    const toSearch = document.getElementById('toWhSearch');
+    const itemSearch = document.getElementById('transferItemSearch');
     const transferQuantity = document.getElementById('transfer_quantity');
     const transferStockIndicator = document.getElementById('transfer_stock_indicator');
 
+    const CHECK = '<span class="il-check"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>';
+
+    function escapeHtml(str) {
+        var div = document.createElement('div');
+        div.appendChild(document.createTextNode(str == null ? '' : str));
+        return div.innerHTML;
+    }
+
+    function warehouseRow(w, selectedId, handler) {
+        var sel = String(w.id) === String(selectedId) ? ' selected' : '';
+        return '<div class="il-item' + sel + '" data-id="' + w.id + '" onclick="' + handler + '(' + w.id + ')">'
+            + '<div><span class="il-name">' + escapeHtml(w.name) + '</span></div>' + CHECK + '</div>';
+    }
+
+    function renderFromList() {
+        var q = (fromSearch.value || '').toLowerCase();
+        var rows = warehouses.filter(function(w){ return w.name.toLowerCase().indexOf(q) !== -1; });
+        fromListEl.innerHTML = rows.length
+            ? rows.map(function(w){ return warehouseRow(w, fromHidden.value, 'selectFromWarehouse'); }).join('')
+            : '<div class="il-empty">No warehouses found</div>';
+    }
+
+    function renderToList() {
+        var q = (toSearch.value || '').toLowerCase();
+        var rows = warehouses.filter(function(w){
+            return String(w.id) !== String(fromHidden.value) && w.name.toLowerCase().indexOf(q) !== -1;
+        });
+        toListEl.innerHTML = rows.length
+            ? rows.map(function(w){ return warehouseRow(w, toHidden.value, 'selectToWarehouse'); }).join('')
+            : '<div class="il-empty">' + (fromHidden.value ? 'No other warehouses found' : 'Select a source warehouse first') + '</div>';
+    }
+
+    function renderTransferItemList() {
+        var from = fromHidden.value;
+        var q = (itemSearch.value || '').toLowerCase();
+        if (!from) { itemListEl.innerHTML = '<div class="il-empty">Select a source warehouse first</div>'; return; }
+        var list = (itemsByWarehouse[from] || []).filter(function(i){
+            return (i.name || '').toLowerCase().indexOf(q) !== -1 || (i.sku || '').toLowerCase().indexOf(q) !== -1;
+        });
+        if (!list.length) { itemListEl.innerHTML = '<div class="il-empty">No stock available in this warehouse</div>'; return; }
+        itemListEl.innerHTML = list.map(function(i){
+            var avail = stockMap[from + '-' + i.id];
+            if (avail == null) avail = 0;
+            var badgeClass = avail <= 0 ? 'il-out' : 'il-in';
+            var sel = String(i.id) === String(itemHidden.value) ? ' selected' : '';
+            return '<div class="il-item' + sel + '" data-id="' + i.id + '" onclick="selectTransferItem(' + i.id + ')">'
+                + '<div><span class="il-name">' + escapeHtml(i.name) + '</span><span class="il-sku">' + escapeHtml(i.sku) + '</span></div>'
+                + '<span class="il-stock ' + badgeClass + '">' + avail + ' avail.</span></div>';
+        }).join('');
+    }
+
+    function selectFromWarehouse(id) {
+        fromHidden.value = id;
+        itemHidden.value = '';
+        if (String(toHidden.value) === String(id)) toHidden.value = '';
+        renderFromList();
+        renderToList();
+        renderTransferItemList();
+        updateTransferIndicator();
+    }
+
+    function selectToWarehouse(id) {
+        toHidden.value = id;
+        renderToList();
+    }
+
+    function selectTransferItem(id) {
+        itemHidden.value = id;
+        renderTransferItemList();
+        updateTransferIndicator();
+    }
+
     function getTransferStock() {
-        const wh = fromWarehouseSelect.value;
-        const item = itemSelect.value;
-        if (wh && item) {
-            return stockMap[wh + '-' + item] ?? null;
-        }
+        var wh = fromHidden.value, item = itemHidden.value;
+        if (wh && item) { var v = stockMap[wh + '-' + item]; return v == null ? null : v; }
         return null;
     }
 
     function clampTransferQuantity() {
-        const stock = getTransferStock();
+        var stock = getTransferStock();
         if (stock !== null) {
-            const val = parseInt(transferQuantity.value);
-            if (!isNaN(val) && val > stock) {
-                transferQuantity.value = stock;
-            }
+            var val = parseInt(transferQuantity.value);
+            if (!isNaN(val) && val > stock) transferQuantity.value = stock;
         }
     }
 
     function updateTransferIndicator() {
-        const stock = getTransferStock();
-
+        var stock = getTransferStock();
         if (stock !== null) {
             transferStockIndicator.textContent = 'Stock available: ' + stock;
             transferStockIndicator.style.display = 'block';
@@ -282,42 +345,24 @@
         clampTransferQuantity();
     }
 
-    function filterItemsByWarehouse() {
-        const warehouseId = fromWarehouseSelect.value;
-        const currentItemId = itemSelect.value;
-
-        itemSelect.innerHTML = '<option value="">Select Item</option>';
-
-        let availableItems = [];
-        if (warehouseId && itemsByWarehouse[warehouseId]) {
-            availableItems = itemsByWarehouse[warehouseId];
-        } else if (!warehouseId) {
-            availableItems = allItems;
-        }
-
-        availableItems.forEach(function(item) {
-            const option = document.createElement('option');
-            option.value = item.id;
-            option.textContent = item.name;
-            if (String(item.id) === currentItemId) {
-                option.selected = true;
-            }
-            itemSelect.appendChild(option);
-        });
-
-        if (warehouseId && availableItems.length === 0) {
-            itemSelect.innerHTML = '<option value="">No stock available in this warehouse</option>';
-        }
-
-        updateTransferIndicator();
-    }
-
-    fromWarehouseSelect.addEventListener('change', filterItemsByWarehouse);
-    itemSelect.addEventListener('change', updateTransferIndicator);
     transferQuantity.addEventListener('input', clampTransferQuantity);
     transferQuantity.addEventListener('change', clampTransferQuantity);
 
-    // Run once on load in case old() has a value selected
-    filterItemsByWarehouse();
+    // Initial render also restores any old() selection after a validation error.
+    renderFromList();
+    renderToList();
+    renderTransferItemList();
+    updateTransferIndicator();
+
+    document.getElementById('transferForm').addEventListener('submit', function(e){
+        if (!fromHidden.value || !itemHidden.value || !toHidden.value) {
+            e.preventDefault();
+            showToast('Please choose a source warehouse, an item, and a destination.', 'error');
+        }
+    });
+
+    @if($errors->any())
+        openTransferModal();
+    @endif
 </script>
 @endpush

@@ -4,13 +4,7 @@
 
 @push('styles')
 <style>
-    .status-badge { display: inline-block; padding: 4px 10px; border-radius: 9999px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; border:1px solid transparent; }
-    .status-pending { background: #F0FFF5; color: #D97706; border-color: rgba(217,119,6,0.5); }
-    .status-processing { background: #F0FFF5; color: #3B82F6; border-color: rgba(59,130,246,0.5); }
-    .status-completed { background: #F0FFF5; color: #0CAE57; border-color: rgba(12,174,87,0.5); }
-    .status-rejected { background: #F0FFF5; color: #DC2626; border-color: rgba(220,38,38,0.5); }
-    .status-cancelled { background: #F0FFF5; color: #64748B; border-color: rgba(100,116,139,0.5); }
-
+    /* Status badge styles moved to the shared inventory.css (single source). */
     .type-restock { background: #dbeafe; color: #1e40af; }
     .type-replacement { background: #fef9c3; color: #854d0e; }
     .type-pill { display: inline-block; padding: 3px 10px; border-radius: 9999px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; }
@@ -19,31 +13,16 @@
     .stock-out { color: #991b1b; background: #fee2e2; }
     .stock-low { color: #854d0e; background: #fef9c3; }
 
-    .type-toggle { display: flex; gap: 0; background: rgba(255,255,255,0.06); border-radius: 10px; padding: 4px; border: 1px solid rgba(255,255,255,0.06); }
-
-    .item-list { max-height: 220px; overflow-y: auto; border-radius: 12px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); padding: 4px; }
-    .item-list .il-group-header { padding: 8px 12px 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: rgba(255,255,255,0.35); }
-    .item-list .il-item { display: flex; align-items: center; justify-content: space-between; padding: 9px 12px; border-radius: 8px; cursor: pointer; transition: all 0.12s ease; }
-    .item-list .il-item:hover { background: rgba(255,255,255,0.06); }
-    .item-list .il-item.selected { background: rgba(27,111,200,0.2); }
-    .item-list .il-item .il-name { font-size: 13px; font-weight: 600; color: #fff; }
-    .item-list .il-item .il-sku { font-size: 11px; color: rgba(255,255,255,0.4); margin-left: 8px; }
-    .item-list .il-item .il-stock { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 6px; flex-shrink: 0; }
-    .item-list .il-item .il-stock.il-out { color: #fca5a5; background: rgba(239,68,68,0.15); }
-    .item-list .il-item .il-stock.il-low { color: #fcd34d; background: rgba(245,158,11,0.15); }
-    .item-list .il-empty { padding: 20px 12px; text-align: center; color: rgba(255,255,255,0.3); font-size: 13px; }
-    .item-list::-webkit-scrollbar { width: 4px; }
-    .item-list::-webkit-scrollbar-track { background: transparent; }
-    .item-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
-    .type-toggle button { padding: 8px 20px; border: none; border-radius: 7px; font-size: 13px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; background: transparent; color: rgba(255,255,255,0.45); transition: all 0.2s ease; flex: 1; letter-spacing: 0.2px; }
-    .type-toggle button:hover { color: rgba(255,255,255,0.75); background: rgba(255,255,255,0.04); }
-    .type-toggle button.active { background: rgba(27,111,200,0.3); color: #90c8ff; box-shadow: 0 0 20px -6px rgba(27,111,200,0.25); }
-    .type-toggle button.active::after { content: ''; display: block; height: 2px; width: 20px; background: #4a9ee8; margin: 4px auto 0; border-radius: 2px; }
+    /* .item-list and .type-toggle now live in the shared dashboard layout so
+       Stock Transfer and Adjustments reuse the exact same selection pattern. */
 
     .restock-fields, .replacement-fields { display: none; }
     .restock-fields.active, .replacement-fields.active { display: block; }
 
-    .req-type-icon { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 8px; margin-right: 8px; flex-shrink: 0; }
+    /* Sized to match the shared .nexora-modal-icon (34px / 9px radius / 17px glyph)
+       so the Request modal's header icon is consistent with every other dialog. */
+    .req-type-icon { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0; }
+    .req-type-icon svg { width: 17px; height: 17px; }
     .req-type-icon.restock { background: rgba(27,111,200,0.2); }
     .req-type-icon.replacement { background: rgba(245,158,11,0.2); }
 

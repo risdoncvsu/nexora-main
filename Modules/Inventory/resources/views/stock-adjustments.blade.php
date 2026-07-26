@@ -2,16 +2,7 @@
 
 @section('title', 'Adjustments')
 
-@push('styles')
-<style>
-    .status-badge { display: inline-block; padding: 4px 10px; border-radius: 9999px; font-size: 11px; font-weight: 600; text-transform: uppercase; border:1px solid transparent; }
-    .status-pending { background: #F0FFF5; color: #D97706; border-color: rgba(217,119,6,0.5); }
-    .status-approved { background: #F0FFF5; color: #0CAE57; border-color: rgba(12,174,87,0.5); }
-    .status-rejected { background: #F0FFF5; color: #DC2626; border-color: rgba(220,38,38,0.5); }
-    .status-cancelled { background: #F0FFF5; color: #64748B; border-color: rgba(100,116,139,0.5); }
-
-</style>
-@endpush
+{{-- Status badge styles moved to the shared inventory.css (single source). --}}
 
 @section('content')
 <div class="inv-page">
@@ -136,20 +127,20 @@
                                     <p style="color:#ef4444;font-size:11px;margin:0 0 6px 0;">{{ $message }}</p>
                                 @enderror
                                 @if($adjustment->status === 'pending')
-                                    <form method="POST" action="{{ route('inventory.stock-adjustments.approve', $adjustment) }}" style="display:inline;" onsubmit="return confirm('Approve this adjustment?')">
+                                    <form method="POST" action="{{ route('inventory.stock-adjustments.approve', $adjustment) }}" style="display:inline;">
                                         @csrf
                                         @method('PATCH')
-                                        <button type="submit" class="inv-btn inv-btn-success inv-btn-xs">Approve</button>
+                                        <button type="button" class="inv-btn inv-btn-success inv-btn-xs" onclick="nexoraConfirm({title:'Approve Adjustment',message:'Approve this adjustment? Stock levels will be updated on approval.',confirmText:'Approve',variant:'success',onConfirm:()=>this.closest('form').submit()})">Approve</button>
                                     </form>
-                                    <form method="POST" action="{{ route('inventory.stock-adjustments.reject', $adjustment) }}" style="display:inline;" onsubmit="return confirm('Reject this adjustment?')">
+                                    <form method="POST" action="{{ route('inventory.stock-adjustments.reject', $adjustment) }}" style="display:inline;">
                                         @csrf
                                         @method('PATCH')
-                                        <button type="submit" class="inv-btn inv-btn-danger inv-btn-xs">Reject</button>
+                                        <button type="button" class="inv-btn inv-btn-danger inv-btn-xs" onclick="nexoraConfirm({title:'Reject Adjustment',message:'Reject this adjustment request? This cannot be undone.',confirmText:'Reject',variant:'danger',onConfirm:()=>this.closest('form').submit()})">Reject</button>
                                     </form>
-                                    <form method="POST" action="{{ route('inventory.stock-adjustments.cancel', $adjustment) }}" style="display:inline;" onsubmit="return confirm('Cancel this adjustment request?')">
+                                    <form method="POST" action="{{ route('inventory.stock-adjustments.cancel', $adjustment) }}" style="display:inline;">
                                         @csrf
                                         @method('PATCH')
-                                        <button type="submit" class="inv-btn inv-btn-neutral inv-btn-xs">Cancel</button>
+                                        <button type="button" class="inv-btn inv-btn-neutral inv-btn-xs" onclick="nexoraConfirm({title:'Cancel Adjustment',message:'Cancel this adjustment request? This cannot be undone.',confirmText:'Cancel Adjustment',cancelText:'Keep',variant:'warning',onConfirm:()=>this.closest('form').submit()})">Cancel</button>
                                     </form>
                                 @else
                                     <span style="color:#94a3b8;font-size:12px;">—</span>
@@ -170,7 +161,7 @@
     </div>
 </div>
     <div id="adjustmentModal" class="nexora-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="newAdjustmentTitle">
-        <div class="nexora-modal">
+        <div class="nexora-modal nexora-modal-md">
             <div class="nexora-modal-logo"></div>
             <div class="nexora-modal-header">
                 <div class="nexora-modal-heading">
@@ -182,59 +173,56 @@
                 <button type="button" onclick="closeAdjustmentModal()" class="nexora-modal-close" aria-label="Close">&times;</button>
             </div>
 
-            <form method="POST" action="{{ route('inventory.stock-adjustments.store') }}" novalidate>
+            <form method="POST" action="{{ route('inventory.stock-adjustments.store') }}" id="adjustmentForm" novalidate>
                 @csrf
+                <input type="hidden" name="warehouse_id" id="adj_warehouse_id" value="{{ old('warehouse_id') }}">
+                <input type="hidden" name="item_id" id="adj_item_id" value="{{ old('item_id') }}">
+                <input type="hidden" name="type" id="adj_type" value="{{ old('type') }}">
+                <input type="hidden" name="reason" id="adj_reason" value="{{ old('reason') }}">
 
                 <div class="nexora-modal-form">
+                    {{-- Warehouse + Item share a 2-col row (like Transfer's From/To) so this
+                         modal stays short enough not to scroll when its content is fully visible.
+                         il-compact caps each list; it still scrolls internally when overflowing. --}}
                     <div>
                         <label class="nexora-modal-label">Warehouse</label>
-                        <select name="warehouse_id" id="warehouse_id" class="nexora-modal-select" required>
-                            <option value="">Select Warehouse</option>
-                            @foreach ($warehouses as $wh)
-                                <option value="{{ $wh->id }}" {{ old('warehouse_id') == $wh->id ? 'selected' : '' }}>{{ $wh->name }}</option>
-                            @endforeach
-                        </select>
+                        <div class="list-select-search">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="M21 21l-4.35-4.35"/></svg>
+                            <input type="text" id="adjWhSearch" placeholder="Search warehouse..." oninput="renderAdjWarehouseList()" autocomplete="off">
+                        </div>
+                        <div class="item-list il-compact" id="adjWhList"></div>
                         @error('warehouse_id')<p class="nexora-modal-error">{{ $message }}</p>@enderror
                     </div>
 
                     <div>
                         <label class="nexora-modal-label">Item</label>
-                        <select name="item_id" id="item_id" class="nexora-modal-select" required>
-                            <option value="">Select Warehouse First</option>
-                            @foreach ($items as $item)
-                                <option value="{{ $item->id }}" {{ old('item_id') == $item->id ? 'selected' : '' }}>{{ $item->name }}</option>
-                            @endforeach
-                        </select>
+                        <div class="list-select-search">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="M21 21l-4.35-4.35"/></svg>
+                            <input type="text" id="adjItemSearch" placeholder="Search item or SKU..." oninput="renderAdjItemList()" autocomplete="off">
+                        </div>
+                        <div class="item-list il-compact" id="adjItemList"></div>
                         @error('item_id')<p class="nexora-modal-error">{{ $message }}</p>@enderror
                     </div>
 
-                    <div>
+                    <div class="nexora-modal-form-full">
                         <label class="nexora-modal-label">Type</label>
-                        <select name="type" class="nexora-modal-select" required>
-                            <option value="">Select Type</option>
-                            <option value="increase" {{ old('type') === 'increase' ? 'selected' : '' }}>Increase</option>
-                            <option value="decrease" {{ old('type') === 'decrease' ? 'selected' : '' }}>Decrease</option>
-                        </select>
+                        <div class="type-toggle">
+                            <button type="button" id="typeIncreaseBtn" onclick="setAdjType('increase')">Increase</button>
+                            <button type="button" id="typeDecreaseBtn" onclick="setAdjType('decrease')">Decrease</button>
+                        </div>
                         @error('type')<p class="nexora-modal-error">{{ $message }}</p>@enderror
                     </div>
 
-                    <div>
+                    <div class="nexora-modal-form-full">
                         <label class="nexora-modal-label">Reason</label>
-                        <select name="reason" class="nexora-modal-select" required>
-                            <option value="">Select Reason</option>
-                            <option value="damage" {{ old('reason') === 'damage' ? 'selected' : '' }}>Damage</option>
-                            <option value="expired" {{ old('reason') === 'expired' ? 'selected' : '' }}>Expired</option>
-                            <option value="recount" {{ old('reason') === 'recount' ? 'selected' : '' }}>Recount</option>
-                            <option value="theft" {{ old('reason') === 'theft' ? 'selected' : '' }}>Theft</option>
-                            <option value="correction" {{ old('reason') === 'correction' ? 'selected' : '' }}>Correction</option>
-                        </select>
+                        <div class="item-list" id="adjReasonList"></div>
                         @error('reason')<p class="nexora-modal-error">{{ $message }}</p>@enderror
                     </div>
 
                     <div>
                         <label class="nexora-modal-label">Quantity</label>
-                        <input type="number" name="quantity" id="adjustment_quantity" value="{{ old('quantity') }}" min="1" class="nexora-modal-input" placeholder="e.g. 50" required>
-                        <span id="stock_indicator" style="font-size:11px;color:#64748b;display:none;margin-top:4px;"></span>
+                        <input type="number" name="quantity" id="adjustment_quantity" value="{{ old('quantity') }}" min="1" class="nexora-modal-input" placeholder="e.g. 50">
+                        <span id="stock_indicator" style="font-size:11px;color:#90c8ff;display:none;margin-top:4px;"></span>
                         @error('quantity')<p class="nexora-modal-error">{{ $message }}</p>@enderror
                     </div>
 
@@ -260,83 +248,137 @@
     window.closeAdjustmentModal = function() { adjModal.classList.remove('open'); };
     if (adjModal) adjModal.addEventListener('click', function(e) { if (e.target === this) window.closeAdjustmentModal(); });
 
-    @if($errors->any())
-        window.openAdjustmentModal();
-    @endif
-
-    const stockMap = @json($stockMap);
+    const warehouses = @json($warehouses);
     const itemsByWarehouse = @json($itemsByWarehouse);
-    const allItems = @json($items);
-    const warehouseSelect = document.getElementById('warehouse_id');
-    const itemSelect = document.getElementById('item_id');
-    const typeSelect = document.querySelector('#adjustmentModal select[name="type"]');
+    const stockMap = @json($stockMap);
+    const REASONS = [
+        { value: 'damage', label: 'Damage' },
+        { value: 'expired', label: 'Expired' },
+        { value: 'recount', label: 'Recount' },
+        { value: 'theft', label: 'Theft' },
+        { value: 'correction', label: 'Correction' }
+    ];
+
+    const whHidden = document.getElementById('adj_warehouse_id');
+    const itemHidden = document.getElementById('adj_item_id');
+    const typeHidden = document.getElementById('adj_type');
+    const reasonHidden = document.getElementById('adj_reason');
+    const whListEl = document.getElementById('adjWhList');
+    const itemListEl = document.getElementById('adjItemList');
+    const reasonListEl = document.getElementById('adjReasonList');
+    const whSearch = document.getElementById('adjWhSearch');
+    const itemSearch = document.getElementById('adjItemSearch');
+    const typeIncreaseBtn = document.getElementById('typeIncreaseBtn');
+    const typeDecreaseBtn = document.getElementById('typeDecreaseBtn');
     const quantityInput = document.getElementById('adjustment_quantity');
     const stockIndicator = document.getElementById('stock_indicator');
 
+    const CHECK = '<span class="il-check"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>';
+
+    function escapeHtml(str) {
+        var div = document.createElement('div');
+        div.appendChild(document.createTextNode(str == null ? '' : str));
+        return div.innerHTML;
+    }
+
+    function renderAdjWarehouseList() {
+        var q = (whSearch.value || '').toLowerCase();
+        var rows = warehouses.filter(function(w){ return w.name.toLowerCase().indexOf(q) !== -1; });
+        whListEl.innerHTML = rows.length ? rows.map(function(w){
+            var sel = String(w.id) === String(whHidden.value) ? ' selected' : '';
+            return '<div class="il-item' + sel + '" data-id="' + w.id + '" onclick="selectAdjWarehouse(' + w.id + ')">'
+                + '<div><span class="il-name">' + escapeHtml(w.name) + '</span></div>' + CHECK + '</div>';
+        }).join('') : '<div class="il-empty">No warehouses found</div>';
+    }
+
+    function renderAdjItemList() {
+        var wh = whHidden.value;
+        var q = (itemSearch.value || '').toLowerCase();
+        if (!wh) { itemListEl.innerHTML = '<div class="il-empty">Select a warehouse first</div>'; return; }
+        var list = (itemsByWarehouse[wh] || []).filter(function(i){
+            return (i.name || '').toLowerCase().indexOf(q) !== -1 || (i.sku || '').toLowerCase().indexOf(q) !== -1;
+        });
+        if (!list.length) { itemListEl.innerHTML = '<div class="il-empty">No items in this warehouse</div>'; return; }
+        itemListEl.innerHTML = list.map(function(i){
+            var avail = stockMap[wh + '-' + i.id];
+            if (avail == null) avail = 0;
+            var badgeClass = avail <= 0 ? 'il-out' : 'il-in';
+            var sel = String(i.id) === String(itemHidden.value) ? ' selected' : '';
+            return '<div class="il-item' + sel + '" data-id="' + i.id + '" onclick="selectAdjItem(' + i.id + ')">'
+                + '<div><span class="il-name">' + escapeHtml(i.name) + '</span><span class="il-sku">' + escapeHtml(i.sku) + '</span></div>'
+                + '<span class="il-stock ' + badgeClass + '">' + avail + ' avail.</span></div>';
+        }).join('');
+    }
+
+    function renderAdjReasonList() {
+        reasonListEl.innerHTML = REASONS.map(function(r){
+            var sel = r.value === reasonHidden.value ? ' selected' : '';
+            return '<div class="il-item' + sel + '" data-value="' + r.value + '" onclick="selectAdjReason(\'' + r.value + '\')">'
+                + '<div><span class="il-name">' + r.label + '</span></div>' + CHECK + '</div>';
+        }).join('');
+    }
+
+    function selectAdjWarehouse(id) {
+        whHidden.value = id;
+        itemHidden.value = '';
+        renderAdjWarehouseList();
+        renderAdjItemList();
+        updateIndicator();
+    }
+    function selectAdjItem(id) {
+        itemHidden.value = id;
+        renderAdjItemList();
+        updateIndicator();
+    }
+    function selectAdjReason(value) {
+        reasonHidden.value = value;
+        renderAdjReasonList();
+    }
+    function setAdjType(type) {
+        typeHidden.value = type;
+        typeIncreaseBtn.classList.toggle('active', type === 'increase');
+        typeDecreaseBtn.classList.toggle('active', type === 'decrease');
+        updateIndicator();
+    }
+
     function getCurrentStock() {
-        const wh = warehouseSelect.value;
-        const item = itemSelect.value;
-        if (wh && item) {
-            return stockMap[wh + '-' + item] ?? null;
-        }
+        var wh = whHidden.value, item = itemHidden.value;
+        if (wh && item) { var v = stockMap[wh + '-' + item]; return v == null ? null : v; }
         return null;
     }
-
     function clamp() {
-        const stock = getCurrentStock();
-        const type = typeSelect.value;
-        if (stock !== null && type === 'decrease') {
-            const val = parseInt(quantityInput.value);
-            if (!isNaN(val) && val > stock) {
-                quantityInput.value = stock;
-            }
+        var stock = getCurrentStock();
+        if (stock !== null && typeHidden.value === 'decrease') {
+            var val = parseInt(quantityInput.value);
+            if (!isNaN(val) && val > stock) quantityInput.value = stock;
         }
     }
-
     function updateIndicator() {
-        const stock = getCurrentStock();
+        var stock = getCurrentStock();
         stockIndicator.textContent = stock !== null ? 'Stock available: ' + stock : '';
         stockIndicator.style.display = stock !== null ? 'block' : 'none';
         clamp();
     }
 
-    function filterItems() {
-        const warehouseId = warehouseSelect.value;
-        const currentItemId = itemSelect.value;
-
-        itemSelect.innerHTML = '<option value="">Select Item</option>';
-
-        let availableItems = [];
-        if (warehouseId && itemsByWarehouse[warehouseId]) {
-            availableItems = itemsByWarehouse[warehouseId];
-        } else if (!warehouseId) {
-            availableItems = allItems;
-        }
-
-        availableItems.forEach(function(item) {
-            const option = document.createElement('option');
-            option.value = item.id;
-            option.textContent = item.name;
-            if (String(item.id) === currentItemId) {
-                option.selected = true;
-            }
-            itemSelect.appendChild(option);
-        });
-
-        if (warehouseId && availableItems.length === 0) {
-            itemSelect.innerHTML = '<option value="">No items in this warehouse</option>';
-        }
-
-        updateIndicator();
-    }
-
-    warehouseSelect.addEventListener('change', filterItems);
-    itemSelect.addEventListener('change', updateIndicator);
-    typeSelect.addEventListener('change', updateIndicator);
     quantityInput.addEventListener('input', clamp);
     quantityInput.addEventListener('change', clamp);
 
-    // Run once on load in case old() has a value selected
-    filterItems();
+    // Initial render also restores any old() selection after a validation error.
+    if (typeHidden.value) setAdjType(typeHidden.value);
+    renderAdjWarehouseList();
+    renderAdjItemList();
+    renderAdjReasonList();
+    updateIndicator();
+
+    document.getElementById('adjustmentForm').addEventListener('submit', function(e){
+        if (!whHidden.value || !itemHidden.value || !typeHidden.value || !reasonHidden.value) {
+            e.preventDefault();
+            showToast('Please choose a warehouse, item, type, and reason.', 'error');
+        }
+    });
+
+    @if($errors->any())
+        window.openAdjustmentModal();
+    @endif
 </script>
 @endpush

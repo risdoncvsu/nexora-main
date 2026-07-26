@@ -34,7 +34,10 @@
                 inset: 0;
                 background: rgba(6, 16, 34, 0.62);
                 backdrop-filter: blur(3px);
-                z-index: 20;
+                /* Stacking fix: was z-index 20, which sat below the profile
+                   dropdown (100) and the mobile sidebar overlay (1000). Raised
+                   so dialogs always cover page chrome, still below toasts (9999). */
+                z-index: 1100;
                 display: flex;
                 align-items: center;
                 justify-content: center;
@@ -71,8 +74,16 @@
                 box-shadow: 0 24px 60px -12px rgba(0, 0, 0, 0.60);
                 color: #fff;
                 position: relative;
-                overflow: hidden;
+                /* Tall dialogs (item-list selectors) scroll inside the modal
+                   instead of overflowing the viewport unreachably. */
+                max-height: calc(100vh - 32px);
+                overflow-y: auto;
+                overflow-x: hidden;
             }
+
+            .nexora-modal::-webkit-scrollbar { width: 5px; }
+            .nexora-modal::-webkit-scrollbar-track { background: transparent; }
+            .nexora-modal::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 4px; }
 
             .nexora-modal-overlay.open .nexora-modal {
                 animation: nexoraModalIn 0.24s cubic-bezier(0.22, 1, 0.36, 1);
@@ -347,6 +358,55 @@
                 outline-offset: 2px;
             }
 
+            /* ── Modal selection pattern ──────────────────────────────────
+               The Request modal's item picker is the single source of truth
+               for in-modal selection. These classes were extracted from that
+               page so Stock Transfer, Adjustments, and any future dialog reuse
+               the exact same card/list look, hover, and selected state. */
+            .item-list { max-height: 220px; overflow-y: auto; border-radius: 12px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); padding: 4px; }
+            .item-list .il-group-header { padding: 8px 12px 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: rgba(255,255,255,0.35); }
+            .item-list .il-item { display: flex; align-items: center; justify-content: space-between; padding: 9px 12px; border-radius: 8px; cursor: pointer; transition: all 0.12s ease; }
+            .item-list .il-item:hover { background: rgba(255,255,255,0.06); }
+            .item-list .il-item.selected { background: rgba(27,111,200,0.2); }
+            .item-list .il-item .il-name { font-size: 13px; font-weight: 600; color: #fff; }
+            .item-list .il-item .il-sku { font-size: 11px; color: rgba(255,255,255,0.4); margin-left: 8px; }
+            /* Let the name/SKU cell shrink and ellipsize so long values never
+               overflow the row (matters in the narrower 2-col Adjustment lists). */
+            .item-list .il-item > div:first-child { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+            .item-list .il-item .il-stock { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 6px; flex-shrink: 0; }
+            .item-list .il-item .il-stock.il-out { color: #fca5a5; background: rgba(239,68,68,0.15); }
+            .item-list .il-item .il-stock.il-low { color: #fcd34d; background: rgba(245,158,11,0.15); }
+            .item-list .il-item .il-stock.il-in { color: #86efac; background: rgba(34,197,94,0.15); }
+            .item-list .il-empty { padding: 20px 12px; text-align: center; color: rgba(255,255,255,0.3); font-size: 13px; }
+            .item-list::-webkit-scrollbar { width: 4px; }
+            .item-list::-webkit-scrollbar-track { background: transparent; }
+            .item-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
+
+            /* Compact variant for stacked selectors (Stock Transfer / Adjustment).
+               Those modals hold multiple lists; capping each shorter keeps the
+               whole dialog inside the viewport so it does not scroll when content
+               is fully visible. The list still scrolls internally when overflowing. */
+            .item-list.il-compact { max-height: 150px; }
+
+            /* Single-select variant of the item list: a check marks the choice. */
+            .item-list .il-item .il-check { display: none; color: #90c8ff; flex-shrink: 0; margin-left: 8px; }
+            .item-list .il-item.selected .il-check { display: inline-flex; }
+
+            /* Search box that sits above a list-select, styled to sit on the
+               dark modal surface exactly like the list beneath it. */
+            .list-select-search { position: relative; margin-bottom: 6px; }
+            .list-select-search input { width: 100%; padding: 8px 10px 8px 32px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06); color: #fff; font-size: 12px; font-family: 'Inter', sans-serif; outline: none; transition: border-color 0.15s ease, background 0.15s ease; }
+            .list-select-search input::placeholder { color: rgba(255,255,255,0.4); }
+            .list-select-search input:focus { border-color: rgba(74,158,232,0.5); background: rgba(255,255,255,0.08); }
+            .list-select-search svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: rgba(255,255,255,0.35); pointer-events: none; }
+
+            /* Segmented type toggle (Restock/Replacement, Increase/Decrease). */
+            .type-toggle { display: flex; gap: 0; background: rgba(255,255,255,0.06); border-radius: 10px; padding: 4px; border: 1px solid rgba(255,255,255,0.06); }
+            .type-toggle button { padding: 8px 20px; border: none; border-radius: 7px; font-size: 13px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; background: transparent; color: rgba(255,255,255,0.45); transition: all 0.2s ease; flex: 1; letter-spacing: 0.2px; }
+            .type-toggle button:hover { color: rgba(255,255,255,0.75); background: rgba(255,255,255,0.04); }
+            .type-toggle button.active { background: rgba(27,111,200,0.3); color: #90c8ff; box-shadow: 0 0 20px -6px rgba(27,111,200,0.25); }
+            .type-toggle button.active::after { content: ''; display: block; height: 2px; width: 20px; background: #4a9ee8; margin: 4px auto 0; border-radius: 2px; }
+
             /* ── Inventory button system ──────────────────────────────────
                One base plus semantic variants. Buttons across the module use
                these instead of per-page inline colours and padding, so size,
@@ -567,6 +627,87 @@
             }
         @endphp
         <div id="toast-container"></div>
+
+        {{-- Shared confirmation dialog. Replaces native confirm()/alert() so
+             every "are you sure?" prompt uses the Request modal's look. Drive
+             it from anywhere with nexoraConfirm({title, message, confirmText,
+             cancelText, variant, onConfirm}). --}}
+        <div id="nexoraConfirmModal" class="nexora-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="nexoraConfirmTitle">
+            <div class="nexora-modal nexora-modal-sm">
+                <div class="nexora-modal-logo"></div>
+                <div class="nexora-modal-header">
+                    <div class="nexora-modal-heading">
+                        <span class="nexora-modal-icon nexora-modal-icon-blue" id="nexoraConfirmIcon"></span>
+                        <h2 id="nexoraConfirmTitle" class="nexora-modal-title">Are you sure?</h2>
+                    </div>
+                    <button type="button" onclick="nexoraConfirmClose()" class="nexora-modal-close" aria-label="Close">&times;</button>
+                </div>
+                <div class="nexora-modal-text" id="nexoraConfirmMessage"></div>
+                <div class="nexora-modal-actions">
+                    <button type="button" id="nexoraConfirmCancelBtn" onclick="nexoraConfirmClose()" class="nexora-modal-btn-secondary">Cancel</button>
+                    <button type="button" id="nexoraConfirmOkBtn" class="nexora-modal-btn-primary">Confirm</button>
+                </div>
+            </div>
+        </div>
+        <script>
+            (function () {
+                var overlay = document.getElementById('nexoraConfirmModal');
+                var iconEl = document.getElementById('nexoraConfirmIcon');
+                var titleEl = document.getElementById('nexoraConfirmTitle');
+                var msgEl = document.getElementById('nexoraConfirmMessage');
+                var okBtn = document.getElementById('nexoraConfirmOkBtn');
+                var cancelBtn = document.getElementById('nexoraConfirmCancelBtn');
+                var pending = null;
+
+                var iconClass = {
+                    danger: 'nexora-modal-icon nexora-modal-icon-red',
+                    success: 'nexora-modal-icon nexora-modal-icon-green',
+                    warning: 'nexora-modal-icon nexora-modal-icon-amber',
+                    primary: 'nexora-modal-icon nexora-modal-icon-blue'
+                };
+                var iconSvg = {
+                    danger: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4m0 4h.01"/></svg>',
+                    warning: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4m0 4h.01"/></svg>',
+                    success: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+                    primary: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>'
+                };
+
+                window.nexoraConfirm = function (opts) {
+                    opts = opts || {};
+                    var variant = opts.variant || 'primary';
+                    titleEl.textContent = opts.title || 'Are you sure?';
+                    msgEl.textContent = opts.message || '';
+                    iconEl.className = iconClass[variant] || iconClass.primary;
+                    iconEl.innerHTML = iconSvg[variant] || iconSvg.primary;
+                    okBtn.className = 'nexora-modal-btn-primary'
+                        + (variant === 'danger' ? ' nexora-modal-btn-danger' : '')
+                        + (variant === 'success' ? ' nexora-modal-btn-success' : '');
+                    okBtn.textContent = opts.confirmText || 'Confirm';
+                    cancelBtn.textContent = opts.cancelText || 'Cancel';
+                    pending = typeof opts.onConfirm === 'function' ? opts.onConfirm : null;
+                    overlay.classList.add('open');
+                    setTimeout(function () { okBtn.focus(); }, 60);
+                };
+
+                window.nexoraConfirmClose = function () {
+                    overlay.classList.remove('open');
+                    pending = null;
+                };
+
+                okBtn.addEventListener('click', function () {
+                    var fn = pending;
+                    window.nexoraConfirmClose();
+                    if (fn) fn();
+                });
+                overlay.addEventListener('click', function (e) {
+                    if (e.target === this) window.nexoraConfirmClose();
+                });
+                document.addEventListener('keydown', function (e) {
+                    if (e.key === 'Escape' && overlay.classList.contains('open')) window.nexoraConfirmClose();
+                });
+            })();
+        </script>
+
         <script id="flash-data" type="application/json">@json($_toasts)</script>
         <script>
             function showToast(message, type) {
