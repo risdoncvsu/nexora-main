@@ -9,6 +9,7 @@ use App\Services\ErpIntegrationService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Modules\Ecommerce\Support\EcommerceClientContext;
 
 class CheckoutController extends Controller
@@ -142,12 +143,19 @@ class CheckoutController extends Controller
 
         return response()->json([
             'success' => true,
-            'redirect_url' => route('ecommerce.checkout.success', $order->id)
+            // The storefront route also has a {store} subdomain parameter.
+            // Pass the order by name so Laravel keeps the current storefront
+            // default instead of placing the order UUID in the host slot.
+            'redirect_url' => route('ecommerce.checkout.success', ['id' => $order->id])
         ]);
     }
 
-    public function success(string $id)
+    public function success(Request $request, string $store, string $id)
     {
+        // Route parameters arrive in domain order: {store} first, then {id}.
+        // Reject malformed values before PostgreSQL attempts a UUID lookup.
+        abort_unless(Str::isUuid($id), 404);
+
         $order = Order::query()
             ->whereKey($id)
             ->where('user_id', Auth::guard('ecommerce')->id())

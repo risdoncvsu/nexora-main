@@ -60,19 +60,7 @@ class AccountController extends Controller
                 $shipmentQuery->where('client_id', $clientId);
             }
 
-            $driverIds = $fulfillmentSchema->hasColumn('shipments', 'delivery_man_id')
-                ? $shipmentQuery->pluck('delivery_man_id')->filter()->all()
-                : [];
             $shipmentQuery->update(['status' => 'DELIVERED', 'updated_at' => now()]);
-
-            $hrSchema = Schema::connection('hr');
-            if ($driverIds !== [] && $hrSchema->hasTable('delivery_drivers')) {
-                $drivers = DB::connection('hr')->table('delivery_drivers')->whereIn('id', $driverIds);
-                if ($clientId !== null && $hrSchema->hasColumn('delivery_drivers', 'client_id')) {
-                    $drivers->where('client_id', $clientId);
-                }
-                $drivers->update(['availability' => 'AVAILABLE', 'updated_at' => now()]);
-            }
         }
 
         if ($fulfillmentSchema->hasTable('orders')) {

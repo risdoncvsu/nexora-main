@@ -15,6 +15,9 @@ class Shipment extends Model
         'shipment_id',
         'order_id',
         'customer_name',
+        // Existing fulfillment schemas require this summary even when the
+        // order also has detailed line items in order_items.
+        'product_name',
         'qty',
         'amount',
         'courier',
