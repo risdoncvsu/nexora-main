@@ -45,10 +45,11 @@
 
     <div class="text-[11.5px] text-[#93abd3]">
         @if (method_exists($paginator, 'total') && $paginator->total() > 0)
-            Showing {{ $paginator->firstItem() }}â€“{{ $paginator->lastItem() }} of {{ $paginator->total() }} {{ $label }}
+            Showing {{ $paginator->firstItem() }}–{{ $paginator->lastItem() }} of {{ $paginator->total() }} {{ $label }}
         @else
             No {{ $label }} to show
         @endif
     </div>
 </div>
 @endif
+

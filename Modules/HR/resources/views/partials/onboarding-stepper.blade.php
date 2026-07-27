@@ -1,6 +1,6 @@
 @php
     $currentStep = (int) ($currentStep ?? 1);
-    $isSuccess = request()->routeIs('hr.onboarding.success');
+    $isSuccess = request()->routeIs('onboarding.success');
     $steps = [
         1 => 'PERSONAL',
         2 => 'EMPLOYMENT',
@@ -9,7 +9,7 @@
     ];
 @endphp
 
-<div class="flex items-start mb-10 max-w-5xl w-full">
+<div class="flex items-start mb-10 w-full">
     @foreach ($steps as $number => $title)
         @php
             $isComplete = $isSuccess || $currentStep > $number;
@@ -39,7 +39,16 @@
         </div>
 
         @if ($number < 4)
-            <div class="flex-1 self-start mt-[50px] border-t-2 border-dashed mx-2 min-w-[24px] {{ $lineComplete ? 'border-blue-400' : 'border-slate-500' }}"></div>
+            <div class="flex-1 self-center mt-[-32px] mx-2 min-w-[40px] flex items-center">
+                <svg class="w-full h-[2px]" viewBox="0 0 100 2" preserveAspectRatio="none">
+                    <line
+                        x1="0" y1="1" x2="100" y2="1"
+                        stroke="{{ $lineComplete ? '#60A5FA' : '#64748B' }}"
+                        stroke-width="2"
+                        stroke-dasharray="7.25 4.35"
+                    />
+                </svg>
+            </div>
         @endif
     @endforeach
-</div>
+</div>  

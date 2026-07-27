@@ -30,11 +30,10 @@
             <div class="mt-4 flex flex-col justify-between gap-7 lg:flex-row lg:items-end">
                 <div>
                     <h1 class="text-3xl font-bold md:text-5xl">Welcome back, {{ session('employee_name', 'Employee') }}.</h1>
-                    <p class="mt-3 max-w-2xl text-base text-blue-100 md:text-lg">Use your Nexora workspace to enter your assigned department, review support updates, or ask your client ITSM team for help.</p>
+                    <p class="mt-3 max-w-2xl text-base text-blue-100 md:text-lg">Enter your assigned department, view support updates, or access your HR self-service records from one secure portal.</p>
                 </div>
                 <a href="{{ $moduleUrl }}" class="inline-flex shrink-0 items-center justify-center rounded-full bg-white px-6 py-3 text-center font-bold text-[#132B52] shadow-md transition hover:bg-blue-50">
-                    Continue to {{ $department }} dashboard
-                    <span class="ml-2" aria-hidden="true">→</span>
+                    Continue to {{ $department }} dashboard <span class="ml-2" aria-hidden="true">&rarr;</span>
                 </a>
             </div>
         </section>
@@ -47,7 +46,7 @@
             <div class="mt-6 rounded-xl border border-red-200 bg-red-50 px-5 py-4 font-medium text-red-800">{{ $errors->first() }}</div>
         @endif
 
-        <div class="mt-8 grid gap-8 lg:grid-cols-[1.45fr_0.85fr]">
+        <div class="mt-8 grid gap-8 {{ $showHrSelfService ? 'lg:grid-cols-[1.45fr_0.85fr]' : '' }}">
             <section class="rounded-[1.75rem] bg-white p-7 shadow-sm ring-1 ring-slate-200">
                 <div class="flex flex-wrap items-center justify-between gap-4">
                     <div>
@@ -69,7 +68,7 @@
                         <article class="rounded-xl border border-slate-200 p-4 transition hover:border-[#346DCB]/50 hover:shadow-sm">
                             <div class="flex flex-wrap items-start justify-between gap-3">
                                 <div>
-                                    <p class="text-xs font-bold uppercase tracking-wide text-slate-500">{{ $ticket->ticket_no }} · {{ $ticket->module ?? 'General ERP' }}</p>
+                                    <p class="text-xs font-bold uppercase tracking-wide text-slate-500">{{ $ticket->ticket_no }} &middot; {{ $ticket->module ?? 'General ERP' }}</p>
                                     <h3 class="mt-1 font-bold text-slate-900">{{ $ticket->subject }}</h3>
                                     @if ($ticket->description)
                                         <p class="mt-1 text-sm text-slate-600">{{ $ticket->description }}</p>
@@ -77,7 +76,7 @@
                                 </div>
                                 <span class="rounded-full px-3 py-1 text-xs font-bold {{ $statusClass }}">{{ $ticket->status }}</span>
                             </div>
-                            <p class="mt-3 text-xs text-slate-500">{{ $ticket->category }} · {{ $ticket->priority }} priority · Updated {{ $ticket->updated_at?->diffForHumans() }}</p>
+                            <p class="mt-3 text-xs text-slate-500">{{ $ticket->category }} &middot; {{ $ticket->priority }} priority &middot; Updated {{ $ticket->updated_at?->diffForHumans() }}</p>
                         </article>
                     @empty
                         <div class="rounded-xl border border-dashed border-slate-300 px-6 py-12 text-center">
@@ -88,26 +87,21 @@
                 </div>
             </section>
 
-            <aside class="space-y-6">
-                <section class="rounded-[1.75rem] bg-white p-7 shadow-sm ring-1 ring-slate-200">
-                    <p class="text-sm font-bold uppercase tracking-wide text-[#346DCB]">Quick access</p>
-                    <h2 class="mt-1 text-2xl font-bold">Your workspaces</h2>
-                    <a href="{{ $moduleUrl }}" class="mt-5 flex items-center justify-between rounded-xl bg-[#132B52] px-4 py-4 font-semibold text-white transition hover:bg-[#0d2141]">
-                        <span>{{ $department }}</span><span aria-hidden="true">→</span>
-                    </a>
-                    @if ($showHrShortcut)
-                        <a href="{{ $hrUrl }}" class="mt-3 flex items-center justify-between rounded-xl border border-[#346DCB]/30 px-4 py-4 font-semibold text-[#132B52] transition hover:bg-blue-50">
-                            <span>Human Resources dashboard</span><span aria-hidden="true">→</span>
+            @if ($showHrSelfService)
+                <aside>
+                    <section class="rounded-[1.75rem] bg-white p-7 shadow-sm ring-1 ring-slate-200">
+                        <p class="text-sm font-bold uppercase tracking-wide text-[#346DCB]">HR self-service</p>
+                        <h2 class="mt-1 text-2xl font-bold">Your HR records</h2>
+                        <p class="mt-2 text-sm leading-6 text-slate-600">Attendance and leave remain HR workflows, now reached from your ITSM portal.</p>
+                        <a href="{{ $attendanceUrl }}" class="mt-5 flex items-center justify-between rounded-xl bg-[#132B52] px-4 py-4 font-semibold text-white transition hover:bg-[#0d2141]">
+                            <span>My attendance</span><span aria-hidden="true">&rarr;</span>
                         </a>
-                    @endif
-                </section>
-
-                <section class="rounded-[1.75rem] bg-[#eaf2ff] p-7 text-[#132B52]">
-                    <h2 class="text-lg font-bold">Need help?</h2>
-                    <p class="mt-2 text-sm leading-6 text-slate-600">Send a request directly to your company’s system administrators. They will receive it in the client-side ITSM Service Desk.</p>
-                    <button type="button" data-open-ticket class="mt-5 rounded-full bg-[#346DCB] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#2554a3]">Contact ITSM support</button>
-                </section>
-            </aside>
+                        <a href="{{ $leaveUrl }}" class="mt-3 flex items-center justify-between rounded-xl border border-[#346DCB]/30 px-4 py-4 font-semibold text-[#132B52] transition hover:bg-blue-50">
+                            <span>Leave requests</span><span aria-hidden="true">&rarr;</span>
+                        </a>
+                    </section>
+                </aside>
+            @endif
         </div>
     </main>
 
@@ -118,7 +112,7 @@
                     <p class="text-sm font-bold uppercase tracking-wide text-[#346DCB]">Client ITSM Service Desk</p>
                     <h2 class="mt-1 text-2xl font-bold">Create support ticket</h2>
                 </div>
-                <button type="button" data-close-ticket class="text-2xl leading-none text-slate-500 hover:text-slate-950" aria-label="Close">×</button>
+                <button type="button" data-close-ticket class="text-2xl leading-none text-slate-500 hover:text-slate-950" aria-label="Close">&times;</button>
             </div>
             <form method="POST" action="{{ route('employee.support-tickets.store') }}" class="mt-6 grid gap-5 md:grid-cols-2">
                 @csrf
@@ -155,7 +149,6 @@
         const openDialog = () => { dialog.classList.remove('hidden'); dialog.classList.add('flex'); };
         const closeDialog = () => { dialog.classList.add('hidden'); dialog.classList.remove('flex'); };
         document.getElementById('openTicketDialog')?.addEventListener('click', openDialog);
-        document.querySelectorAll('[data-open-ticket]').forEach(button => button.addEventListener('click', openDialog));
         document.querySelectorAll('[data-close-ticket]').forEach(button => button.addEventListener('click', closeDialog));
         dialog?.addEventListener('click', event => { if (event.target === dialog) closeDialog(); });
         @if ($errors->any())

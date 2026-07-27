@@ -9,6 +9,7 @@ use Modules\HR\Http\Controllers\EmployeeOnboardingController;
 use Modules\HR\Http\Controllers\ReportsAnalyticsController;
 use Modules\HR\Http\Controllers\DeliveryDriverController;
 use Modules\HR\Http\Controllers\LeaveRequestController;
+use Modules\HR\Http\Controllers\EmployeeProfileController;
 use Modules\HR\Models\Attendance;
 
 Route::get('/', function () {
@@ -19,11 +20,16 @@ Route::middleware('hr.access')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->name('dashboard');
 
-    Route::get('/employee-dashboard', [DashboardController::class, 'employeeIndex'])
-        ->name('employee.dashboard');
+    // Preserve existing bookmarks but make ITSM the only employee landing page.
+    Route::get('/employee-dashboard', function () {
+        return redirect()->route('employee.portal');
+    })->name('employee.dashboard');
 
     Route::get('/employee-attendance', [ReportsAnalyticsController::class, 'selfAttendance'])
         ->name('employee.attendance');
+
+    Route::get('/employee-profile', [EmployeeProfileController::class, 'show'])
+        ->name('employee.profile');
 
     Route::get('/employee-leave', [LeaveRequestController::class, 'employeeLeave'])
         ->name('employee.leave');

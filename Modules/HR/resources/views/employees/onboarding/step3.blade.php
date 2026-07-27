@@ -4,20 +4,39 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Employee Onboarding</title>
+
+<!-- Google Font: Inter -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
 <script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: {
+          sans: ['Inter', 'sans-serif'],
+        },
+      },
+    },
+  }
+</script>
 </head>
 
  @include('partials.navbar')
  
 <body class="bg-[#1B3A6B] min-h-screen font-sans">
 
-  <div class="pt-[140px]">
+<h1 class="text-white pt-[20px] pl-[100px] text-[28px] font-bold tracking-wide mb-8 text-left">EMPLOYEE ONBOARDING</h1>
+
+
+  <div class="pt-[24px]">
     <!-- Employee Onboarding Content -->
 
-<div class="max-w-6xl mx-auto">
+<div class="max-w-7xl mx-auto">
 
    <!-- Title -->
-    <h1 class="text-white text-xl font-bold tracking-wide mb-8">EMPLOYEE ONBOARDING</h1>
     @include('partials.onboarding-stepper', ['currentStep' => 3])
 
 <div class="flex flex-col lg:flex-row gap-12">
@@ -53,10 +72,19 @@
         </label>
 
         <div class="relative">
-           <input type="file" name="birth_certificate" required
+            <input type="file" name="birth_certificate" id="birth_certificate"
                 accept=".pdf,.jpg,.jpeg,.png"
-                class="w-[1335px] h-[45px] bg-[#0D1730] text-white text-sm rounded px-3 outline-none cursor-pointer"
+                class="file-input hidden"
+                onchange="updateFileLabel(this, 'birth_certificate_label')"
             />
+            <label for="birth_certificate"
+                class="w-[1282px] h-[45px] bg-[#0D1730] text-white text-sm rounded px-3 flex items-center justify-between cursor-pointer">
+                <span id="birth_certificate_label" class="truncate text-slate-400">Choose file</span>
+                <svg class="w-5 h-5 text-slate-300 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 16V4m0 0L7 9m5-5l5 5"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2"/>
+                </svg>
+            </label>
         </div>
         @error('birth_certificate')
             <p class="mt-1 text-xs text-red-300">{{ $message }}</p>
@@ -70,10 +98,19 @@
         </label>
 
         <div class="relative">
-            <input type="file" name="curriculum_vitae" required
+            <input type="file" name="curriculum_vitae" id="curriculum_vitae"
                 accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                class="w-[1335px] h-[45px] bg-[#0D1730] text-white text-sm rounded px-3 outline-none cursor-pointer"
+                class="file-input hidden"
+                onchange="updateFileLabel(this, 'curriculum_vitae_label')"
             />
+            <label for="curriculum_vitae"
+                class="w-[1282px] h-[45px] bg-[#0D1730] text-white text-sm rounded px-3 flex items-center justify-between cursor-pointer">
+                <span id="curriculum_vitae_label" class="truncate text-slate-400">Choose file</span>
+                <svg class="w-5 h-5 text-slate-300 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 16V4m0 0L7 9m5-5l5 5"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2"/>
+                </svg>
+            </label>
         </div>
         @error('curriculum_vitae')
             <p class="mt-1 text-xs text-red-300">{{ $message }}</p>
@@ -87,36 +124,66 @@
         </label>
 
         <div class="relative">
-           <input type="file" name="valid_id" required
+            <input type="file" name="valid_id" id="valid_id"
                 accept=".pdf,.jpg,.jpeg,.png"
-                class="w-[1335px] h-[45px] bg-[#0D1730] text-white text-sm rounded px-3 outline-none cursor-pointer"
+                class="file-input hidden"
+                onchange="updateFileLabel(this, 'valid_id_label')"
             />
+            <label for="valid_id"
+                class="w-[1282px] h-[45px] bg-[#0D1730] text-white text-sm rounded px-3 flex items-center justify-between cursor-pointer">
+                <span id="valid_id_label" class="truncate text-slate-400">Choose file</span>
+                <svg class="w-5 h-5 text-slate-300 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 16V4m0 0L7 9m5-5l5 5"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2"/>
+                </svg>
+            </label>
         </div>
         @error('valid_id')
             <p class="mt-1 text-xs text-red-300">{{ $message }}</p>
         @enderror
     </div>
 
-    <!-- Navigation Buttons -->
-    <!-- Back Button -->
-    <a href="{{ route('hr.onboarding.step2') }}"
-   class="inline-flex items-center gap-2 bg-slate-600 hover:bg-slate-700 text-white text-sm font-semibold px-6 py-2.5 rounded shadow transition">
-    BACK
-</a>
 
-    <!-- Next Button -->
-    <button
+<script>
+function updateFileLabel(input, labelId) {
+    const labelEl = document.getElementById(labelId);
+    if (!labelEl) return;
+
+    if (input.files && input.files.length > 0) {
+        labelEl.textContent = input.files[0].name;
+        labelEl.classList.remove('text-slate-400');
+        labelEl.classList.add('text-white');
+    } else {
+        labelEl.textContent = 'Choose file';
+        labelEl.classList.remove('text-white');
+        labelEl.classList.add('text-slate-400');
+    }
+}
+</script>
+
+    <!-- Navigation Buttons -->
+     <div class="pt-6 flex gap-4">
+    <!-- Back Button -->
+    <!-- Back Button -->
+   <div class="pt-8">
+           <button
+    type="button"
+    onclick="window.location.href='{{ route('hr.onboarding.step2') }}'"
+    class="w-[218px] h-[56px] border-0 border-[0.1px] border-[#dcdcdc54] rounded-md bg-[#C3326720] text-white text-[0.9375rem] font-normal tracking-[.3px] cursor-pointer shadow-[0_8px_20px_rgba(0,0,0,.25)] transition-all duration-250 hover:bg-[#C3326740] hover:-translate-y-0.5 active:scale-[.97]"
+>
+    BACK
+</button>
+          </div>
+
+   <div class="pt-8">
+           <button
     type="submit"
-    class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-6 py-2.5 rounded shadow-lg shadow-blue-900/40 transition">
+     class="w-[218px] h-[56px] border-0 border-[0.1px] border-[#dcdcdc54] rounded-md bg-[#0061FF20] text-white text-[0.9375rem] font-normal tracking-[.3px] cursor-pointer shadow-[0_8px_20px_rgba(0,0,0,.25)] transition-all duration-250 hover:bg-[#0061FF30] hover:-translate-y-0.5 active:scale-[.97]">
     NEXT
 
-    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-        <circle cx="12" cy="12" r="9"/>
-        <path stroke-linecap="round" stroke-linejoin="round" d="M10 8l4 4-4 4"/>
-    </svg>
+  
 </button>
-
-    </div>
+          </div>
 
 </form>
       </div>
@@ -134,3 +201,4 @@
 
 </body>
 </html>
+

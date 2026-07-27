@@ -4,20 +4,38 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Employee Onboarding</title>
+
+<!-- Google Font: Inter -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
 <script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: {
+          sans: ['Inter', 'sans-serif'],
+        },
+      },
+    },
+  }
+</script>
 </head>
 
  @include('partials.navbar')
  
 <body class="bg-[#1B3A6B] min-h-screen font-sans">
+<h1 class="text-white pt-[20px] pl-[100px] text-[28px] font-bold tracking-wide mb-8 text-left">EMPLOYEE ONBOARDING</h1>
 
-  <div class="pt-[140px]">
+  <div class="pt-[24px]">
     <!-- Employee Onboarding Content -->
 
-<div class="max-w-6xl mx-auto">
+<div class="max-w-7xl mx-auto">
 
    <!-- Title -->
-    <h1 class="text-white text-xl font-bold tracking-wide mb-8">EMPLOYEE ONBOARDING</h1>
+
     @include('partials.onboarding-stepper', ['currentStep' => 4])
 
 <div class="flex flex-col lg:flex-row gap-12">
@@ -26,12 +44,10 @@
       <!-- Left: form -->
       <div class="flex-1">
         <!-- Step 4 Content -->
-<h2 class="text-white text-sm font-bold tracking-wide mb-6">
-    COMPANY POLICIES & ACKNOWLEDGMENT
-</h2>
+
 
  <form 
-action="{{ route('hr.onboarding.storeStep4') }}"
+action="{{ route('hr.onboarding.storeStep4') }}" 
 method="POST"
 > @csrf
 
@@ -45,159 +61,85 @@ method="POST"
         </div>
     @endif
 
-    <div class="mb-6 w-[1335px] bg-[#0D1730] rounded-xl px-8 py-5 border border-white/10">
-        <p class="text-slate-400 text-xs uppercase tracking-wide mb-1">Company Email (auto-generated)</p>
-        <p class="text-white text-sm font-semibold">{{ $companyEmailPreview }}</p>
-        <p class="mt-1 text-[11px] text-slate-400">If another employee already has this name, a number is added after the last name.</p>
+    <div class="mb-6 ml-[1%] w-[700px] bg-[none] rounded-xl  py-5 ">
+       
+        <p class="text-white text-sm font-semibold">POLICY ACKNOWLEDGEMENT AND COMPLIANCE</p>
+        <p class="mt-1 text-[14px] font-thin text-white opacity-80">By checking this box, the employee confirms that they have read and understood the physical copy of the company's policies and agreements, agree to all terms and conditions, and authorize the Human Resources Department to record this acknowledgment in the system on their behalf.</p>
     </div>
 
-<div class="w-[1335px] bg-[#0D1730] rounded-xl p-8 space-y-8">
+<div class="w-[1300px] bg-[#0B1E3D] rounded-xl px-6 py-8 space-y-8">
 
-    <!-- Policy 1 -->
-    <div class="border-b border-white/10 pb-6">
+<div class="pb-6">
+ <p class="text-slate-300 text-sm leading-7 mb-4 text-center">As part of the onboarding process, I acknowledge that I have read, understood, and agree to comply with the following company policies. I understand that failure to follow these policies may result in disciplinary action in accordance with company procedures.</p>
+  <br>  <!-- Policy 1 -->
+    <div class=" pb-6">
         <h3 class="text-white font-semibold mb-3">
             Employee Handbook Acknowledgment
         </h3>
 
         <p class="text-slate-300 text-sm leading-7 mb-4">
-            As part of the onboarding process, I acknowledge that I have read,
-            understood, and agree to comply with the following company policies.
-            I understand that failure to follow these policies may result in
-            disciplinary action in accordance with company procedures.
+            As part of my employment with the Company, I acknowledge that I have received, reviewed, and understood the contents of the Employee Handbook. I understand that the handbook contains important information regarding the Company's policies, procedures, standards of conduct, workplace expectations, employee benefits, and other employment-related guidelines. I agree to familiarize myself with these policies and to comply with all applicable rules and regulations throughout the duration of my employment. I understand that the Company may amend, modify, or update its policies from time to time, and I acknowledge my responsibility to remain informed of any such changes. I further understand that failure to comply with the provisions outlined in the Employee Handbook may result in corrective or disciplinary action, up to and including termination of employment, in accordance with Company policies and applicable laws.
         </p>
 
-        <label class="flex items-start gap-3 text-slate-300 text-sm cursor-pointer">
-           <input 
-    type="checkbox" 
-    name="policy_1"
-    value="1"
-    required
-    class="mt-1 w-4 h-4"
->
-            <span>
-                I certify that the employee has read and signed the physical copy
-                of the Company's Employee Handbook and has authorized Human
-                Resources to record this acknowledgment electronically.
-            </span>
-        </label>
+        
     </div>
 
     <!-- Policy 2 -->
-    <div class="border-b border-white/10 pb-6">
+    <div class=" pb-6">
         <h3 class="text-white font-semibold mb-3">Code of Conduct Sign-Off</h3>
 
         <p class="text-slate-300 text-sm leading-7 mb-4">
-            I certify that the employee has read and signed the physical copy of the Company's Code of Conduct and has authorized Human Resources to record this acknowledgment electronically.
-</p>
-        <label class="flex items-start gap-3 text-slate-300 text-sm cursor-pointer">
-            <input 
-    type="checkbox" 
-    name="policy_2"
-    value="1"
-    required
-    class="mt-1 w-4 h-4"
->
-            <span>
-                I certify that the employee has read and signed the physical copy
-                of the Company's Employee Handbook and has authorized Human
-                Resources to record this acknowledgment electronically.
-            </span>
-        </label>
+I acknowledge that I have read, understood, and agreed to comply with the Company's Code of Conduct. I understand that the Code of Conduct serves as a guide for ethical behavior, professional responsibility, workplace integrity, and respectful interactions with colleagues, clients, business partners, and other stakeholders. I agree to perform my duties honestly, responsibly, and in a manner that reflects the values and reputation of the Company. I understand that I am expected to avoid conflicts of interest, protect Company assets, maintain professionalism in all work-related activities, and adhere to all applicable laws and regulations. I further acknowledge that violations of the Code of Conduct may result in disciplinary measures, including suspension or termination of employment, depending on the nature and severity of the violation.</p>
+        
     </div>
 
     <!-- Policy 3 -->
-    <div class="border-b border-white/10 pb-6">
+    <div class="  pb-6">
         <h3 class="text-white font-semibold mb-3">Confidentiality & Non-Disclosure Agreement (NDA)</h3>
 
         <p class="text-slate-300 text-sm leading-7 mb-4">
-           I understand that during my employment I may have access to confidential and proprietary information belonging to the Company, its customers, or its business partners. I agree to protect this information and not disclose, copy, or use it for unauthorized purposes during or after my employment, except as required to perform my assigned duties or as authorized by the Company.
-        </p>
+I understand that during the course of my employment, I may gain access to confidential, proprietary, sensitive, or non-public information belonging to the Company, its employees, clients, customers, suppliers, business partners, or affiliates. Such information may include, but is not limited to, business strategies, financial records, customer data, trade secrets, operational procedures, intellectual property, technological resources, and other confidential materials. I agree to maintain the confidentiality of all such information and to use it solely for legitimate business purposes related to my assigned duties. I further agree not to disclose, reproduce, distribute, or misuse confidential information without proper authorization from the Company. This obligation shall remain in effect during my employment and, where applicable, after the termination of my employment. I understand that unauthorized disclosure or misuse of confidential information may result in disciplinary action, legal liability, and other remedies available under applicable laws and Company policies.        </p>
 
-        <label class="flex items-start gap-3 text-slate-300 text-sm cursor-pointer">
-            <input 
-    type="checkbox" 
-    name="policy_3"
-    value="1"
-    required
-    class="mt-1 w-4 h-4"
->
-            <span>
-                I confirm that I have read, understood, and agree to comply with the Company's Confidentiality and Non-Disclosure Agreement (NDA), including my responsibility to protect confidential information.
-            </span>
-        </label>
+       
     </div>
 
     <!-- Policy 4 -->
-    <div class="border-b border-white/10 pb-6">
+    <div class=" pb-6">
         <h3 class="text-white font-semibold mb-3">Health & Safety Policy Acknowledgment</h3>
 
         <p class="text-slate-300 text-sm leading-7 mb-4">
-            I agree to comply with all workplace health and safety policies, procedures, and emergency protocols established by the Company. I understand that maintaining a safe working environment is a shared responsibility, and I will promptly report any hazards, unsafe conditions, accidents, or incidents.
-        </p>
+I acknowledge the Company's commitment to maintaining a safe, healthy, and secure working environment for all employees, contractors, visitors, and stakeholders. I agree to comply with all workplace health and safety policies, procedures, standards, and emergency protocols established by the Company. I understand that workplace safety is a shared responsibility and that I am expected to perform my duties in a manner that minimizes risks to myself and others. I agree to use equipment properly, follow safety instructions, participate in required safety trainings, and immediately report any accidents, injuries, hazards, unsafe conditions, or potential risks to the appropriate personnel. I understand that failure to comply with safety requirements may place others at risk and may result in disciplinary action. I further acknowledge my responsibility to contribute to a culture of safety, accountability, and continuous improvement within the workplace.        </p>
 
-        <label class="flex items-start gap-3 text-slate-300 text-sm cursor-pointer">
-            <input 
-    type="checkbox" 
-    name="policy_4"
-    value="1"
-    required
-        class="mt-1 w-4 h-4"
->
-            <span>
-                I confirm that I have read, understood, and agree to follow the Company's Health and Safety policies, procedures, and workplace safety requirements.
-            </span>
-        </label>
+        
     </div>
 
     <!-- Policy 5 -->
-    <div class="border-b border-white/10 pb-6">
+    <div class=" pb-6">
         <h3 class="text-white font-semibold mb-3">Anti-Harassment Policy Sign-Off</h3>
 
         <p class="text-slate-300 text-sm leading-7 mb-4">
-            I understand that the Company is committed to providing a workplace that is free from harassment, discrimination, bullying, and retaliation. I agree to treat all individuals with dignity and respect and to report any inappropriate behavior through the appropriate reporting channels. I understand that violations of this policy may result in disciplinary action.
-        </p>
+I acknowledge and support the Company's commitment to fostering a professional, inclusive, and respectful workplace that is free from harassment, discrimination, bullying, intimidation, retaliation, and any other form of inappropriate conduct. I understand that all employees are entitled to work in an environment where they are treated with dignity, fairness, and respect regardless of their position, background, personal characteristics, or beliefs as protected by applicable laws and Company policies. I agree to conduct myself professionally at all times, to respect the rights and dignity of others, and to refrain from engaging in any behavior that may create a hostile, offensive, or intimidating work environment. I further agree to report any incidents of harassment, discrimination, bullying, or retaliation through the appropriate reporting channels provided by the Company. I understand that all reports will be handled seriously and that violations of this policy may result in disciplinary action, including termination of employment, depending on the circumstances and severity of the offense.        </p>
 
-        <label class="flex items-start gap-3 text-slate-300 text-sm cursor-pointer">
-            <input 
-    type="checkbox" 
-    name="policy_5"
-    value="1"
-    required
-    class="mt-1 w-4 h-4"
->
-            <span>
-               I confirm that I have read, understood, and agree to comply with the Company's Anti-Harassment Policy and will contribute to maintaining a respectful, safe, and inclusive workplace.
-            </span>
-        </label>
+       
     </div>
 
-    <!-- Policy 6 -->
-    <div>
-        <h3 class="text-white font-semibold mb-3">Policy Title 6</h3>
+   
+<!-- Agreement Checkbox -->
+<div class="mt-8 border-t border-slate-700 pt-6">
+    <label class="flex items-start gap-3 cursor-pointer">
+        <input
+            type="checkbox"
+            name="policy_agreement"
+            value="1"
+            required
+            class="mt-1 h-5 w-5 rounded border-slate-400 text-blue-600 focus:ring-blue-500"
+        >
 
-        <p class="text-slate-300 text-sm leading-7 mb-4">
-            As part of the onboarding process, I acknowledge that I have read,
-            understood, and agree to comply with the following company policies.
-            I understand that failure to follow these policies may result in
-            disciplinary action in accordance with company procedures.
-        </p>
-
-        <label class="flex items-start gap-3 text-slate-300 text-sm cursor-pointer">
-            <input 
-    type="checkbox" 
-    name="policy_6"
-    value="1"
-    required
- class="mt-1 w-4 h-4"
->
-            <span>
-                I certify that the employee has read and signed the physical copy
-                of the Company's Employee Handbook and has authorized Human
-                Resources to record this acknowledgment electronically.
-            </span>
-        </label>
-    </div>
-
+        <span class="text-slate-300 text-sm leading-6">
+            I hereby acknowledge that I have read, understood, and agree to comply with all Company policies, procedures, guidelines, and agreements stated above. I understand that these policies form part of my employment obligations and that failure to adhere to them may result in disciplinary action in accordance with Company rules and applicable laws. I further authorize the Human Resources Department to record this acknowledgment electronically as part of my employee onboarding records.
+        </span>
+    </label>
+</div>
    
 </div>
 
@@ -207,22 +149,27 @@ method="POST"
 
 
 
-<div class="pt-6 flex gap-4">
+<div class="pt- flex gap-4 flex justify-center">
 
-<a href="{{ route('hr.onboarding.step3') }}"
-class="inline-flex items-center gap-2 bg-slate-600 hover:bg-slate-700 text-white text-sm font-semibold px-6 py-2.5 rounded shadow transition">
-BACK
-</a>
-
-
-<button type="submit"
-class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-6 py-2.5 rounded shadow-lg shadow-blue-900/40 transition">
-
-FINISH
-
+<div class="pt-3 ">
+           <button
+    type="button"
+    onclick="window.location.href='{{ route('hr.onboarding.step2') }}'"
+    class="w-[218px] h-[56px] border-0 border-[0.1px] border-[#dcdcdc54] rounded-md bg-[#C3326720] text-white text-[0.9375rem] font-normal tracking-[.3px] cursor-pointer shadow-[0_8px_20px_rgba(0,0,0,.25)] transition-all duration-250 hover:bg-[#C3326740] hover:-translate-y-0.5 active:scale-[.97]"
+>
+    BACK
 </button>
+          </div>
 
-</div>
+   <div class="pt-3">
+           <button
+    type="submit"
+     class="w-[218px] h-[56px] border-0 border-[0.1px] border-[#dcdcdc54] rounded-md bg-[#66FF6B20] text-white text-[0.9375rem] font-normal tracking-[.3px] cursor-pointer shadow-[0_8px_20px_rgba(0,0,0,.25)] transition-all duration-250 hover:bg-[#66FF6B40] hover:-translate-y-0.5 active:scale-[.97]">
+    FINISH
+
+  
+</button>
+          </div>
 
 
 </form>
@@ -238,3 +185,4 @@ FINISH
 
 </body>
 </html>
+

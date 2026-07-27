@@ -35,3 +35,4 @@
 </div>
 
 @include('partials.list-pagination', ['paginator' => $departments, 'label' => 'employees'])
+

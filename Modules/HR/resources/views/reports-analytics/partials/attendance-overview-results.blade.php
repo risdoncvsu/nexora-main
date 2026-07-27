@@ -14,14 +14,8 @@
             @forelse($employees as $employee)
                 <tr class="border-t border-white/[0.18] transition-colors duration-[250ms] hover:bg-[#21457f]">
                     <td class="p-4 text-[0.84375rem] text-center border-r border-white/[0.12] font-extralight">
-                        @php
-                            $genderClass = match(strtolower($employee->gender ?? '')) {
-                                'female' => 'text-[#ff8bd2]',
-                                'male' => 'text-[#6ea9ff]',
-                                default => 'text-white',
-                            };
-                        @endphp
-                        <i class="fa-solid fa-circle-user text-2xl {{ $genderClass }} mr-2"></i>
+                        
+                      
                         {{ $employee->first_name }} {{ $employee->last_name }}
                         <span class="block text-[0.65rem] text-[#93abd3] font-light mt-0.5">{{ '2026' . str_pad($employee->id, 4, '0', STR_PAD_LEFT) }}</span>
                     </td>

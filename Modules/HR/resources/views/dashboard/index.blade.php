@@ -63,7 +63,7 @@
         radial-gradient(circle at 85% 8%, rgba(61,132,255,.06), transparent 18%),
         linear-gradient(180deg, #183667 0%, #132C5B 100%);
     }
-    /* Grid lines behind the attendance bars â€” easiest kept as a small utility, Tailwind has no clean bg-stripe primitive */
+    /* Grid lines behind the attendance bars — easiest kept as a small utility, Tailwind has no clean bg-stripe primitive */
     .att-grid-lines {
       background: linear-gradient(to top,
         transparent 0 19%, rgba(255,255,255,.04) 19% 20%,
@@ -94,7 +94,7 @@
         <div class="w-full h-[142px] flex items-stretch justify-between gap-5 px-0 py-px relative">
           <div class="flex flex-col justify-start pt-2 pl-6">
             <div class="text-[11.9px] font-medium tracking-wide text-[#F4F8FF] uppercase">
-              HR OPERATIONS <span class="text-red-500 ml-1">â€¢ LIVE</span>
+              HR OPERATIONS <span class="text-red-500 ml-1">• LIVE</span>
             </div>
             <h1 class="text-white text-2xl md:text-3xl font-bold mt-0.5">
               Welcome back, {{ session('employee_name') }}
@@ -194,15 +194,32 @@
                 Workforce Trend
                 <span class="bg-[#0d5d28] text-[#3cff82] px-2.5 py-1 rounded-full text-[10px] font-semibold">+6.7%</span>
               </h2>
-              <p class="mt-1.5 text-[11px] text-[rgba(219,232,255,.45)]">Hires vs. Exits across the year</p>
+              <p class="mt-1.5 text-[11px] text-[rgba(219,232,255,.45)]">Monthly hires across the year</p>
             </div>
             <div class="border border-white/10 bg-[#17345f] rounded-full px-4 py-2.5 text-[10px] text-white/80 whitespace-nowrap">
               Jan - Dec 2026
             </div>
           </div>
 
-          <div class="w-full flex-1 overflow-x-auto -mt-4 pb-4">
-            <svg viewBox="0 0 760 360" class="w-full min-w-[760px] h-[380px] block">
+          <div class="w-full flex-1 overflow-x-auto -mt-2 pb-2">
+            @php
+              $chartMinY = 30;
+              $chartMaxY = 315;
+              $chartStartX = 40;
+              $chartEndX = 720;
+              $chartMaxValue = max(1, max(array_column($monthlyHireTrend->toArray(), 'hires')) + 3);
+              $hirePoints = [];
+
+              foreach ($monthlyHireTrend as $index => $monthData) {
+                  $x = $chartStartX + (($chartEndX - $chartStartX) * $index / 11);
+                  $hireValue = max(0, (int) $monthData['hires']);
+                  $hireY = $chartMaxY - (($hireValue / $chartMaxValue) * ($chartMaxY - $chartMinY));
+                  $hirePoints[] = ['x' => round($x, 2), 'y' => round($hireY, 2)];
+              }
+
+              $hirePath = 'M ' . implode(' L ', array_map(fn($point) => $point['x'] . ' ' . $point['y'], $hirePoints));
+            @endphp
+            <svg viewBox="0 0 760 360" class="w-full min-w-[920px] h-[460px] block">
               <!-- Y LABELS -->
               <text x="-45" y="40" class="fill-[rgba(219,232,255,.7)] text-[11px]">50</text>
               <text x="-45" y="72" class="fill-[rgba(219,232,255,.7)] text-[11px]">45</text>
@@ -230,23 +247,23 @@
               </g>
 
               <!-- X LABELS -->
-              <text x="70" y="350" class="fill-[rgba(219,232,255,.6)] text-[11px]">JAN</text>
-              <text x="190" y="350" class="fill-[rgba(219,232,255,.6)] text-[11px]">FEB</text>
-              <text x="312" y="350" class="fill-[rgba(219,232,255,.6)] text-[11px]">MAR</text>
-              <text x="435" y="350" class="fill-[rgba(219,232,255,.6)] text-[11px]">APR</text>
-              <text x="560" y="350" class="fill-[rgba(219,232,255,.6)] text-[11px]">MAY</text>
-              <text x="682" y="350" class="fill-[rgba(219,232,255,.6)] text-[11px]">JUN</text>
-              <text x="805" y="350" class="fill-[rgba(219,232,255,.6)] text-[11px]">JUL</text>
+              @foreach($monthlyHireTrend as $index => $monthData)
+                @php
+                  $x = $chartStartX + (($chartEndX - $chartStartX) * $index / 11);
+                  $y = $chartMaxY - ((max(0, (int) $monthData['hires']) / $chartMaxValue) * ($chartMaxY - $chartMinY));
+                @endphp
+                <text x="{{ round($x) }}" y="350" text-anchor="middle" class="fill-[rgba(219,232,255,.6)] text-[11px]">{{ strtoupper($monthData['month']) }}</text>
+                <g class="group cursor-pointer">
+                  <circle cx="{{ round($x, 2) }}" cy="{{ round($y, 2) }}" r="5.5" fill="#1f7ff6" stroke="#ffffff" stroke-width="1.2" />
+                  <rect x="{{ round($x - 42, 2) }}" y="{{ round($y - 34, 2) }}" width="84" height="24" rx="8" fill="#0f274f" stroke="rgba(255,255,255,.16)" opacity="0" class="transition-opacity duration-200 group-hover:opacity-100" />
+                  <text x="{{ round($x, 2) }}" y="{{ round($y - 18, 2) }}" text-anchor="middle" font-size="10" fill="#f7fbff" opacity="0" class="transition-opacity duration-200 group-hover:opacity-100">{{ ucfirst($monthData['month_name']) }}: {{ (int) $monthData['hires'] }} hires</text>
+                </g>
+              @endforeach
 
               <!-- BLUE -->
               <path fill="none" stroke="#1f7ff6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"
                     class="[filter:drop-shadow(0_0_4px_rgba(31,127,246,.2))]"
-                    d="M70 200 L95 180 L120 160 L145 140 L170 122 L195 110 L220 102 L245 95 L270 95 L295 102 L320 112 L345 126 L370 160 L395 190 L420 220 L445 240 L470 248 L495 248 L520 230 L545 195 L570 150 L595 125 L620 125 L645 125 L670 105 L695 98 L720 80 L742 50"/>
-
-              <!-- RED -->
-              <path fill="none" stroke="#ea170c" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"
-                    class="[filter:drop-shadow(0_0_3px_rgba(234,23,12,.15))]"
-                    d="M70 285 L88 265 L106 285 L124 295 L142 300 L160 295 L178 280 L196 290 L214 290 L232 275 L250 235 L268 235 L286 250 L304 280 L322 305 L340 310 L358 320 L376 320 L394 305 L412 280 L430 245 L448 225 L466 225 L484 225 L502 210 L520 190 L538 190 L556 200 L574 210 L592 225 L610 285 L628 285 L646 285 L664 270 L682 280 L700 250 L718 230 L742 220"/>
+                    d="{{ $hirePath }}"/>
             </svg>
           </div>
         </div>
@@ -256,13 +273,13 @@
           <div class="flex justify-between items-start mb-6">
             <div>
               <h3 class="text-lg font-semibold text-white">Attendance Rate</h3>
-              <p class="mt-1 text-xs text-[rgba(219,232,255,.45)]">Company-wide average Â· {{ number_format($totalPresentDaysYear ?? 0) }} present days YTD</p>
+              <p class="mt-1 text-xs text-[rgba(219,232,255,.45)]">Company-wide average · {{ number_format($totalPresentDaysYear ?? 0) }} present days YTD</p>
             </div>
             <div class="text-right">
               <div class="text-[34px] font-bold text-white leading-none">{{ number_format($overallAttendanceRate ?? 0, 2) }}%</div>
               @php $change = $rateChange ?? 0; @endphp
               <div class="inline-flex justify-center items-center mt-2.5 px-3 h-6 rounded-full {{ $change >= 0 ? 'bg-[#0b6328] text-[#35ff7a]' : 'bg-[#5c1a1a] text-[#ff7a7a]' }} text-[10px] font-semibold">
-                {{ $change >= 0 ? 'â†‘' : 'â†“' }} {{ number_format(abs($change), 1) }}%
+                {{ $change >= 0 ? '↑' : '↓' }} {{ number_format(abs($change), 1) }}%
               </div>
             </div>
           </div>

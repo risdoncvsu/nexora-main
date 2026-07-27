@@ -11,8 +11,10 @@
                                 default => 'text-white',
                             };
                         @endphp
-                        <i class="fa-solid fa-circle-user text-2xl {{ $genderClass }} mr-2"></i>
-                        {{ '2026' . str_pad($employee->id, 4, '0', STR_PAD_LEFT) }}
+                        <div class="flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-circle-user text-3xl leading-none {{ $genderClass }}"></i>
+                            <span>{{ '2026' . str_pad($employee->id, 4, '0', STR_PAD_LEFT) }}</span>
+                        </div>
                     </td>
                     <td class="p-4 text-[0.84375rem] text-center border-r border-white/[0.12] font-extralight w-[23%]">{{ $employee->first_name }} {{ $employee->last_name }}</td>
                     <td class="p-4 text-[0.84375rem] text-center border-r border-white/[0.12] font-extralight w-[23%]">{{ $employee->department }}</td>

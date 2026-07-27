@@ -4,20 +4,38 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Employee Onboarding</title>
+
+<!-- Google Font: Inter -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
 <script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: {
+          sans: ['Inter', 'sans-serif'],
+        },
+      },
+    },
+  }
+</script>
 </head>
 
  @include('partials.navbar')
  
 <body class="bg-[#1B3A6B] min-h-screen font-sans">
+    <h1 class="text-white pt-[20px] pl-[100px] text-[28px] font-bold tracking-wide mb-8 text-left">EMPLOYEE ONBOARDING</h1>
 
-  <div class="pt-[140px]">
+  <div class="pt-[24px]">
     <!-- Employee Onboarding Content -->
 
-<div class="max-w-6xl mx-auto">
+<div class="max-w-7xl mx-auto">
 
    <!-- Title -->
-    <h1 class="text-white text-xl font-bold tracking-wide mb-8">EMPLOYEE ONBOARDING</h1>
+  
     @include('partials.onboarding-stepper', ['currentStep' => 4])
 
 <!-- Final Step Content -->
@@ -35,22 +53,22 @@
                 Employee ID
             </label>
 
-            <div class="relative">
+            <div class="relative w-[650px]">
                 <input
+                    id="employee_id_field"
                     type="text"
                     value="{{ $employee['employee_id'] }}"
-    readonly
-                    class="w-[650px] h-[45px] bg-[#132B52] text-white text-sm rounded px-4 pr-12 border border-blue-500/30 cursor-not-allowed"
+                    readonly
+                    class="w-full h-[45px] bg-[#132B52] text-white text-sm rounded px-4 pr-12 border border-blue-500/30 cursor-not-allowed"
                 />
 
-                <!-- Copy Icon -->
                 <button
                     type="button"
-                    class="absolute right-4 top-1/2 -translate-y-1/2 text-blue-300 hover:text-white">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5"
-                        fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <rect x="9" y="9" width="11" height="11" rx="2" stroke-width="2"/>
-                        <rect x="4" y="4" width="11" height="11" rx="2" stroke-width="2"/>
+                    onclick="copyField('employee_id_field', this)"
+                    class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-white transition"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                     </svg>
                 </button>
             </div>
@@ -65,26 +83,52 @@
                     Employee Email
                 </label>
 
-                <input
-                    type="email"
-                   value="{{ $employee['company_email'] }}"
-    readonly
-                    class="w-[650px] h-[45px] bg-[#132B52] text-white text-sm rounded px-4 border border-blue-500/30 cursor-not-allowed"
-                />
+                <div class="relative w-[650px]">
+                    <input
+                        id="employee_email_field"
+                        type="text"
+                        value="{{ $employee['company_email'] }}"
+                        readonly
+                        class="w-full h-[45px] bg-[#132B52] text-white text-sm rounded px-4 pr-12 border border-blue-500/30 cursor-not-allowed"
+                    />
+
+                    <button
+                        type="button"
+                        onclick="copyField('employee_email_field', this)"
+                        class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-white transition"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                    </button>
+                </div>
             </div>
 
             <!-- Temporary Password -->
             <div>
                 <label class="block text-slate-300 text-xs mb-1">
-                    Temporary Password (pending ITSM approval)
+                    Temporary Password
                 </label>
 
-                <input
-                    type="text"
-                       value="{{ $employee['temporary_password'] }}"
-                    readonly
-                    class="w-[650px] h-[45px] bg-[#132B52] text-white text-sm rounded px-4 border border-blue-500/30 cursor-not-allowed"
-                />
+                <div class="relative w-[650px]">
+                    <input
+                        id="employee_password_field"
+                        type="text"
+                        value="{{ $employee['temporary_password'] }}"
+                        readonly
+                        class="w-full h-[45px] bg-[#132B52] text-white text-sm rounded px-4 pr-12 border border-blue-500/30 cursor-not-allowed"
+                    />
+
+                    <button
+                        type="button"
+                        onclick="copyField('employee_password_field', this)"
+                        class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-white transition"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                    </button>
+                </div>
             </div>
 
         </div>
@@ -93,7 +137,7 @@
         <div class="pt-8">
             <a 
 href="{{ route('hr.dashboard') }}"
-class="inline-flex items-center bg-[#3B82F6] hover:bg-[#2563EB] text-white font-semibold px-8 py-3 rounded shadow-lg shadow-blue-900/40 transition">
+class="inline-flex items-center bg-[#0048FF80] hover:bg-[#0048FF] text-white  px-8 py-3 rounded shadow-lg shadow-blue-900/40 transition">
 
     DASHBOARD
 
@@ -114,6 +158,56 @@ class="inline-flex items-center bg-[#3B82F6] hover:bg-[#2563EB] text-white font-
     </div>
 
    </div>
+
+<script>
+function copyField(inputId, btn) {
+    const input = document.getElementById(inputId);
+
+    input.removeAttribute('readonly'); // some browsers block copy on readonly inputs
+    input.select();
+    input.setSelectionRange(0, 99999); // for mobile
+
+    let copied = false;
+
+    // Try modern Clipboard API first
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(input.value)
+            .then(() => showCopiedFeedback(btn))
+            .catch(() => fallbackCopy(input, btn));
+    } else {
+        fallbackCopy(input, btn);
+    }
+
+    input.setAttribute('readonly', true); // restore readonly
+}
+
+function fallbackCopy(input, btn) {
+    try {
+        const success = document.execCommand('copy');
+        if (success) {
+            showCopiedFeedback(btn);
+        } else {
+            alert('Copy failed. Please copy manually: ' + input.value);
+        }
+    } catch (err) {
+        alert('Copy failed. Please copy manually: ' + input.value);
+    }
+}
+
+function showCopiedFeedback(btn) {
+    const originalSVG = btn.innerHTML;
+
+    btn.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+        </svg>
+    `;
+
+    setTimeout(() => {
+        btn.innerHTML = originalSVG;
+    }, 1200);
+}
+</script>
 
 </body>
 </html>

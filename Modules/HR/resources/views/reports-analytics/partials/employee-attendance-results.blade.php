@@ -1,17 +1,42 @@
-<div class="overflow-hidden rounded-xl bg-[#0B1E3D] ring-1 ring-white/5">
+<!-- Table Header -->
+<div class="w-full mx-auto mb-3 bg-[#0B1E3D] border border-white/[0.15] rounded-[10px] overflow-hidden">
+  <table class="w-full table-fixed border-collapse">
+    <colgroup>
+      <col style="width:13%">
+      <col style="width:11%">
+      <col style="width:11%">
+      <col style="width:11%">
+      <col style="width:11%">
+      <col style="width:13%">
+      <col style="width:15%">
+    </colgroup>
+    <thead>
+      <tr>
+        <th class="px-[10px] py-[15px] text-center text-[11.9px] font-normal uppercase tracking-wide text-white border-r border-white/[0.15]">Date</th>
+        <th class="px-[10px] py-[15px] text-center text-[11.9px] font-normal uppercase tracking-wide text-white border-r border-white/[0.15]">Time In</th>
+        <th class="px-[10px] py-[15px] text-center text-[11.9px] font-normal uppercase tracking-wide text-white border-r border-white/[0.15]">In Image</th>
+        <th class="px-[10px] py-[15px] text-center text-[11.9px] font-normal uppercase tracking-wide text-white border-r border-white/[0.15]">Time Out</th>
+        <th class="px-[10px] py-[15px] text-center text-[11.9px] font-normal uppercase tracking-wide text-white border-r border-white/[0.15]">Out Image</th>
+        <th class="px-[10px] py-[15px] text-center text-[11.9px] font-normal uppercase tracking-wide text-white border-r border-white/[0.15]">Work Hours</th>
+        <th class="px-[10px] py-[15px] text-center text-[11.9px] font-normal uppercase tracking-wide text-white">Status</th>
+      </tr>
+    </thead>
+  </table>
+</div>
+
+<!-- Table Body -->
+<div class="w-full mx-auto bg-[#0B1E3D] border border-white/[0.15] rounded-[10px] overflow-hidden">
   <div class="overflow-x-auto">
-    <table class="w-full text-left text-sm">
-      <thead>
-        <tr class="border-b border-white/5 bg-[#0B1E3D] text-xs uppercase tracking-wide text-slate-400">
-          <th class="px-5 py-2 font-medium">Date</th>
-          <th class="px-5 py-2 font-medium">Time In</th>
-          <th class="px-5 py-2 font-medium">In Image</th>
-          <th class="px-5 py-2 font-medium">Time Out</th>
-          <th class="px-5 py-2 font-medium">Out Image</th>
-          <th class="px-5 py-2 font-medium">Work Hours</th>
-          <th class="px-5 py-2 font-medium">Status</th>
-        </tr>
-      </thead>
+    <table class="w-full table-fixed border-collapse">
+      <colgroup>
+        <col style="width:13%">
+        <col style="width:11%">
+        <col style="width:11%">
+        <col style="width:11%">
+        <col style="width:11%">
+        <col style="width:13%">
+        <col style="width:15%">
+      </colgroup>
       <tbody>
         @forelse ($attendances as $i => $row)
           @php
@@ -25,68 +50,68 @@
             $inImage = $row->timeInImageUrl();
             $outImage = $row->timeOutImageUrl();
           @endphp
-          <tr class="border-b border-white/5 last:border-none hover:bg-white/[0.03] {{ $i % 2 === 1 ? 'bg-white/[0.015]' : '' }}">
-            <td class="px-5 py-2 text-slate-300 whitespace-nowrap">
+          <tr class="border-t border-white/[0.18] transition-colors duration-[250ms] hover:bg-[#21457f]">
+            <td class="p-4 text-[0.84375rem] text-center border-r border-white/[0.12] font-normal whitespace-nowrap">
               {{ \Carbon\Carbon::parse($row->attendance_date)->format('d M Y') }}
             </td>
-            <td class="px-5 py-2 whitespace-nowrap">
+            <td class="p-4 text-[0.84375rem] text-center border-r border-white/[0.12] font-normal whitespace-nowrap">
               @if ($showLateIn)
                 <span class="cursor-help font-medium text-red-500" title="{{ $hoursTitle }}">
                   {{ $row->formattedTimeIn() }}
                 </span>
               @else
-                <span class="text-slate-300">{{ $row->formattedTimeIn() }}</span>
+                {{ $row->formattedTimeIn() }}
               @endif
             </td>
-            <td class="px-5 py-1.5">
+            <td class="p-4 text-center border-r border-white/[0.12]">
               @if ($inImage)
                 <button
                   type="button"
                   class="attendance-photo-thumb inline-flex h-9 w-9 overflow-hidden rounded-md border border-white/10 bg-black/20 p-0"
                   data-photo-src="{{ $inImage }}"
-                  data-photo-label="Time In â€” {{ \Carbon\Carbon::parse($row->attendance_date)->format('d M Y') }}"
+                  data-photo-label="Time In — {{ \Carbon\Carbon::parse($row->attendance_date)->format('d M Y') }}"
                   title="View In Image"
                 >
                   <img src="{{ $inImage }}" alt="Time in photo" class="h-full w-full object-cover">
                 </button>
               @else
-                <span class="text-slate-500">â€”</span>
+                <span class="text-[#93abd3]">—</span>
               @endif
             </td>
-            <td class="px-5 py-2 whitespace-nowrap">
+            <td class="p-4 text-[0.84375rem] text-center border-r border-white/[0.12] font-normal whitespace-nowrap">
               @if ($showShortOut)
                 <span class="cursor-help font-medium text-red-500" title="{{ $hoursTitle }}">
                   {{ $row->formattedTimeOut() }}
                 </span>
               @else
-                <span class="text-slate-300">{{ $row->formattedTimeOut() }}</span>
+                {{ $row->formattedTimeOut() }}
               @endif
             </td>
-            <td class="px-5 py-1.5">
+            <td class="p-4 text-center border-r border-white/[0.12]">
               @if ($outImage)
                 <button
                   type="button"
                   class="attendance-photo-thumb inline-flex h-9 w-9 overflow-hidden rounded-md border border-white/10 bg-black/20 p-0"
                   data-photo-src="{{ $outImage }}"
-                  data-photo-label="Time Out â€” {{ \Carbon\Carbon::parse($row->attendance_date)->format('d M Y') }}"
+                  data-photo-label="Time Out — {{ \Carbon\Carbon::parse($row->attendance_date)->format('d M Y') }}"
                   title="View Out Image"
                 >
                   <img src="{{ $outImage }}" alt="Time out photo" class="h-full w-full object-cover">
                 </button>
               @else
-                <span class="text-slate-500">â€”</span>
+                <span class="text-[#93abd3]">—</span>
               @endif
             </td>
-            <td class="px-5 py-2 text-slate-300 whitespace-nowrap">{{ $row->formattedWorkHours() }}</td>
-            <td class="px-5 py-2">
-              <span class="inline-flex items-center rounded-md px-2.5 py-0.5 text-xs font-medium {{ $statusClasses }}">
+            <td class="p-4 text-[0.84375rem] text-center border-r border-white/[0.12] font-normal whitespace-nowrap">{{ $row->formattedWorkHours() }}</td>
+            <td class="p-4 text-center font-normal">
+              <span class="status-badge {{ $statusClasses }}">
                 {{ $status }}
               </span>
             </td>
           </tr>
         @empty
           <tr>
-            <td colspan="7" class="px-5 py-10 text-center text-slate-500">
+            <td colspan="7" class="p-[30px] text-center text-[#b9c8e8] text-sm">
               No attendance records for this employee.
             </td>
           </tr>

@@ -47,7 +47,7 @@
                 class="flex h-[190px] w-[480px] flex-col items-center justify-center gap-2 rounded-[15px] border border-white/[.08] bg-[#0B1E3D] text-center text-white no-underline transition duration-300 hover:-translate-y-1 hover:bg-[#132B52] hover:shadow-[0_10px_25px_rgba(0,0,0,.3)]">
                 <svg width="70px" height="70px" viewBox="0 0 24.00 24.00" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="#ffffff"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M3 10C3 9.06812 3 8.60218 3.15224 8.23463C3.35523 7.74458 3.74458 7.35523 4.23463 7.15224C4.60218 7 5.06812 7 6 7V7H18V7C18.9319 7 19.3978 7 19.7654 7.15224C20.2554 7.35523 20.6448 7.74458 20.8478 8.23463C21 8.60218 21 9.06812 21 10V17C21 18.8856 21 19.8284 20.4142 20.4142C19.8284 21 18.8856 21 17 21H16H8H7C5.11438 21 4.17157 21 3.58579 20.4142C3 19.8284 3 18.8856 3 17V10Z" stroke="#ffffff" stroke-width="0.9600000000000002" stroke-linejoin="round"></path> <path d="M8 7V5C8 3.89543 8.89543 3 10 3H14C15.1046 3 16 3.89543 16 5V7" stroke="#ffffff" stroke-width="0.9600000000000002" stroke-linejoin="round"></path> <path d="M3 10C3.18614 11.3166 3.73499 12.5338 4.55558 13.5714C6.19462 15.644 8.91777 17 12 17C15.0822 17 17.8054 15.644 19.4444 13.5714C20.265 12.5338 20.8139 11.3166 21 10" stroke="#ffffff" stroke-width="0.9600000000000002" stroke-linecap="round"></path> <path d="M11.5 13H12.5" stroke="#ffffff" stroke-width="0.9600000000000002" stroke-linecap="round" stroke-linejoin="round"></path> </g></svg>
                 <h3 class="text-[28px] font-normal tracking-wide">BUSINESS INTELLIGENCE</h3>
-                <small class="text-[15px] opacity-60">001</small>
+               
             </a>
 
             <!-- E-COMMERCE -->
@@ -55,7 +55,7 @@
                 class="flex h-[190px] w-[480px] flex-col items-center justify-center gap-2 rounded-[15px] border border-white/[.08] bg-[#0B1E3D] text-center text-white no-underline transition duration-300 hover:-translate-y-1 hover:bg-[#132B52] hover:shadow-[0_10px_25px_rgba(0,0,0,.3)]">
            <svg fill="#ffffff" height="70px" width="70px" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 427.286 427.286" xml:space="preserve" stroke="#ffffff" stroke-width="0.004272860000000001"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <g> <g> <path d="M395.579,50.143H31.707C14.224,50.143,0,64.366,0,81.85v214.558c0,17.483,14.224,31.707,31.707,31.707H171.54 l-10.559,34.028h-11.072c-4.142,0-7.5,3.358-7.5,7.5c0,4.142,3.358,7.5,7.5,7.5h16.597h100.966h16.597c4.143,0,7.5-3.358,7.5-7.5 c0-4.142-3.357-7.5-7.5-7.5h-11.071l-10.559-34.028h133.14c17.483,0,31.707-14.224,31.707-31.707V81.85 C427.286,64.366,413.062,50.143,395.579,50.143z M176.686,362.143l10.559-34.028h59.487l10.56,34.028H176.686z M412.286,296.408 c0,9.212-7.495,16.707-16.707,16.707h-143.32H181.72H31.707c-9.212,0-16.707-7.495-16.707-16.707v-10.886h397.286V296.408z M412.286,270.522H15V81.85c0-9.212,7.495-16.707,16.707-16.707h363.872c9.212,0,16.707,7.495,16.707,16.707V270.522z"></path> </g> </g> <g> <g> <path d="M185.879,197.248c-13.872,0-25.158,11.286-25.158,25.157c0,13.872,11.286,25.158,25.158,25.158 s25.158-11.286,25.158-25.158C211.037,208.534,199.751,197.248,185.879,197.248z M185.879,232.563 c-5.601,0-10.158-4.557-10.158-10.158c0-5.601,4.557-10.157,10.158-10.157c5.601,0,10.158,4.557,10.158,10.157 C196.037,228.007,191.48,232.563,185.879,232.563z"></path> </g> </g> <g> <g> <path d="M250.646,197.248c-13.872,0-25.157,11.286-25.157,25.157c0,13.872,11.285,25.158,25.157,25.158 s25.157-11.286,25.157-25.158C275.803,208.534,264.518,197.248,250.646,197.248z M250.646,232.563 c-5.601,0-10.157-4.557-10.157-10.158c0-5.601,4.557-10.157,10.157-10.157s10.157,4.557,10.157,10.157 C260.803,228.007,256.247,232.563,250.646,232.563z"></path> </g> </g> <g> <g> <path d="M288.077,113.811c-1.425-1.631-3.484-2.567-5.649-2.567H165.206l-2.382-14.372c-0.6-3.619-3.73-6.274-7.399-6.274h-29.566 c-4.142,0-7.5,3.358-7.5,7.5c0,4.142,3.357,7.499,7.499,7.499h23.207l2.364,14.262l9.426,69.326c0.505,3.718,3.68,6.49,7.432,6.49 h104.7c3.752,0,6.926-2.772,7.432-6.49l9.44-69.431C290.151,117.608,289.501,115.441,288.077,113.811z M266.438,180.674h-91.602 l-7.401-54.431h106.403L266.438,180.674z"></path> </g> </g> </g></svg>
                 <h3 class="text-[28px] font-normal tracking-wide">ELECTRONIC COMMERCE</h3>
-                <small class="text-[15px] opacity-60">002</small>
+               
             </a>
 
             <!-- FINANCE -->
@@ -63,7 +63,7 @@
                 class="flex h-[190px] w-[480px] flex-col items-center justify-center gap-2 rounded-[15px] border border-white/[.08] bg-[#0B1E3D] text-center text-white no-underline transition duration-300 hover:-translate-y-1 hover:bg-[#132B52] hover:shadow-[0_10px_25px_rgba(0,0,0,.3)]">
                 <svg width="70px" height="70px" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" fill="#ffffff" stroke="#ffffff" stroke-width="1.8719999999999999"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"><defs><style>.a{fill:none;stroke:#ffffff;stroke-linecap:round;stroke-linejoin:round;}</style></defs><circle class="a" cx="24" cy="24" r="19.5"></circle><path class="a" d="M18.135,31.36a5.4836,5.4836,0,0,0,4.6,2.07h2.76a4.6,4.6,0,0,0,0-9.2h-2.99a4.6,4.6,0,1,1,0-9.2h2.76c2.07,0,3.45.46,4.6,2.07m-5.98-4.6v23"></path></g></svg>
                 <h3 class="text-[28px] font-normal tracking-wide">FINANCE</h3>
-                <small class="text-[15px] opacity-60">003</small>
+               
             </a>
 
             <!-- HR -->
@@ -71,7 +71,7 @@
                 class="flex h-[190px] w-[480px] flex-col items-center justify-center gap-2 rounded-[15px] border border-white/[.08] bg-[#0B1E3D] text-center text-white no-underline transition duration-300 hover:-translate-y-1 hover:bg-[#132B52] hover:shadow-[0_10px_25px_rgba(0,0,0,.3)]">
                 <svg width="70px" height="70px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="#ffffff" stroke-width="0.00024000000000000003"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M17.5291 7.77C17.4591 7.76 17.3891 7.76 17.3191 7.77C15.7691 7.72 14.5391 6.45 14.5391 4.89C14.5391 3.3 15.8291 2 17.4291 2C19.0191 2 20.3191 3.29 20.3191 4.89C20.3091 6.45 19.0791 7.72 17.5291 7.77Z" fill="#ffffff"></path> <path d="M20.7916 14.7004C19.6716 15.4504 18.1016 15.7304 16.6516 15.5404C17.0316 14.7204 17.2316 13.8104 17.2416 12.8504C17.2416 11.8504 17.0216 10.9004 16.6016 10.0704C18.0816 9.8704 19.6516 10.1504 20.7816 10.9004C22.3616 11.9404 22.3616 13.6504 20.7916 14.7004Z" fill="#ffffff"></path> <path d="M6.44016 7.77C6.51016 7.76 6.58016 7.76 6.65016 7.77C8.20016 7.72 9.43016 6.45 9.43016 4.89C9.43016 3.29 8.14016 2 6.54016 2C4.95016 2 3.66016 3.29 3.66016 4.89C3.66016 6.45 4.89016 7.72 6.44016 7.77Z" fill="#ffffff"></path> <path d="M6.55109 12.8506C6.55109 13.8206 6.76109 14.7406 7.14109 15.5706C5.73109 15.7206 4.26109 15.4206 3.18109 14.7106C1.60109 13.6606 1.60109 11.9506 3.18109 10.9006C4.25109 10.1806 5.76109 9.89059 7.18109 10.0506C6.77109 10.8906 6.55109 11.8406 6.55109 12.8506Z" fill="#ffffff"></path> <path d="M12.1208 15.87C12.0408 15.86 11.9508 15.86 11.8608 15.87C10.0208 15.81 8.55078 14.3 8.55078 12.44C8.56078 10.54 10.0908 9 12.0008 9C13.9008 9 15.4408 10.54 15.4408 12.44C15.4308 14.3 13.9708 15.81 12.1208 15.87Z" fill="#ffffff"></path> <path d="M8.87078 17.9406C7.36078 18.9506 7.36078 20.6106 8.87078 21.6106C10.5908 22.7606 13.4108 22.7606 15.1308 21.6106C16.6408 20.6006 16.6408 18.9406 15.1308 17.9406C13.4208 16.7906 10.6008 16.7906 8.87078 17.9406Z" fill="#ffffff"></path> </g></svg>
                 <h3 class="text-[28px] font-normal tracking-wide">HUMAN RESOURCES</h3>
-                <small class="text-[15px] opacity-60">004</small>
+              
             </a>
 
             <!-- IT -->
@@ -90,7 +90,7 @@
     </g>
 </svg>
                 <h3 class="text-[28px] font-normal tracking-wide">IT SERVICE MANAGEMENT</h3>
-                <small class="text-[15px] opacity-60">005</small>
+              
             </a>
 
             <!-- INVENTORY -->
@@ -109,7 +109,7 @@
           stroke-linecap="round"/>
 </svg>
                 <h3 class="text-[28px] font-normal tracking-wide">INVENTORY MANAGEMENT</h3>
-                <small class="text-[15px] opacity-60">006</small>
+               
             </a>
 
             <!-- ORDER MANAGEMENT -->
@@ -130,7 +130,7 @@
     </g>
 </svg>
                 <h3 class="text-[28px] font-normal tracking-wide">ORDER MANAGEMENT</h3>
-                <small class="text-[15px] opacity-60">007</small>
+               
             </a>
 
             <!-- PROCUREMENT -->
@@ -154,7 +154,7 @@
     </g>
 </svg>
                 <h3 class="text-[28px] font-normal tracking-wide">PROCUREMENT MANAGEMENT</h3>
-                <small class="text-[15px] opacity-60">008</small>
+              
             </a>
 
             <!-- PRODUCTION -->
@@ -176,13 +176,14 @@
     </g>
 </svg>
                 <h3 class="text-[28px] font-normal tracking-wide">PRODUCTION MANAGEMENT</h3>
-                <small class="text-[15px] opacity-60">009</small>
+                
             </a>
 
-        </div>
+        </div>  
 
     </div>
 
 </body>
 
 </html>
+

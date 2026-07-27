@@ -121,60 +121,62 @@
     </div>
 
 
-            <!-- Total Employees stat -->
+           <!-- Total Employees stat -->
             <div class="grid grid-cols-4 gap-4 mt-4 mb-4">
-            <div class="mt-4 mb-1 w-[353px] h-[134px] bg-[#0B1E3D] rounded-[20px] border border-white/[0.05] px-4 flex items-center gap-3">
-                <div class="w-[39px] h-[39px] rounded-xl bg-white/[.05] flex items-center justify-center flex-none">
-                    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none">
-                        <circle cx="9" cy="10" r="3" stroke="#DCEBFF" stroke-width="1.8"/>
-                        <circle cx="16.3" cy="11.2" r="2.4" stroke="#DCEBFF" stroke-width="1.8"/>
-                        <path d="M4.8 18.4C6 15.8 7.9 14.7 10.1 14.7C12.3 14.7 14.1 15.8 15.3 18.4" stroke="#DCEBFF" stroke-width="1.8" stroke-linecap="round"/>
-                        <path d="M15.4 18.2C16 16.8 17.2 16.1 18.4 16.1C19.5 16.1 20.4 16.5 21 17.4" stroke="#DCEBFF" stroke-width="1.8" stroke-linecap="round"/>
-                    </svg>
-                </div>
-                <div>
-                    <div class="text-[11.9px] text-[#E7F0FF]">Total Employees</div>
-                    <div class="text-[22.2px] font-bold leading-none mt-0.5 employee-counter" data-target="{{ $employeeCount ?? (method_exists($employees, 'total') ? $employees->total() : count($employees)) }}">0</div>
-                </div>
-            </div>
 
-            <div class="mt-4 mb-1 w-[353px] h-[134px] bg-[#0B1E3D] rounded-[20px] border border-white/[0.05] px-4 flex items-center gap-3">
-                <div class="w-[39px] h-[39px] rounded-xl bg-green-500/20 flex items-center justify-center flex-none">
-                    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="1.8">
-                        <circle cx="12" cy="12" r="9" stroke="#16A34A" stroke-linecap="round" stroke-linejoin="round"/>
-                        <path d="M12 5.5V12H18" stroke="#16A34A" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
+                <div class="w-full h-[142px] bg-[#0B1E3D] rounded-[20px] border border-white/[0.05] px-5 flex items-center gap-4">
+                    <div class="w-[54px] h-[54px] rounded-xl bg-white/[.05] flex items-center justify-center flex-none">
+                        <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none">
+                            <circle cx="9" cy="10" r="3" stroke="#DCEBFF" stroke-width="1.8"/>
+                            <circle cx="16.3" cy="11.2" r="2.4" stroke="#DCEBFF" stroke-width="1.8"/>
+                            <path d="M4.8 18.4C6 15.8 7.9 14.7 10.1 14.7C12.3 14.7 14.1 15.8 15.3 18.4" stroke="#DCEBFF" stroke-width="1.8" stroke-linecap="round"/>
+                            <path d="M15.4 18.2C16 16.8 17.2 16.1 18.4 16.1C19.5 16.1 20.4 16.5 21 17.4" stroke="#DCEBFF" stroke-width="1.8" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="text-[14px] text-[#E7F0FF]">Total Employees</div>
+                        <div class="text-[30px] font-bold leading-none mt-1 employee-counter" data-target="{{ $employeeCount ?? (method_exists($employees, 'total') ? $employees->total() : count($employees)) }}">0</div>
+                    </div>
                 </div>
-                <div>
-                    <div class="text-[11.9px] text-[#E7F0FF]">Present Days</div>
-                    <div class="text-[22.2px] font-bold leading-none mt-0.5 employee-counter" data-target="{{ $totalPresentDays ?? 0 }}">0</div>
-                </div>
-            </div>
 
-            <div class="mt-4 mb-1 w-[353px] h-[134px] bg-[#0B1E3D] rounded-[20px] border border-white/[0.05] px-4 flex items-center gap-3">
-                <div class="w-[39px] h-[39px] rounded-xl bg-[#DC2626]/20 flex items-center justify-center flex-none">
-                    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="1.8">
-                        <circle cx="12" cy="12" r="9" stroke="#DC2626" stroke-linecap="round" stroke-linejoin="round"/>
-                        <path d="M12 5.5V12H18" stroke="#DC2626" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
+                <div class="w-full h-[142px] bg-[#0B1E3D] rounded-[20px] border border-white/[0.05] px-5 flex items-center gap-4">
+                    <div class="w-[54px] h-[54px] rounded-xl bg-green-500/20 flex items-center justify-center flex-none">
+                        <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="1.8">
+                            <circle cx="12" cy="12" r="9" stroke="#16A34A" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M12 5.5V12H18" stroke="#16A34A" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="text-[14px] text-[#E7F0FF]">Present Days</div>
+                        <div class="text-[30px] font-bold leading-none mt-1 employee-counter" data-target="{{ $totalPresentDays ?? 0 }}">0</div>
+                    </div>
                 </div>
-                <div>
-                    <div class="text-[11.9px] text-[#E7F0FF]">Absent</div>
-                    <div class="text-[22.2px] font-bold leading-none mt-0.5 employee-counter" data-target="{{ $totalAbsentDays ?? 0 }}">0</div>
-                </div>
-            </div>
 
-            <div class="mt-4 mb-1 w-[353px] h-[134px] bg-[#0B1E3D] rounded-[20px] border border-white/[0.05] px-4 flex items-center gap-3">
-        <div class="w-[39px] h-[39px] rounded-xl bg-[#0EA5E9]/20 flex items-center justify-center flex-none">
-            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none">
-                <path d="M3 10H21M7 3V5M17 3V5M6.2 21H17.8C18.9201 21 19.4802 21 19.908 20.782C20.2843 20.5903 20.5903 20.2843 20.782 19.908C21 19.4802 21 18.9201 21 17.8V8.2C21 7.07989 21 6.51984 20.782 6.09202C20.5903 5.71569 20.2843 5.40973 19.908 5.21799C19.4802 5 18.9201 5 17.8 5H6.2C5.0799 5 4.51984 5 4.09202 5.21799C3.71569 5.40973 3.40973 5.71569 3.21799 6.09202C3 6.51984 3 7.07989 3 8.2V17.8C3 18.9201 3 19.4802 3.21799 19.908C3.40973 20.2843 3.71569 20.5903 4.09202 20.782C4.51984 21 5.07989 21 6.2 21Z" stroke="#0EA5E9" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-        </div>
-        <div>
-            <div class="text-[11.9px] text-[#E7F0FF]">On Leave</div>
-            <div class="text-[22.2px] font-bold leading-none mt-0.5 employee-counter" data-target="{{ $totalLeaveDays ?? 0 }}">0</div>
-        </div>
-    </div>
+                <div class="w-full h-[142px] bg-[#0B1E3D] rounded-[20px] border border-white/[0.05] px-5 flex items-center gap-4">
+                    <div class="w-[54px] h-[54px] rounded-xl bg-[#DC2626]/20 flex items-center justify-center flex-none">
+                        <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="1.8">
+                            <circle cx="12" cy="12" r="9" stroke="#DC2626" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M12 5.5V12H18" stroke="#DC2626" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="text-[14px] text-[#E7F0FF]">Absent</div>
+                        <div class="text-[30px] font-bold leading-none mt-1 employee-counter" data-target="{{ $totalAbsentDays ?? 0 }}">0</div>
+                    </div>
+                </div>
+
+                <div class="w-full h-[142px] bg-[#0B1E3D] rounded-[20px] border border-white/[0.05] px-5 flex items-center gap-4">
+                    <div class="w-[54px] h-[54px] rounded-xl bg-[#0EA5E9]/20 flex items-center justify-center flex-none">
+                        <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none">
+                            <path d="M3 10H21M7 3V5M17 3V5M6.2 21H17.8C18.9201 21 19.4802 21 19.908 20.782C20.2843 20.5903 20.5903 20.2843 20.782 19.908C21 19.4802 21 18.9201 21 17.8V8.2C21 7.07989 21 6.51984 20.782 6.09202C20.5903 5.71569 20.2843 5.40973 19.908 5.21799C19.4802 5 18.9201 5 17.8 5H6.2C5.0799 5 4.51984 5 4.09202 5.21799C3.71569 5.40973 3.40973 5.71569 3.21799 6.09202C3 6.51984 3 7.07989 3 8.2V17.8C3 18.9201 3 19.4802 3.21799 19.908C3.40973 20.2843 3.71569 20.5903 4.09202 20.782C4.51984 21 5.07989 21 6.2 21Z" stroke="#0EA5E9" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="text-[14px] text-[#E7F0FF]">On Leave</div>
+                        <div class="text-[30px] font-bold leading-none mt-1 employee-counter" data-target="{{ $totalLeaveDays ?? 0 }}">0</div>
+                    </div>
+                </div>
+
             </div>
 
             
@@ -247,4 +249,5 @@
     </body>
 
     </html>
+
 

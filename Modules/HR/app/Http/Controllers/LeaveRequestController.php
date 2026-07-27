@@ -129,6 +129,7 @@ class LeaveRequestController extends Controller
 
         return view('employee-management.leave-approval', [
             'leaveRequest' => $leaveRequest,
+            'employee' => $leaveRequest->employee,
             'attachments' => $leaveRequest->attachments ?? [],
         ]);
     }

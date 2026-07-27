@@ -22,16 +22,16 @@ class EmployeePortalController extends Controller
             ->get();
 
         [$department, $moduleUrl] = $this->moduleDestination();
-        $hrUrl = session('employee_role') === 'admin'
-            ? route('hr.dashboard')
-            : route('hr.employee.dashboard');
-
         return view('employee-portal', [
             'company' => Company::find($clientId),
             'department' => $department,
             'moduleUrl' => $moduleUrl,
-            'hrUrl' => $hrUrl,
-            'showHrShortcut' => $moduleUrl !== $hrUrl,
+            // HR owns these workflows. ITSM is now the employee landing page,
+            // so it exposes links while leaving the HR routes and access rules
+            // unchanged.
+            'showHrSelfService' => session('employee_role') !== 'admin',
+            'attendanceUrl' => route('hr.employee.attendance'),
+            'leaveUrl' => route('hr.employee.leave'),
             'tickets' => $tickets,
         ]);
     }
