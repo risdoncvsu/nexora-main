@@ -2,15 +2,12 @@
 
 namespace Modules\OrderFulfillment\Http\Controllers;
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Modules\OrderFulfillment\Models\Order;
 use Modules\OrderFulfillment\Models\Shipment;
-use Modules\HR\Models\DeliveryDriver;
 use Modules\OrderFulfillment\Helpers\OrderStatus;
 use Modules\OrderFulfillment\Models\OrderItem;
 use Modules\OrderFulfillment\Http\Controllers\Concerns\CancelsShipmentToReturn;
+use Illuminate\Support\Facades\Schema;
 
 class ShippingController extends Controller
 {
@@ -26,31 +23,19 @@ class ShippingController extends Controller
             ->where('shipped_at', '<=', now()->subDay())
             ->update(['status' => 'READY_TO_SHIP']);
 
-        // Promote anything that's been OUT_FOR_DELIVERY for 1+ hour to
+        // Promote anything that's been OUT_FOR_DELIVERY for 1+ day to
         // DELIVERED. Same "recalculate on page load" pattern as the
-        // promotion above — the difference is DELIVERED also needs to free
-        // up the driver (a plain mass ->update() can't do that per-row), so
-        // this loops each shipment individually instead.
-        // Some existing installations predate this timestamp column.  Do
-        // not make the whole Shipping screen unavailable while the additive
-        // migration is being deployed; the normal shipping workflow remains
-        // usable and the timer resumes automatically once it is present.
+        // promotion above. This mirrors onto the parent Order via
+        // Shipment::booted()'s `updated` hook, same as every other status
+        // change here — but that hook only fires per-model, not on a mass
+        // ->update(), so it's still looped rather than a single query.
         if (Schema::connection('order_fulfillment')->hasColumn('shipments', 'out_for_delivery_at')) {
             Shipment::where('status', 'OUT_FOR_DELIVERY')
                 ->whereNotNull('out_for_delivery_at')
-                ->where('out_for_delivery_at', '<=', now()->subHour())
+                ->where('out_for_delivery_at', '<=', now()->subDay())
                 ->get()
                 ->each(function (Shipment $shipment) {
-                    DB::transaction(function () use ($shipment) {
-                        // Mirrors onto the parent Order via Shipment::booted()'s
-                        // `updated` hook, same as every other status change here.
-                        $shipment->update(['status' => 'DELIVERED']);
-
-                        if ($shipment->delivery_man_id) {
-                            DeliveryDriver::where('id', $shipment->delivery_man_id)
-                                ->update(['availability' => DeliveryDriver::STATUS_AVAILABLE]);
-                        }
-                    });
+                    $shipment->update(['status' => 'DELIVERED']);
                 });
         }
 
@@ -64,7 +49,6 @@ class ShippingController extends Controller
             'tracking_number',
             'courier',
             'amount',
-            'delivery_man_id',
             'updated_at'
         )
         ->whereIn('status', [
@@ -158,84 +142,23 @@ class ShippingController extends Controller
     }
 
     /**
-     * Available drivers for this shipment's courier — feeds the
-     * "Assign Driver" modal.
+     * Hand a shipment to its selected courier partner and advance it to
+     * OUT_FOR_DELIVERY. Courier partner information is stored on the
+     * shipment itself; this module does not manage individual drivers.
      *
-     * GET /shipping/{shipmentId}/drivers
+     * POST /shipping/{shipmentId}/dispatch
      */
-    public function drivers(string $shipmentId)
+    public function dispatch(string $shipmentId)
     {
         $shipment = Shipment::where('shipment_id', $shipmentId)->firstOrFail();
 
-        $drivers = DeliveryDriver::with('employee')
-            ->available()
-            ->forCourier($shipment->courier)
-            ->get()
-            ->sortBy(fn (DeliveryDriver $driver) => strtolower(trim("{$driver->employee->first_name} {$driver->employee->last_name}")))
-            ->values()
-            ->map(fn (DeliveryDriver $driver) => [
-                'id' => $driver->id,
-                'name' => trim("{$driver->employee->first_name} {$driver->employee->last_name}"),
-                'vehicle_type' => $driver->vehicle_type ?: 'Vehicle not specified',
-                'plate_number' => $driver->plate_number ?: '—',
-            ]);
-
-        return response()->json($drivers);
-    }
-
-    /**
-     * Assign a driver to a shipment: the shipment moves to OUT_FOR_DELIVERY
-     * and the driver flips to UNAVAILABLE until the shipment is delivered.
-     *
-     * POST /shipping/{shipmentId}/assign-driver
-     */
-    public function assignDriver(Request $request, string $shipmentId)
-    {
-        // The HR-owned delivery_drivers table lives on a separate connection,
-        // so the validation rule must be built from the model instead of
-        // relying on Laravel's default database connection.
-        // Resolving it off the model itself (rather than hardcoding a
-        // connection name here) keeps this in sync automatically if that
-        // ever changes.
-        $driverModel = new DeliveryDriver();
-        $driverTable = ($driverModel->getConnectionName() ? $driverModel->getConnectionName() . '.' : '') . $driverModel->getTable();
-
-        $validated = $request->validate([
-            // HR delivery_drivers uses the normal numeric primary key. The
-            // former fulfillment-local directory used string IDs, so keep
-            // this explicitly aligned with the new source of truth.
-            'driver_id' => "required|integer|exists:{$driverTable},id",
+        $shipment->update([
+            'status'              => 'OUT_FOR_DELIVERY',
+            'out_for_delivery_at' => now(),
         ]);
 
-        $shipment = Shipment::where('shipment_id', $shipmentId)->firstOrFail();
-
-        $driver = DeliveryDriver::available()
-            ->where('id', $validated['driver_id'])
-            ->first();
-
-        if (! $driver) {
-            return response()->json([
-                'message' => 'That driver is no longer available. Please pick another.',
-            ], 422);
-        }
-
-        DB::transaction(function () use ($shipment, $driver) {
-            $changes = [
-                'delivery_man_id'     => $driver->id,
-                'status'              => 'OUT_FOR_DELIVERY',
-            ];
-
-            if (Schema::connection('order_fulfillment')->hasColumn('shipments', 'out_for_delivery_at')) {
-                $changes['out_for_delivery_at'] = now();
-            }
-
-            $shipment->update($changes);
-
-            $driver->update(['availability' => DeliveryDriver::STATUS_UNAVAILABLE]);
-        });
-
         return response()->json([
-            'message' => "{$driver->name} assigned to {$shipment->shipment_id}",
+            'message' => "{$shipment->shipment_id} was handed off to {$shipment->courier} and is now out for delivery",
             'status' => $shipment->status,
         ]);
     }

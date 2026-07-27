@@ -766,6 +766,8 @@
   </div>
 
   <script>
+    const ACTIVITY_RECENT_URL = "{{ route('order-fulfillment.activity.recent') }}";
+
     /* =====================================================================
        Live notify: picks up status changes made anywhere (Orders, Packing,
        Shipping) and reflects them here without a refresh.
@@ -799,7 +801,7 @@
 
       async function poll() {
         try {
-          const res = await fetch('/activity/recent?since=' + encodeURIComponent(since));
+          const res = await fetch(ACTIVITY_RECENT_URL + '?since=' + encodeURIComponent(since));
           if (!res.ok) return;
           const data = await res.json();
           if (data.items && data.items.length) {

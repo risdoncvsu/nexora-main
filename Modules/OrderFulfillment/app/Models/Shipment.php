@@ -3,7 +3,6 @@
 namespace Modules\OrderFulfillment\Models;
 
 use Modules\OrderFulfillment\Models\Concerns\BelongsToClient;
-use Modules\HR\Models\DeliveryDriver;
 
 use Illuminate\Database\Eloquent\Model;
 
@@ -16,7 +15,6 @@ class Shipment extends Model
         'shipment_id',
         'order_id',
         'customer_name',
-        'product_name',
         'qty',
         'amount',
         'courier',
@@ -25,21 +23,14 @@ class Shipment extends Model
         'status',
         'address',
         'due_date',
-        'delivery_man_id',
         'shipped_at',
         'out_for_delivery_at',
     ];
 
     protected $casts = [
-        'shipped_at' => 'datetime',
-        'out_for_delivery_at' => 'datetime',
+        'shipped_at'           => 'datetime',
+        'out_for_delivery_at'  => 'datetime',
     ];
-
-    /** The assigned HR delivery-driver profile (legacy column name retained). */
-    public function deliveryDriver()
-    {
-        return $this->belongsTo(DeliveryDriver::class, 'delivery_man_id');
-    }
 
     public function order()
     {
@@ -48,21 +39,6 @@ class Shipment extends Model
 
     protected static function booted(): void
     {
-        // Requirement #5: a driver only becomes available again once the
-        // shipment they were carrying is delivered. This fires no matter
-        // where the status change comes from — this controller, an API,
-        // a queue job, artisan tinker, etc.
-        static::updating(function (Shipment $shipment) {
-            if (
-                $shipment->isDirty('status') &&
-                strtoupper($shipment->status) === 'DELIVERED' &&
-                $shipment->delivery_man_id
-            ) {
-                DeliveryDriver::where('id', $shipment->delivery_man_id)
-                    ->update(['availability' => DeliveryDriver::STATUS_AVAILABLE]);
-            }
-        });
-
         // Requirement #6: the 1-day SHIPPED -> READY_TO_SHIP timer starts
         // the moment a shipment's status becomes SHIPPED.
         static::saving(function (Shipment $shipment) {

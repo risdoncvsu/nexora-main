@@ -636,72 +636,6 @@
   }
   .confirm-text strong { color: #fff; }
 
-  /* ============================================
-     Driver selection modal
-     ============================================ */
-  .driver-modal {
-    width: 460px;
-  }
-
-  .driver-modal .modal-body {
-    display: block;
-    padding: 22px 28px 6px;
-  }
-
-  .driver-list {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .driver-card {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: #0f2549;
-    border: 1px solid var(--pill-border);
-    border-radius: 10px;
-    padding: 14px 16px;
-    cursor: pointer;
-    transition: border-color 0.15s ease, background 0.15s ease;
-  }
-
-  .driver-card:hover { border-color: var(--accent); }
-
-  .driver-card.selected {
-    border-color: #7c5cff;
-    background: rgba(124, 92, 255, 0.12);
-  }
-
-  .driver-name { font-weight: 700; font-size: 14.5px; margin-bottom: 3px; }
-  .driver-sub { color: var(--text-muted); font-size: 12.5px; }
-
-  .driver-avail {
-    background: rgba(34, 197, 94, 0.18);
-    color: #4ade80;
-    font-size: 12px;
-    font-weight: 700;
-    padding: 5px 12px;
-    border-radius: 20px;
-    white-space: nowrap;
-  }
-
-  .driver-avail.busy {
-    background: rgba(148, 163, 184, 0.15);
-    color: #94a3b8;
-  }
-
-  .btn-back { background: #2b4a7c; color: #dbe4f5; }
-  .btn-back:hover { background: #345a94; }
-
-  .btn-confirm { background: #5b4de0; color: #fff; }
-  .btn-confirm:hover { background: #6c5cf0; }
-  .btn-confirm:disabled {
-    background: #33436e;
-    color: #7d8bb0;
-    cursor: not-allowed;
-  }
-
   .assign-toast {
     position: fixed;
     bottom: 30px;
@@ -987,7 +921,7 @@
         <button
             class="btn-prepare"
             onclick="event.stopPropagation(); openShippingModal('{{ $shipment->shipment_id }}', true)">
-            Assign Driver
+            Dispatch to Courier
         </button>
         @endif
     </td>
@@ -1078,34 +1012,13 @@
       </div>
 
       <div class="assign-banner" id="assignBanner">
-        <span>This order is ready for delivery. Assign a driver to begin the final leg.</span>
-        <button class="btn-assign-driver" onclick="assignDriver()">Assign driver</button>
+        <span>This order is ready for delivery. Hand it off to the selected courier partner.</span>
+        <button class="btn-assign-driver" id="assignBannerBtn" onclick="dispatchShipment()">Dispatch to courier</button>
       </div>
 
       <div class="modal-footer">
         <button class="btn btn-close" onclick="closePackingModal()">Close</button>
         <button class="btn btn-cancel" id="modalActionBtn" onclick="requestCancelOrder()">Cancel order</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Driver selection modal -->
-  <div class="overlay" id="driverOverlay">
-    <div class="modal driver-modal">
-      <div class="modal-header">
-        <h2 id="driverModalOrderId">#ORD-4821</h2>
-        <p>Website order</p>
-      </div>
-
-      <div class="modal-body">
-        <div class="driver-list" id="driverList">
-          <!-- driver cards injected by JS -->
-        </div>
-      </div>
-
-      <div class="modal-footer">
-        <button class="btn btn-back" onclick="backToOrderModal()">Back</button>
-        <button class="btn btn-confirm" id="confirmAssignBtn" onclick="confirmDriverAssignment()" disabled>Confirm Assignment</button>
       </div>
     </div>
   </div>
@@ -1131,7 +1044,7 @@
 
   <div class="filter-overlay" id="filterOverlay"></div>
 
-  <div class="assign-toast" id="assignToast">Driver assigned successfully</div>
+  <div class="assign-toast" id="assignToast">Shipment dispatched successfully</div>
 
   <script>
 
@@ -1162,7 +1075,7 @@
     const STATUS_TAG_CLASSES = ['tag-packing', 'tag-shipped', 'tag-transit', 'tag-delivered', 'tag-cancelled'];
 
     let currentOrderId = null;
-    let selectedDriverId = null;
+
 
     function formatCurrency(n) {
       const num = Number(n) || 0;
@@ -1261,81 +1174,43 @@
       currentOrderId = null;
     }
 
-    function assignDriver() {
-      // Swap the order modal for the driver-selection modal.
-      // Background stays blurred the whole time.
-      document.getElementById('packingOverlay').classList.remove('active');
-      document.getElementById('driverModalOrderId').textContent =
-        document.getElementById('modalOrderId').textContent;
+    // Dispatching to the selected courier partner is a single action that
+    // moves the shipment straight to OUT_FOR_DELIVERY.
+    async function dispatchShipment() {
+      if (!currentOrderId) return;
 
-      document.getElementById('driverOverlay').classList.add('active');
-      fetchDrivers(currentOrderId);
-    }
-
-    async function fetchDrivers(orderId) {
-      const list = document.getElementById('driverList');
-      selectedDriverId = null;
-      document.getElementById('confirmAssignBtn').disabled = true;
-      list.innerHTML = '<p style="color: var(--text-muted); padding: 8px 4px;">Loading available drivers…</p>';
+      const btn = document.getElementById('assignBannerBtn');
+      btn.disabled = true;
+      btn.textContent = 'Dispatching…';
 
       try {
-        const res = await fetch(`${SHIPPING_BASE_URL}/${orderId}/drivers`, {
-          headers: { 'Accept': 'application/json' }
+        const res = await fetch(`${SHIPPING_BASE_URL}/${currentOrderId}/dispatch`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+          }
         });
+
+        const data = await res.json();
 
         if (!res.ok) {
-          // Show the real status/body instead of swallowing it, so the
-          // actual cause (missing table, bad route, etc.) is visible.
-          let detail = res.status + ' ' + res.statusText;
-          try {
-            const body = await res.json();
-            if (body.message) detail = body.message;
-          } catch (_) {}
-          console.error('Failed to load drivers:', detail);
-          throw new Error(detail);
+          showAssignToast(data.message || 'Could not dispatch the shipment.', true);
+          return;
         }
 
-        const availableDrivers = await res.json();
-        renderDriverList(availableDrivers);
+        applyAssignmentToRow(currentOrderId, data.status);
+        pushDeliveryAlert(currentOrderId, data.status);
+
+        closePackingModal();
+        showAssignToast(data.message);
       } catch (err) {
-        list.innerHTML = '<p style="color:#f87171; padding:8px 4px;">Could not load drivers: ' + err.message + '</p>';
+        showAssignToast('Network error — please try again.', true);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Dispatch to courier';
       }
-    }
-
-    function renderDriverList(availableDrivers) {
-      const list = document.getElementById('driverList');
-      list.innerHTML = '';
-
-      if (!availableDrivers.length) {
-        list.innerHTML = '<p style="color: var(--text-muted); padding: 8px 4px;">No available drivers for this courier right now.</p>';
-        return;
-      }
-
-      availableDrivers.forEach(function (driver) {
-        const card = document.createElement('div');
-        card.className = 'driver-card';
-        card.innerHTML = `
-          <div>
-            <div class="driver-name">${driver.name}</div>
-            <div class="driver-sub">${driver.vehicle_type} · Plate ${driver.plate_number}</div>
-          </div>
-          <span class="driver-avail">Available</span>
-        `;
-
-        card.addEventListener('click', function () {
-          document.querySelectorAll('.driver-card').forEach(c => c.classList.remove('selected'));
-          card.classList.add('selected');
-          selectedDriverId = driver.id;
-          document.getElementById('confirmAssignBtn').disabled = false;
-        });
-
-        list.appendChild(card);
-      });
-    }
-
-    function backToOrderModal() {
-      document.getElementById('driverOverlay').classList.remove('active');
-      document.getElementById('packingOverlay').classList.add('active');
     }
 
     // ===================== Cancel order flow =====================
@@ -1411,51 +1286,6 @@
 
     // ===================== end cancel order flow =====================
 
-    async function confirmDriverAssignment() {
-      if (!selectedDriverId || !currentOrderId) return;
-
-      const confirmBtn = document.getElementById('confirmAssignBtn');
-      confirmBtn.disabled = true;
-      confirmBtn.textContent = 'Assigning…';
-
-      try {
-        const res = await fetch(`${SHIPPING_BASE_URL}/${currentOrderId}/assign-driver`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-          },
-          body: JSON.stringify({ driver_id: selectedDriverId })
-        });
-
-        const data = await res.json();
-
-        if (!res.ok) {
-          showAssignToast(data.message || 'Could not assign driver.', true);
-          confirmBtn.disabled = false;
-          confirmBtn.textContent = 'Confirm Assignment';
-          return;
-        }
-
-        applyAssignmentToRow(currentOrderId, data.status);
-        pushDeliveryAlert(currentOrderId, data.status);
-
-        document.getElementById('driverOverlay').classList.remove('active');
-        document.getElementById('pageContent').classList.remove('blurred');
-
-        showAssignToast(data.message);
-
-        currentOrderId = null;
-        selectedDriverId = null;
-      } catch (err) {
-        showAssignToast('Network error — please try again.', true);
-      } finally {
-        confirmBtn.disabled = false;
-        confirmBtn.textContent = 'Confirm Assignment';
-      }
-    }
-
     // Reflect the new status on the table row immediately, without a full
     // page reload: swap the status pill and drop the now-irrelevant
     // "Assign Driver" button.
@@ -1519,15 +1349,13 @@
     }
 
     // Click outside either modal (on the dim backdrop) to close everything
-    ['packingOverlay', 'driverOverlay', 'cancelConfirmOverlay'].forEach(function (id) {
+    ['packingOverlay', 'cancelConfirmOverlay'].forEach(function (id) {
       document.getElementById(id).addEventListener('click', function (e) {
         if (e.target.id === id) {
           document.getElementById('packingOverlay').classList.remove('active');
-          document.getElementById('driverOverlay').classList.remove('active');
           document.getElementById('cancelConfirmOverlay').classList.remove('active');
           document.getElementById('pageContent').classList.remove('blurred');
           currentOrderId = null;
-          selectedDriverId = null;
         }
       });
     });

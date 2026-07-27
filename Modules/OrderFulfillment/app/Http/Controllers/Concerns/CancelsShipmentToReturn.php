@@ -4,7 +4,6 @@ namespace Modules\OrderFulfillment\Http\Controllers\Concerns;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Modules\HR\Models\DeliveryDriver;
 use Modules\OrderFulfillment\Models\Order;
 use Modules\OrderFulfillment\Models\OrderItem;
 use Modules\OrderFulfillment\Models\ReturnItem;
@@ -32,11 +31,10 @@ trait CancelsShipmentToReturn
     }
 
     /**
-     * Move a shipment to Returns: creates the matching ReturnItem, frees up
-     * the assigned driver (if any), sets the parent Order to CANCELLED, and
-     * deletes the shipment row itself — the Order is what stays behind as
-     * the record of the cancellation, the Shipment row has no further use
-     * once Returns owns it.
+     * Move a shipment to Returns: creates the matching ReturnItem, sets the
+     * parent Order to CANCELLED, and deletes the shipment row itself — the
+     * Order is what stays behind as the record of the cancellation, the
+     * Shipment row has no further use once Returns owns it.
      *
      * The Order status has to be set explicitly here (rather than relying
      * on Shipment::booted()'s `updated` hook, which normally mirrors
@@ -82,13 +80,6 @@ trait CancelsShipmentToReturn
                 'address'       => $shipment->address,
                 'refund_amount' => $refundAmount,
             ]);
-
-            // Free up the driver, if one was already assigned, same as a
-            // normal delivery completion would.
-            if ($shipment->delivery_man_id) {
-                DeliveryDriver::where('id', $shipment->delivery_man_id)
-                    ->update(['availability' => DeliveryDriver::STATUS_AVAILABLE]);
-            }
 
             // Set explicitly — deleting the shipment below means the
             // Shipment 'updated' hook that normally mirrors status onto
