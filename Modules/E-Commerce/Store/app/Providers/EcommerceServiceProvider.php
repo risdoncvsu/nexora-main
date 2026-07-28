@@ -10,6 +10,7 @@ use Modules\Ecommerce\Console\Commands\EnsureEcommerceClientColumns;
 use Modules\Ecommerce\Console\Commands\AssignEcommerceCatalogToClient;
 use Modules\Ecommerce\Console\Commands\BackfillEcommerceOrderLinks;
 use Modules\Ecommerce\Console\Commands\SeedStockLevelsForListing;
+use Modules\Ecommerce\Console\Commands\InstallEcommerceSchema;
 use Modules\Ecommerce\Services\ListingAvailabilityService;
 use Modules\Ecommerce\Models\Order;
 use Modules\Ecommerce\Observers\OrderObserver;
@@ -25,6 +26,7 @@ class EcommerceServiceProvider extends ServiceProvider
             AssignEcommerceCatalogToClient::class,
             BackfillEcommerceOrderLinks::class,
             SeedStockLevelsForListing::class,
+            InstallEcommerceSchema::class,
         ]);
     }
 
