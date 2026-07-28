@@ -167,6 +167,17 @@
     <!-- =====================================================
          EDIT FORM
     ====================================================== -->
+    @php
+        $role = strtolower((string) session('employee_role', ''));
+        $department = strtolower(trim((string) session('employee_department', '')));
+        $position = strtolower(trim((string) session('employee_position', '')));
+        $canManageEmployee = $role === 'admin' || (
+            $role === 'employee'
+            && $department === 'human resources'
+            && in_array($position, ['hr manager', 'human resources manager'], true)
+        );
+    @endphp
+
     <div class="w-full max-w-[108.1875rem] min-h-[45.375rem] ml-[90px] mr-10 mt-5 py-7 pr-2.5 pl-[60px] grid grid-cols-[68%_32%] gap-6 bg-[#122A58] rounded-[22px] shadow-[inset_5px_10px_18px_rgba(191,0,0,.03),inset_1px_0_1px_rgba(0,0,0,.20),0_18px_35px_rgba(0,0,0,.35)]">
 
         <form action="{{ route('hr.employees.update', $employee->id) }}" method="POST" enctype="multipart/form-data" class="contents">
@@ -479,17 +490,6 @@
 
             <!-- ACTION BUTTONS -->
           <div class="col-span-2 flex justify-center items-center gap-[30px]">
-                @php
-                    $role = strtolower((string) session('employee_role', ''));
-                    $department = strtolower(trim((string) session('employee_department', '')));
-                    $position = strtolower(trim((string) session('employee_position', '')));
-                    $canManageEmployee = $role === 'admin' || (
-                        $role === 'employee' &&
-                        $department === 'human resources' &&
-                        in_array($position, ['hr manager', 'human resources manager'], true)
-                    );
-                @endphp
-
                 @if($canManageEmployee)
                     <button type="submit"
                         class="w-[218px] h-12 border border-[#5D8CFF] rounded-[10px] text-[15px] font-light cursor-pointer transition-all duration-250 shadow-[inset_0_2px_3px_rgba(61,49,49,.15),inset_0_8px_12px_rgba(255,255,255,.05)] bg-[#00FF0820] text-white hover:bg-[#00FF0850]">
@@ -831,4 +831,3 @@
 
 
 </html>
-
