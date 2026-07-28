@@ -90,6 +90,8 @@ class CheckoutController extends Controller
         }
 
         try {
+        app(ErpIntegrationService::class)->assertPackingMaterialsAvailable($clientId);
+
         $order = DB::connection('ecommerce')->transaction(function () use ($cart, $request, $subtotal, $shippingFee, $total, $clientId) {
         // Create Order
         $order = Order::create([

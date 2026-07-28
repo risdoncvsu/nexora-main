@@ -2,6 +2,7 @@
 
 namespace Modules\Manufacturing\Http\Controllers;
 
+use App\Support\EmployeePermissionGate;
 use Modules\Manufacturing\Models\WorkOrder;
 use Modules\Manufacturing\Models\Worker;
 use Modules\Manufacturing\Models\QcSession;
@@ -696,13 +697,15 @@ class ManufacturingController extends Controller
         $position = strtolower((string) session('employee_position'));
 
         return session('employee_role') === 'admin'
+            || EmployeePermissionGate::allows('manufacturing.manage_work_orders')
             || str_contains($position, 'manager')
             || str_contains($position, 'supervisor');
     }
 
     private function isQualityEmployee(): bool
     {
-        return str_contains(strtolower((string) session('employee_position')), 'quality')
+        return EmployeePermissionGate::allows('manufacturing.record_quality_checks')
+            || str_contains(strtolower((string) session('employee_position')), 'quality')
             || str_contains(strtolower((string) session('employee_department')), 'quality');
     }
 

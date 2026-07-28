@@ -159,6 +159,46 @@ class ErpIntegrationService
         $this->recordAudit($clientId, 'inventory.item_deleted', 'inventory', ['item_id' => $item->id, 'sku' => $item->sku, 'name' => $item->name]);
     }
 
+    /**
+     * A storefront order cannot be accepted when it cannot be packed.
+     * This is a live Inventory read; packing still performs its own locked
+     * decrement later to protect against concurrent shipments.
+     */
+    public function assertPackingMaterialsAvailable(int $clientId): void
+    {
+        $inventory = DB::connection('inventory');
+        $schema = $inventory->getSchemaBuilder();
+
+        if (! $schema->hasTable('packing_materials')) {
+            throw new RuntimeException('Online orders are unavailable because packing materials have not been configured.');
+        }
+
+        $materials = $inventory->table('packing_materials')
+            ->where('client_id', $clientId)
+            ->where('stock_qty', '>', 0);
+
+        $missing = [];
+        if (! (clone $materials)->where('is_box', true)->exists()) {
+            $missing[] = 'a shipping box';
+        }
+        if (! (clone $materials)->whereRaw('LOWER(name) IN (?, ?)', ['foam inserts', 'foam insert'])->exists()) {
+            $missing[] = 'foam inserts';
+        }
+        if (! (clone $materials)->whereRaw('LOWER(name) IN (?, ?, ?, ?)', ['silica gel packs', 'silica gel', 'gel', 'gels'])->exists()) {
+            $missing[] = 'silica gel packs';
+        }
+
+        if ($missing === []) {
+            return;
+        }
+
+        $this->recordAudit($clientId, 'order.blocked_missing_packing_materials', 'ecommerce', [
+            'missing_materials' => $missing,
+        ]);
+
+        throw new RuntimeException('This store cannot accept orders right now: '.implode(', ', $missing).' are unavailable.');
+    }
+
     /** @return array<int, array{item_id:int,warehouse_id:int,quantity:int}> */
     private function reserveInventory(int $clientId, string $orderId, iterable $items): array
     {

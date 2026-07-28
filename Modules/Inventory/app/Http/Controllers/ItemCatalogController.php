@@ -249,7 +249,15 @@ class ItemCatalogController extends Controller
     public function destroyPackingMaterial($id)
     {
         $material = OrderFulfillment::findOrFail($id);
+        $materialName = (string) $material->name;
         $material->delete();
+
+        app(ErpIntegrationService::class)->recordAudit(
+            (int) session('employee_client_id'),
+            'inventory.packing_material_deleted',
+            'inventory',
+            ['packing_material_id' => (int) $id, 'name' => $materialName]
+        );
 
         return redirect()->route('inventory.item-catalog')->with('success', 'Packing material deleted.');
     }

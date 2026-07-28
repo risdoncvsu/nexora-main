@@ -32,9 +32,13 @@ class ManufacturingAccess
         }
 
         if ($request->isMethod('get')) {
-            EmployeePermissionGate::abortUnlessAllowed(
-                'You do not have permission to view Manufacturing reports.',
-                'manufacturing.view_reports'
+            // The dashboard is the module entry point, not a reports-only
+            // screen. Any explicitly assigned Manufacturing permission opens
+            // it; individual mutations are still checked below.
+            abort_unless(
+                EmployeePermissionGate::allowsModule('manufacturing'),
+                403,
+                'You do not have a Manufacturing permission assigned.'
             );
         } else {
             $permission = $request->routeIs('manufacturing.update-qc', 'manufacturing.add-qc-note')

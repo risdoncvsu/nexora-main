@@ -33,4 +33,23 @@ class EmployeePermissionGate
     {
         abort_unless(self::allows(...$permissions), 403, $message);
     }
+
+    public static function allowsModule(string $module): bool
+    {
+        $profile = EmployeeAccessProfile::query()
+            ->where('company_id', (int) session('employee_client_id'))
+            ->where('employee_id', (int) session('employee_id'))
+            ->first();
+
+        if (! $profile) {
+            return true;
+        }
+
+        $assigned = $profile->access_permissions ?? [];
+        $assigned = is_array($assigned) ? $assigned : (json_decode((string) $assigned, true) ?: []);
+
+        return collect($assigned)->contains(
+            fn (mixed $permission): bool => str_starts_with((string) $permission, $module . '.')
+        );
+    }
 }

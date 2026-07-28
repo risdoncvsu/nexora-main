@@ -79,114 +79,16 @@ class PackingController extends Controller
     }
 
     /**
-     * Older Inventory installations recorded packing supplies as ordinary
-     * catalog items. Packing consumes the dedicated packing_materials table,
-     * so keep the recognized packaging rows available to the packing flow.
+     * Retained as a compatibility hook for older callers. Packing materials
+     * are no longer inferred from catalog items because an explicit delete
+     * must remain deleted across every module.
      */
     private function syncCatalogPackingMaterials(): void
     {
-        $schema = Schema::connection(self::INVENTORY_CONN);
-        $clientId = (int) session('employee_client_id');
-
-        if ($clientId < 1 || ! $schema->hasTable('packing_materials') || ! $schema->hasTable('items')) {
-            return;
-        }
-
-        $inventory = DB::connection(self::INVENTORY_CONN);
-        $hasStockLevels = $schema->hasTable('stock_levels');
-        $boxItems = $inventory->table('items')
-            ->leftJoin('categories', 'categories.id', '=', 'items.category_id')
-            ->where('items.client_id', $clientId)
-            ->where(function ($query): void {
-                $query->whereRaw("LOWER(items.name) LIKE '%box%'")
-                    ->orWhereRaw("LOWER(items.name) LIKE '%carton%'")
-                    ->orWhereRaw("LOWER(items.name) LIKE '%package%'")
-                    ->orWhereRaw("LOWER(items.name) LIKE '%foam%insert%'")
-                    ->orWhereRaw("LOWER(items.name) LIKE '%silica%gel%'")
-                    ->orWhereRaw("LOWER(items.name) IN ('gel', 'gels')")
-                    ->orWhereRaw("LOWER(items.name) LIKE '%packing%tape%'")
-                    ->orWhereRaw("LOWER(items.name) LIKE '%bubble%wrap%'")
-                    ->orWhereRaw("LOWER(items.name) LIKE '%fragile%tape%'")
-                    ->orWhereRaw("LOWER(categories.name) LIKE '%box%'")
-                    ->orWhereRaw("LOWER(categories.name) LIKE '%carton%'");
-            })
-            ->select('items.id', 'items.name', 'categories.name as category_name')
-            ->distinct()
-            ->get();
-
-        $catalogMaterials = [];
-        foreach ($boxItems as $item) {
-            $name = trim((string) $item->name);
-            if ($name === '') {
-                continue;
-            }
-
-            $normalized = strtolower($name);
-            $category = strtolower((string) $item->category_name);
-            $isBox = str_contains($normalized, 'box')
-                || str_contains($normalized, 'carton')
-                || str_contains($normalized, 'package')
-                || str_contains($category, 'box')
-                || str_contains($category, 'carton');
-            $packingName = match (true) {
-                str_contains($normalized, 'foam') && str_contains($normalized, 'insert') => 'Foam Inserts',
-                (bool) preg_match('/\b(?:silica\s*)?gels?\b/', $normalized) => 'Silica Gel Packs',
-                str_contains($normalized, 'packing') && str_contains($normalized, 'tape') => 'Packing Tape',
-                str_contains($normalized, 'bubble') && str_contains($normalized, 'wrap') => 'Bubble Wrap',
-                str_contains($normalized, 'fragile') && str_contains($normalized, 'tape') => 'Fragile Tape',
-                default => $name,
-            };
-            $size = str_contains($normalized, 'small') ? 'Small'
-                : (str_contains($normalized, 'medium') ? 'Medium'
-                    : (str_contains($normalized, 'large') ? 'Large' : 'Standard'));
-            $availableStock = $hasStockLevels
-                ? (int) $inventory->table('stock_levels')
-                    ->where('client_id', $clientId)
-                    ->where('item_id', $item->id)
-                    ->sum(DB::raw('stock - reserved_quantity'))
-                : 0;
-
-            if (! isset($catalogMaterials[$packingName])) {
-                $catalogMaterials[$packingName] = [
-                    'stock_qty' => 0,
-                    'is_box' => $isBox,
-                    'box_size' => $isBox ? $size : null,
-                ];
-            }
-
-            $catalogMaterials[$packingName]['stock_qty'] += max(0, $availableStock);
-        }
-
-        foreach ($catalogMaterials as $packingName => $material) {
-            $existingMaterial = $this->packingMaterialQuery()
-                ->whereRaw('LOWER(name) = LOWER(?)', [$packingName])
-                ->first();
-
-            if ($existingMaterial) {
-                $changes = [];
-                if ($material['is_box']) {
-                    $changes['is_box'] = true;
-                    $changes['box_size'] = $existingMaterial->box_size ?: $material['box_size'];
-                }
-
-                if ($changes) {
-                    $changes['updated_at'] = now();
-                    $inventory->table('packing_materials')->where('id', $existingMaterial->id)->update($changes);
-                }
-                continue;
-            }
-
-            $inventory->table('packing_materials')->insert([
-                'client_id' => $clientId,
-                'name' => $packingName,
-                'stock_qty' => $material['stock_qty'],
-                'low_stock_threshold' => 5,
-                'is_box' => $material['is_box'],
-                'box_size' => $material['box_size'],
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-        }
+        // Packing materials are explicit Inventory records.  Recreating them
+        // from loosely matched catalog items made a delete look successful,
+        // then silently brought the box back on the next packing request.
+        // A legacy import must now be performed deliberately, not at runtime.
     }
 
     public function index()

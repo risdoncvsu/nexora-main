@@ -2,6 +2,8 @@
 
 namespace Modules\Manufacturing\Http\Middleware;
 
+use App\Models\EmployeeAccessProfile;
+use App\Support\EmployeePermissionGate;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -17,6 +19,21 @@ class ManufacturingBomAccess
         $user = $request->user('web');
 
         if (config('nexora.root_admin_module_testing') && $user?->role === 'root_admin') {
+            return $next($request);
+        }
+
+        $profileExists = EmployeeAccessProfile::query()
+            ->where('company_id', (int) session('employee_client_id'))
+            ->where('employee_id', (int) session('employee_id'))
+            ->exists();
+
+        if ($profileExists) {
+            abort_unless(
+                EmployeePermissionGate::allows('manufacturing.manage_work_orders'),
+                403,
+                'You do not have permission to manage Bills of Materials.'
+            );
+
             return $next($request);
         }
 
