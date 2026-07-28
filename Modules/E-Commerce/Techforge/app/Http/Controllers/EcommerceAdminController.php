@@ -164,10 +164,7 @@ class EcommerceAdminController extends Controller
 
     public function logout(Request $request): RedirectResponse
     {
-        Auth::guard('ecommerce_admin')->logout();
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
-        return redirect()->route('ecommerce.admin.login');
+        return app(\App\Http\Controllers\AuthController::class)->logout($request);
     }
 
     private function boms()

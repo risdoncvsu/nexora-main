@@ -1,7 +1,7 @@
 @php
 
 $selectedIndex = (int) request()->get('order', 0);
-$selectedOrder = $workOrders[$selectedIndex] ?? $workOrders[0];
+$selectedOrder = $workOrders[$selectedIndex] ?? ($workOrders[0] ?? null);
 
 @endphp
 
@@ -84,7 +84,7 @@ $selectedOrder = $workOrders[$selectedIndex] ?? $workOrders[0];
     {{-- RIGHT PANEL --}}
     <div class="flex-1 h-full bg-nexora-slate-200 border border-nexora-corporate/50 rounded-xl overflow-y-auto [&::-webkit-scrollbar]:hidden text-nexora-deep-navy">
 
-    @foreach($workOrders as $i => $order)
+    @forelse($workOrders as $i => $order)
         @php
             $selStyle      = $statusStyles[$order['status']] ?? ['pill' => 'bg-gray-300 text-gray-800'];
             $Total        = count($order['parts']);
@@ -153,7 +153,11 @@ $selectedOrder = $workOrders[$selectedIndex] ?? $workOrders[0];
             </div>
 
         </div>
-    @endforeach
+    @empty
+        <div class="p-6 text-sm text-nexora-navy">
+            No work orders are available for this client yet.
+        </div>
+    @endforelse
     <script>
     const workOrdersData = @json($workOrders);
     </script>

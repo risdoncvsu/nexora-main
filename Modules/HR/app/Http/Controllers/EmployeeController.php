@@ -6,6 +6,7 @@ use Modules\HR\Http\Controllers\Concerns\ResolvesPerPage;
 use Modules\HR\Http\Controllers\Concerns\RespondsWithAjaxList;
 use Modules\HR\Models\Employee;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\File;
 use Illuminate\Validation\Rule;
 use App\Services\ErpIntegrationService;
 
@@ -85,6 +86,7 @@ class EmployeeController extends Controller
 $imageName = null;
 
 if ($request->hasFile('profile_picture')) {
+    File::ensureDirectoryExists(public_path('profile_pictures'));
     $imageName = time() . '.' . $request->file('profile_picture')->extension();
     $request->file('profile_picture')->move(public_path('profile_pictures'), $imageName);
 }
@@ -143,6 +145,18 @@ public function update(Request $request, Employee $employee)
         'email'          => $request->email,
         'phone'          => $request->phone,
     ];
+
+    if ($request->hasFile('profile_picture')) {
+        File::ensureDirectoryExists(public_path('profile_pictures'));
+        $imageName = uniqid('employee_', true).'.'.$request->file('profile_picture')->extension();
+        $request->file('profile_picture')->move(public_path('profile_pictures'), $imageName);
+
+        if ($employee->profile_picture && file_exists(public_path('profile_pictures/'.$employee->profile_picture))) {
+            unlink(public_path('profile_pictures/'.$employee->profile_picture));
+        }
+
+        $data['profile_picture'] = $imageName;
+    }
 
     $employee->update($data);
 

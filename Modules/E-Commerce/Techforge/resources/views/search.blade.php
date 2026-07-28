@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+@php($store = request()->route('store'))
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="scroll-smooth">
 <head>
     <meta charset="utf-8">
@@ -102,19 +103,19 @@
     <!-- Category Tabs -->
     <div class="max-w-[1500px] mx-auto px-6 lg:px-8 relative z-10 mb-8 overflow-x-auto">
         <div class="flex items-center justify-center gap-4 border-b border-white/10 pb-4 min-w-max">
-            <a href="{{ route('ecommerce.search', ['q' => $query, 'tab' => 'prebuilt']) }}" class="tab-link flex items-center gap-2 px-4 py-2 rounded-xl transition-all {{ $tab === 'prebuilt' ? 'bg-primary text-white font-bold' : 'text-gray-400 hover:text-white hover:bg-white/5' }}">
+            <a href="{{ route('ecommerce.search', ['store' => $store, 'q' => $query, 'tab' => 'prebuilt']) }}" class="tab-link flex items-center gap-2 px-4 py-2 rounded-xl transition-all {{ $tab === 'prebuilt' ? 'bg-primary text-white font-bold' : 'text-gray-400 hover:text-white hover:bg-white/5' }}">
                 Prebuilt PCs
                 <span class="text-xs py-0.5 px-2 rounded-md {{ $tab === 'prebuilt' ? 'bg-black/30 text-white' : 'bg-white/10 text-gray-400' }}">{{ $prebuiltCount }}</span>
             </a>
-            <a href="{{ route('ecommerce.search', ['q' => $query, 'tab' => 'custom']) }}" class="tab-link flex items-center gap-2 px-4 py-2 rounded-xl transition-all {{ $tab === 'custom' ? 'bg-primary text-white font-bold' : 'text-gray-400 hover:text-white hover:bg-white/5' }}">
+            <a href="{{ route('ecommerce.search', ['store' => $store, 'q' => $query, 'tab' => 'custom']) }}" class="tab-link flex items-center gap-2 px-4 py-2 rounded-xl transition-all {{ $tab === 'custom' ? 'bg-primary text-white font-bold' : 'text-gray-400 hover:text-white hover:bg-white/5' }}">
                 Custom PCs
                 <span class="text-xs py-0.5 px-2 rounded-md {{ $tab === 'custom' ? 'bg-black/30 text-white' : 'bg-white/10 text-gray-400' }}">{{ $customCount }}</span>
             </a>
-            <a href="{{ route('ecommerce.search', ['q' => $query, 'tab' => 'laptops']) }}" class="tab-link flex items-center gap-2 px-4 py-2 rounded-xl transition-all {{ $tab === 'laptops' ? 'bg-primary text-white font-bold' : 'text-gray-400 hover:text-white hover:bg-white/5' }}">
+            <a href="{{ route('ecommerce.search', ['store' => $store, 'q' => $query, 'tab' => 'laptops']) }}" class="tab-link flex items-center gap-2 px-4 py-2 rounded-xl transition-all {{ $tab === 'laptops' ? 'bg-primary text-white font-bold' : 'text-gray-400 hover:text-white hover:bg-white/5' }}">
                 Gaming Laptops
                 <span class="text-xs py-0.5 px-2 rounded-md {{ $tab === 'laptops' ? 'bg-black/30 text-white' : 'bg-white/10 text-gray-400' }}">{{ $laptopCount }}</span>
             </a>
-            <a href="{{ route('ecommerce.search', ['q' => $query, 'tab' => 'parts']) }}" class="tab-link flex items-center gap-2 px-4 py-2 rounded-xl transition-all {{ $tab === 'parts' ? 'bg-primary text-white font-bold' : 'text-gray-400 hover:text-white hover:bg-white/5' }}">
+            <a href="{{ route('ecommerce.search', ['store' => $store, 'q' => $query, 'tab' => 'parts']) }}" class="tab-link flex items-center gap-2 px-4 py-2 rounded-xl transition-all {{ $tab === 'parts' ? 'bg-primary text-white font-bold' : 'text-gray-400 hover:text-white hover:bg-white/5' }}">
                 Parts & Accessories
                 <span class="text-xs py-0.5 px-2 rounded-md {{ $tab === 'parts' ? 'bg-black/30 text-white' : 'bg-white/10 text-gray-400' }}">{{ $partsCount }}</span>
             </a>
@@ -122,7 +123,7 @@
     </div>
 
     <!-- Category Content -->
-    <form id="filter-form" method="GET" action="{{ route('ecommerce.search') }}" class="max-w-[1500px] mx-auto px-6 lg:px-8 pb-24 relative z-10 flex flex-col lg:flex-row gap-8">
+    <form id="filter-form" method="GET" action="{{ route('ecommerce.search', ['store' => $store]) }}" class="max-w-[1500px] mx-auto px-6 lg:px-8 pb-24 relative z-10 flex flex-col lg:flex-row gap-8">
         
         <!-- Preserve Query and Tab in Form -->
         <input type="hidden" name="q" value="{{ $query }}">

@@ -67,6 +67,21 @@ class AuthController extends Controller
         return back()->withErrors(['username' => $hrLogin['message']]);
     }
 
+    /** End the shared ERP session from any module. */
+    public function logout(Request $request)
+    {
+        Auth::logout();
+
+        if (Auth::guard('ecommerce_admin')->check()) {
+            Auth::guard('ecommerce_admin')->logout();
+        }
+
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return redirect()->route('login');
+    }
+
     public function showHrFirstLoginPassword()
     {
         abort_unless(session('hr_password_change_employee_id'), 403);

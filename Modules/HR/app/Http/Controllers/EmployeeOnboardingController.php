@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Modules\HR\Models\Employee;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\File;
 use Illuminate\Validation\Rule;
 
 class EmployeeOnboardingController extends Controller
@@ -44,6 +45,7 @@ class EmployeeOnboardingController extends Controller
     $data = $request->except('profile_picture');
 
     if ($request->hasFile('profile_picture')) {
+        File::ensureDirectoryExists(public_path('profile_pictures'));
         $imageName = time() . '.' . $request->file('profile_picture')->extension();
         $request->file('profile_picture')->move(public_path('profile_pictures'), $imageName);
 

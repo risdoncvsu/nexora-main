@@ -310,7 +310,7 @@
 
         <hr>
                                     <!--USE POST INSTEAD OF GET FOR SECURITY????-->
-        <form action="" method="GET">
+        <form action="{{ route('logout') }}" method="POST">
             @csrf
             <button type="submit">Log Out</button>
         </form>

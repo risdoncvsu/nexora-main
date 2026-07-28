@@ -2,6 +2,7 @@
 
 namespace Modules\HR\Http\Controllers;
 
+use App\Models\EmployeeAccessProfile;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -100,7 +101,7 @@ class LeaveRequestController extends Controller
 
     public function index(Request $request)
     {
-        $this->ensureHrManager();
+        $this->ensureHrPermission('hr.manage_leave_requests');
 
         $leaveRequests = LeaveRequest::query()
             ->with('employee')
@@ -123,7 +124,7 @@ class LeaveRequestController extends Controller
 
     public function show(LeaveRequest $leaveRequest)
     {
-        $this->ensureHrManager();
+        $this->ensureHrPermission('hr.manage_leave_requests');
 
         $leaveRequest->load('employee');
 
@@ -136,7 +137,7 @@ class LeaveRequestController extends Controller
 
     public function review(Request $request, LeaveRequest $leaveRequest)
     {
-        $this->ensureHrManager();
+        $this->ensureHrPermission('hr.approve_leave');
 
         $validated = $request->validate([
             'action' => ['required', Rule::in(['approve', 'reject'])],
@@ -167,12 +168,22 @@ class LeaveRequestController extends Controller
         return $employeeId > 0 ? Employee::query()->find($employeeId) : null;
     }
 
-    private function ensureHrManager(): void
+    private function ensureHrPermission(string $permission): void
     {
-        abort_unless(
-            session('employee_role') === 'admin',
-            403,
-            'Only HR managers can review leave requests.'
-        );
+        if (session('employee_role') === 'admin') {
+            return;
+        }
+
+        $permissions = EmployeeAccessProfile::query()
+            ->where('company_id', (int) session('employee_client_id'))
+            ->where('employee_id', (int) session('employee_id'))
+            ->value('access_permissions') ?? [];
+
+        if (is_string($permissions)) {
+            $permissions = json_decode($permissions, true) ?: [];
+        }
+
+        abort_unless(in_array($permission, (array) $permissions, true), 403,
+            'You do not have permission to manage leave requests.');
     }
 }

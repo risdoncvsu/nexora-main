@@ -74,7 +74,7 @@
 
                     <div class="relative z-[5] w-[120px] h-[120px] mx-auto -mt-[5px] mb-[18px] rounded-full overflow-hidden border-[10px] border-[#0B1E3D] shadow-[0_10px_25px_rgba(0,0,0,.35)]">
                         @if($employee->profile_picture)
-                            <img src="{{ asset('profile_pictures/'.$employee->profile_picture) }}"
+                            <img src="{{ route('hr.profile-picture', ['filename' => basename($employee->profile_picture)]) }}"
                                  class="w-[110px] h-[110px] object-cover"
                                  alt="Employee Picture">
                         @else
@@ -197,7 +197,7 @@
     <div class="relative w-[100px] h-[100px] rounded-full bg-[#7FB3FF] flex justify-center items-center overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,.35)]">
 
     <img id="editProfilePreview"
-         src="{{ $employee->profile_picture ? asset('profile_pictures/'.$employee->profile_picture) : '' }}"
+         src="{{ $employee->profile_picture ? route('hr.profile-picture', ['filename' => basename($employee->profile_picture)]) : '' }}"
          alt="Profile"
          class="w-full h-full object-cover rounded-full {{ $employee->profile_picture ? '' : 'hidden' }}">
 

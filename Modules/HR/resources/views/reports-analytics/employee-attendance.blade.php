@@ -34,7 +34,7 @@
       <!-- Employee Profile Card -->
       <div class="w-full h-[142px] flex items-center gap-4 rounded-[20px] bg-[#0B1E3D] px-12 border border-white/[0.05]">
         @if ($employee->profile_picture)
-          <img src="{{ asset('profile_pictures/'.$employee->profile_picture) }}" alt="{{ $fullName }}" class="h-14 w-14 shrink-0 rounded-full object-cover" />
+          <img src="{{ route('hr.profile-picture', ['filename' => basename($employee->profile_picture)]) }}" alt="{{ $fullName }}" class="h-14 w-14 shrink-0 rounded-full object-cover" />
         @else
           <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-sky-500/20">
             <i class="fa-solid fa-user text-xl text-sky-300"></i>
@@ -175,4 +175,3 @@
 
   </body>
   </html>
-

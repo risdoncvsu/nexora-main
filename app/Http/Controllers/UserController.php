@@ -44,13 +44,27 @@ class UserController extends Controller
 
     private const DEPARTMENT_PERMISSION_MODULES = [
         'human resources' => 'hr',
+        'hr' => 'hr',
+        'human resource' => 'hr',
         'inventory management' => 'inventory',
+        'inventory' => 'inventory',
         'procurement management' => 'procurement',
+        'procurement' => 'procurement',
         'order management' => 'order_fulfillment',
+        'order fulfillment' => 'order_fulfillment',
+        'order fulfillment & operations' => 'order_fulfillment',
         'production management' => 'manufacturing',
+        'manufacturing' => 'manufacturing',
+        'production' => 'manufacturing',
         'finance' => 'finance',
+        'finance and accounting' => 'finance',
+        'finance & accounting' => 'finance',
         'e-commerce' => 'ecommerce',
+        'ecommerce' => 'ecommerce',
+        'e-commerce and crm' => 'ecommerce',
         'business intelligence' => 'bi',
+        'business intelligence and analytics' => 'bi',
+        'bi' => 'bi',
     ];
     public function __construct(
         private readonly HrEmployeeProfileProvisioner $hrEmployeeProfileProvisioner,

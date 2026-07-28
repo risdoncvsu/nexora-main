@@ -84,7 +84,6 @@
         {{-- Logo --}}
         <div class="flex items-center gap-1">
             <img src="{{ asset('manufacturing/images/Banner Transparent.png') }}" alt="Application Logo" class="w-56">
-            <img src="{{ asset('manufacturing/images/techforge.png') }}" alt="Application Logo" class="w-20">
         </div>
 
         {{-- Nav Links --}}

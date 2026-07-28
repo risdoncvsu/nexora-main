@@ -34,9 +34,9 @@
             <img src="{{ asset('bi/images/Banner Transparent.png') }}" alt="Nexora Logo">
         </a>
         <div class="header-right">
-            <div class="header-profile-wrap" id="headerProfileWrap">
-                <button class="header-profile-btn" id="headerProfileBtn">
-                    <i data-lucide="user" class="profile-icon"></i>
+            <div class="header-profile-wrap" id="headerNotificationWrap">
+                <button type="button" class="header-profile-btn" id="headerNotificationBtn" aria-label="Open notifications">
+                    <i data-lucide="bell" class="profile-icon"></i>
                     <span class="notification-badge" id="notificationBadge">0</span>
                 </button>
                 <div class="notification-dropdown" id="notificationDropdown">
@@ -48,6 +48,19 @@
                         <p style="text-align:center;color:var(--slate-500);padding:2rem;font-size:11px;">Loading
                             notifications…</p>
                     </div>
+                </div>
+            </div>
+            <div class="header-profile-wrap" id="headerProfileWrap">
+                <button type="button" class="header-profile-btn" id="headerProfileBtn" aria-label="Open profile menu">
+                    <i data-lucide="user" class="profile-icon"></i>
+                </button>
+                <div class="profile-dropdown" id="profileDropdown">
+                    <p class="profile-dropdown-name">{{ session('employee_name', 'Employee') }}</p>
+                    <p class="profile-dropdown-role">{{ session('employee_department', 'Nexora ERP') }}</p>
+                    <form method="POST" action="{{ route('logout') }}">
+                        @csrf
+                        <button type="submit" class="profile-logout-button">Log out</button>
+                    </form>
                 </div>
             </div>
         </div>
@@ -198,15 +211,28 @@
 
             const profileBtn = document.getElementById('headerProfileBtn');
             const profileWrap = document.getElementById('headerProfileWrap');
+            const profileDropdown = document.getElementById('profileDropdown');
+            const notificationBtn = document.getElementById('headerNotificationBtn');
+            const notificationWrap = document.getElementById('headerNotificationWrap');
             const dropdown = document.getElementById('notificationDropdown');
 
             profileBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
+                profileDropdown.classList.toggle('active');
+                dropdown.classList.remove('active');
+            });
+
+            notificationBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
                 dropdown.classList.toggle('active');
+                profileDropdown.classList.remove('active');
             });
 
             document.addEventListener('click', (e) => {
                 if (!profileWrap.contains(e.target)) {
+                    profileDropdown.classList.remove('active');
+                }
+                if (!notificationWrap.contains(e.target)) {
                     dropdown.classList.remove('active');
                 }
             });

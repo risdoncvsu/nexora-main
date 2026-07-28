@@ -18,6 +18,6 @@ class FinanceServiceProvider extends ServiceProvider
     {
         $this->loadViewsFrom(__DIR__.'/../../resources/views', 'finance');
 
-        Route::middleware('web')->prefix('finance')->group(__DIR__.'/../../routes/web.php');
+        Route::middleware(['web', 'finance.access'])->prefix('finance')->group(__DIR__.'/../../routes/web.php');
     }
 }

@@ -33,6 +33,8 @@
     $mega_laptop_url = $navbar['mega_laptop_url'] ?? '#laptops';
     $nav_pc_forge_enabled = $navbar['nav_pc_forge_enabled'] ?? true;
     $links = $navbar['links'] ?? [];
+    $ecommerceUser = \Illuminate\Support\Facades\Auth::guard('ecommerce')->user();
+    $profileLabel = $ecommerceUser?->name ?: $ecommerceUser?->email ?: 'My account';
 @endphp
 
     @if ($announcement_enabled)
@@ -99,22 +101,22 @@
             <!-- Sign In -->
             @auth('ecommerce')
             <div class="hidden lg:flex items-center gap-4 relative group/user py-2">
-                <div class="flex items-center gap-2 cursor-pointer">
-                    <i class="ph ph-user text-xl text-primary transition-colors"></i>
+                <button type="button" class="flex items-center gap-2 rounded-xl px-2 py-1 text-left transition hover:bg-white/5 focus:outline-none focus:ring-2 focus:ring-primary/60">
+                    <span class="flex h-9 w-9 items-center justify-center rounded-xl border border-primary/30 bg-primary/10">
+                        <i class="ph ph-user text-xl text-primary transition-colors"></i>
+                    </span>
                     <div class="flex flex-col text-left">
-                        <span class="text-[10px] text-gray-400 leading-tight">Welcome</span>
-                        <span class="text-sm font-bold text-white leading-tight">{{ Auth::guard('ecommerce')->user()->name }}</span>
+                        <span class="text-[10px] text-gray-400 leading-tight">Signed in</span>
+                        <span class="max-w-32 truncate text-sm font-bold text-white leading-tight">{{ $profileLabel }}</span>
                     </div>
-                </div>
+                    <i class="ph ph-caret-down text-xs text-gray-500"></i>
+                </button>
 
                 <!-- Dropdown Menu -->
-                <div class="opacity-0 pointer-events-none scale-95 group-hover/user:opacity-100 group-hover/user:pointer-events-auto group-hover/user:scale-100 transition-all duration-300 origin-top-right absolute top-full right-0 mt-0 w-56 bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl py-2 z-50">
+                <div class="opacity-0 pointer-events-none scale-95 group-hover/user:opacity-100 group-hover/user:pointer-events-auto group-hover/user:scale-100 group-focus-within/user:opacity-100 group-focus-within/user:pointer-events-auto group-focus-within/user:scale-100 transition-all duration-300 origin-top-right absolute top-full right-0 mt-0 w-64 bg-[#171717]/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl py-2 z-50">
                     <div class="px-4 py-3 border-b border-white/10 mb-2 bg-white/5 mx-2 rounded-lg">
-                        <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-0.5">FORGE Points</p>
-                        <div class="flex items-end gap-2">
-                            <p class="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-primary to-[#ff8c33]">0</p>
-                            <p class="text-[10px] font-normal text-gray-500 mb-1 pb-0.5">(For now)</p>
-                        </div>
+                        <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-0.5">Account</p>
+                        <p class="truncate text-sm font-semibold text-white">{{ $profileLabel }}</p>
                     </div>
                     <a href="{{ route('ecommerce.account.profile', ['store' => $store]) }}" class="flex items-center gap-3 px-5 py-2.5 text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-colors">
                         <i class="ph ph-user-circle text-lg text-gray-400"></i> My Account

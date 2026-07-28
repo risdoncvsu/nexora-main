@@ -117,15 +117,28 @@ class ProcurementServiceProvider extends ServiceProvider
             try {
                 $requisitionConnection = $this->resolveRequisitionConnection();
                 if ($requisitionConnection && $requisitionConnection->getSchemaBuilder()->hasTable('requisitions')) {
-                    if ($requisitionConnection->getSchemaBuilder()->hasColumn('requisitions', 'status')) {
-                        $requisitionCount = $requisitionConnection->table('requisitions')
+                    $requisitionSchema = $requisitionConnection->getSchemaBuilder();
+                    $requisitionQuery = $requisitionConnection->table('requisitions');
+
+                    // Requisitions are shared integration data, so never show
+                    // another client's pending work in this client's sidebar.
+                    // Older source tables without client_id cannot be safely
+                    // attributed, therefore they must not produce a badge.
+                    if (! $clientId || ! $requisitionSchema->hasColumn('requisitions', 'client_id')) {
+                        $requisitionQuery->whereRaw('1 = 0');
+                    } else {
+                        $requisitionQuery->where('client_id', $clientId);
+                    }
+
+                    if ($requisitionSchema->hasColumn('requisitions', 'status')) {
+                        $requisitionCount = $requisitionQuery
                             ->where(function ($query) {
                                 $query->where('status', 'Pending')
                                     ->orWhere('status', 'pending');
                             })
                             ->count();
                     } else {
-                        $requisitionCount = $requisitionConnection->table('requisitions')->count();
+                        $requisitionCount = $requisitionQuery->count();
                     }
                 }
             } catch (\Exception $e) {

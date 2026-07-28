@@ -258,7 +258,7 @@ function getFiltered(){
     if (!state.includeInactive && a.inactive) return false;
     if (state.filterType !== "All" && a.type !== state.filterType) return false;
     const q = state.search.toLowerCase();
-    if (q && !(a.name.toLowerCase().includes(q) || a.number.toLowerCase().includes(q))) return false;
+    if (q && !(String(a.name || '').toLowerCase().includes(q) || String(a.number || '').toLowerCase().includes(q))) return false;
     return true;
   });
 }
@@ -471,7 +471,7 @@ async function saveAccount() {
         let method = "POST";
 
         if (editingAccountId !== null) {
-            url = `/finance/accounts/${editingAccountId}`;
+            url = "{{ route('finance.accounts.update', ['account' => '__ACCOUNT__']) }}".replace('__ACCOUNT__', editingAccountId);
             method = "PUT";
         }
 
@@ -546,7 +546,7 @@ async function deleteAccount(id) {
 
     try {
 
-        const response = await fetch(`/finance/accounts/${id}`, {
+        const response = await fetch("{{ route('finance.accounts.destroy', ['account' => '__ACCOUNT__']) }}".replace('__ACCOUNT__', id), {
             method: "DELETE",
             headers: {
                 "X-CSRF-TOKEN": "{{ csrf_token() }}",

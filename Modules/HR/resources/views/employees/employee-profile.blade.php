@@ -50,7 +50,7 @@
                         <div class="relative w-[100px] h-[100px] rounded-full bg-[#7FB3FF] flex justify-center items-center overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,.35)] cursor-not-allowed">
                             @if(!empty($employee->profile_picture))
                                 <img id="editProfilePreview"
-                                     src="{{ asset('profile_pictures/' . $employee->profile_picture) }}"
+                                     src="{{ route('hr.profile-picture', ['filename' => basename($employee->profile_picture)]) }}"
                                      alt="Profile"
                                      class="w-full h-full object-cover rounded-full">
                             @else

@@ -120,15 +120,19 @@
           </div>
           <div class="bg-[#0B1E3D] px-6 py-5 flex flex-col gap-3 flex-1">
             @forelse(($attachments ?? []) as $file)
+              @php
+                $attachmentPath = is_string($file) ? $file : ($file->path ?? $file->url ?? null);
+                $attachmentName = is_string($file) ? basename($file) : ($file->name ?? basename((string) $attachmentPath));
+                $attachmentUrl = $attachmentPath ? \Illuminate\Support\Facades\Storage::disk('public')->url($attachmentPath) : '#';
+              @endphp
               <div class="flex items-center justify-between bg-[#132a58]/60 hover:bg-[#16305f] transition-colors rounded-lg px-4 py-3">
                 <div class="flex items-center gap-3">
                   <div class="w-9 h-9 rounded bg-[#3b6fe0] flex items-center justify-center text-white text-[10px] font-bold">FILE</div>
                   <div>
-                    <p class="text-white text-[14px] font-medium">{{ $file->name }}</p>
-                    <p class="text-slate-400 text-[12px]">{{ $file->size ?? '' }}</p>
+                    <p class="text-white text-[14px] font-medium">{{ $attachmentName }}</p>
                   </div>
                 </div>
-                <a href="{{ $file->url ?? '#' }}" class="text-slate-300">Download</a>
+                <a href="{{ $attachmentUrl }}" target="_blank" rel="noopener" class="text-slate-300">Download</a>
               </div>
             @empty
               <div class="p-4 text-slate-400">No attachments</div>

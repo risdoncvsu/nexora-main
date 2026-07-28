@@ -22,7 +22,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->trustProxies(at: '*');
         $middleware->appendToGroup('web', \App\Http\Middleware\AuditModuleAction::class);
         $middleware->alias([
-            'hr.access' => \Modules\HR\Http\Middleware\EmployeeAuth::class,
+        'hr.access' => \Modules\HR\Http\Middleware\EmployeeAuth::class,
+        'hr.permission' => \Modules\HR\Http\Middleware\RequireHrPermission::class,
             'inventory.access' => \Modules\Inventory\Http\Middleware\InventoryAccess::class,
             'procurement.access' => \Modules\Procurement\Http\Middleware\ProcurementAccess::class,
             'order-fulfillment.access' => \Modules\OrderFulfillment\Http\Middleware\OrderFulfillmentAccess::class,

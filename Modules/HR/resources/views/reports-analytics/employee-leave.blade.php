@@ -47,7 +47,7 @@
     <div class="w-full px-6 py-8 flex flex-col gap-4">
 
         <!-- Form card: full width -->
-        <form method="POST" action="{{ route('hr.employee.leave.submit') }}" class="w-full bg-[#122f5c] rounded-2xl p-10">
+        <form method="POST" action="{{ route('hr.employee.leave.submit') }}" enctype="multipart/form-data" class="w-full bg-[#122f5c] rounded-2xl p-10">
             @csrf
 
             <!-- Leave Type -->

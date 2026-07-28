@@ -199,7 +199,10 @@
 
         <div data-ajax-list-results class="transition-opacity duration-200">
             @if(isset($leaveRequests))
-                @include('employee-management.partials.leave-requests-results')
+                {{-- The original partial was removed during the HR view update.
+                     Keep this page on the maintained leave-results partial so
+                     the manager's Leave Management tab can render normally. --}}
+                @include('reports-analytics.partials.leave-results')
             @else
                 @include('reports-analytics.partials.leave-results')
             @endif

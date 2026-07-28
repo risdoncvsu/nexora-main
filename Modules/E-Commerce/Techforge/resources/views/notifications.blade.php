@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+@php($store = request()->route('store'))
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="scroll-smooth">
 <head>
     <meta charset="UTF-8">
@@ -207,7 +208,7 @@
                         <p class="text-sm text-gray-300 leading-relaxed mb-3">Sign up for an account now to receive a 10% discount voucher on your first order. Don't miss out on upgrading your battle station for less.</p>
                         <div class="flex items-center justify-between mt-auto">
                             <span class="text-xs text-gray-500 font-medium">Just now</span>
-                            <a href="{{ route('ecommerce.login') }}" class="text-xs font-bold text-primary hover:text-white transition-colors flex items-center gap-1 group/link">
+                            <a href="{{ route('ecommerce.login', ['store' => $store]) }}" class="text-xs font-bold text-primary hover:text-white transition-colors flex items-center gap-1 group/link">
                                 Sign Up Now <i class="ph-bold ph-arrow-right group-hover/link:translate-x-1 transition-transform"></i>
                             </a>
                         </div>
