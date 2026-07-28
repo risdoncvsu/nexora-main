@@ -52,7 +52,7 @@
             color: #ffffff;
             min-height: 100vh;
             margin: 0;
-            font-family: 'Inter', -apple-system, sans-serif;
+            font-family: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
             -webkit-font-smoothing: antialiased;
         }
 
@@ -408,7 +408,7 @@
     <div class="nexora-header-wrapper">
         <x-itsm-header
             :home-route="$portal === 'admin' ? route('admin.itsm.registration') : route('client.itsm.employees')"
-            :active="$active"
+            :active="$portal === 'admin' ? 'clients' : $active"
             :nav-items="$navItems"
         />
     </div>

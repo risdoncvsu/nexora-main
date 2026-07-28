@@ -114,7 +114,7 @@
     <div class="flex min-h-screen flex-col">
         <x-itsm-header
             :home-route="$portal === 'admin' ? route('admin.itsm.registration') : route('client.itsm.employees')"
-            :active="$portal === 'client' && $active === 'pending-approvals' ? 'employees' : $active"
+            :active="$portal === 'admin' && in_array($active, ['pending-approvals', 'roles'], true) ? 'clients' : ($portal === 'client' && $active === 'pending-approvals' ? 'employees' : $active)"
             :nav-items="$navItems"
         />
 
