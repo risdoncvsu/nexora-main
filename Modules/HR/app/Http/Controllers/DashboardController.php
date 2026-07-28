@@ -19,7 +19,11 @@ class DashboardController extends Controller
             return redirect()->route('hr.employee.dashboard');
         }
 
-        $employeeCount = Employee::count();
+        // Employee already carries the HR client scope, but keep the dashboard
+        // explicitly tied to the signed-in company for clarity and safety.
+        $employeeCount = Employee::query()
+            ->where('client_id', $clientId)
+            ->count();
         $presentToday = Attendance::where('client_id', $clientId)
             ->whereDate('attendance_date', today())
             ->whereNotNull('time_in')
@@ -27,6 +31,25 @@ class DashboardController extends Controller
             ->count();
 
         $currentYear = today()->year;
+
+        $monthlyHireStats = Employee::query()
+            ->selectRaw('EXTRACT(MONTH FROM created_at)::int as month, COUNT(*) as hires')
+            ->where('client_id', $clientId)
+            ->whereYear('created_at', $currentYear)
+            ->groupBy('month')
+            ->get()
+            ->keyBy(fn ($item) => (int) $item->month);
+
+        // The final HR dashboard renders this series directly.  Keeping all
+        // twelve months also prevents an empty chart for newly created clients.
+        $monthlyHireTrend = collect(range(1, 12))->map(function ($month) use ($monthlyHireStats, $currentYear) {
+            return [
+                'month' => Carbon::create($currentYear, $month, 1)->format('M'),
+                'month_name' => Carbon::create($currentYear, $month, 1)->format('F'),
+                'hires' => (int) ($monthlyHireStats->get($month)?->hires ?? 0),
+            ];
+        });
+
         $monthStats = Attendance::selectRaw('EXTRACT(MONTH FROM attendance_date)::int as month, COUNT(*) as present_days')
             ->where('client_id', $clientId)
             ->whereYear('attendance_date', $currentYear)
@@ -78,6 +101,7 @@ class DashboardController extends Controller
         return view('dashboard.index', compact(
             'employeeCount',
             'presentToday',
+            'monthlyHireTrend',
             'monthlyAttendance',
             'currentMonth',
             'overallAttendanceRate',
