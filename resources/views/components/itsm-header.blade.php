@@ -4,13 +4,13 @@
     'active' => null,
 ])
 
-<header class="flex h-32 items-center justify-between bg-[#0B1E3D] pl-4 pr-12 shadow-lg">
-    <a href="{{ $homeRoute }}" class="block h-24 transition hover:scale-[1.02]">
+<header class="flex min-h-24 flex-col items-center justify-center gap-4 bg-[#0B1E3D] px-4 py-4 shadow-lg lg:h-32 lg:flex-row lg:justify-between lg:pl-4 lg:pr-12 lg:py-0">
+    <a href="{{ $homeRoute }}" class="block h-16 transition hover:scale-[1.02] sm:h-20 lg:h-24">
         <img src="{{ asset('images/Banner Transparent.png') }}" alt="Nexora Logo" class="h-full object-contain">
     </a>
 
-    <div class="flex items-center gap-16">
-        <nav class="flex items-center gap-8 text-base font-medium">
+    <div class="flex w-full flex-wrap items-center justify-center gap-4 sm:gap-6 lg:w-auto lg:flex-nowrap lg:justify-end lg:gap-16">
+        <nav class="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-sm font-medium sm:gap-x-6 sm:text-base lg:flex-nowrap lg:gap-8">
             @foreach ($navItems as $item)
                 @php
                     $isActive = $active === $item['key']

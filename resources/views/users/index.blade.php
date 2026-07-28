@@ -93,12 +93,12 @@
             :nav-items="$navItems"
         />
 
-        <main class="relative flex-1 overflow-hidden p-6">
+        <main class="relative flex-1 overflow-hidden p-4 sm:p-6">
             <img src="{{ asset('images/nexora-icon.png') }}" alt="" class="pointer-events-none absolute left-1/2 top-1/2 w-[64rem] -translate-x-1/2 -translate-y-1/2 opacity-10 blur-sm">
 
-            <div class="relative z-10 grid min-h-[calc(100vh-10rem)] grid-cols-[22rem_1fr] gap-6">
-                <aside class="rounded-[1.875rem] bg-white p-8 text-slate-950">
-                    <nav class="space-y-6 text-xl">
+            <div class="relative z-10 grid min-h-[calc(100vh-10rem)] grid-cols-1 gap-6 xl:grid-cols-[22rem_minmax(0,1fr)]">
+                <aside class="rounded-[1.875rem] bg-white p-5 text-slate-950 sm:p-8">
+                    <nav class="flex flex-wrap gap-x-6 gap-y-3 text-base sm:text-xl xl:block xl:space-y-6">
                         <a href="{{ $portal === 'admin' ? route('admin.itsm.clients') : route('client.itsm.employees') }}" class="block {{ $active === 'employees' || $active === 'clients' ? 'font-extrabold' : 'font-medium hover:text-[#346DCB]' }}">All {{ $portal === 'admin' ? ucfirst($entityLabelPlural) : 'Employees' }}</a>
                         @if ($portal === 'admin')
                             <a href="{{ route('admin.itsm.pending-approvals') }}" class="block font-medium hover:text-[#346DCB]">Pending Approvals</a>
@@ -114,13 +114,13 @@
                 </aside>
 
                 <section class="flex flex-col gap-6">
-                    <div class="flex items-center justify-between rounded-[1.875rem] bg-white/90 px-10 py-6 text-slate-950">
-                        <h1 class="text-5xl font-bold">{{ $title }}</h1>
+                    <div class="flex flex-col gap-4 rounded-[1.875rem] bg-white/90 px-5 py-5 text-slate-950 sm:px-8 sm:py-6 2xl:flex-row 2xl:items-center 2xl:justify-between">
+                        <h1 class="text-3xl font-bold sm:text-4xl xl:text-5xl">{{ $title }}</h1>
 
-                        <div class="flex items-center gap-6">
-                            <label class="flex items-center gap-3 rounded-full bg-slate-200 px-6 py-3 text-2xl text-slate-500">
+                        <div class="flex flex-wrap items-center gap-3 sm:gap-4">
+                            <label class="flex min-w-0 flex-1 items-center gap-3 rounded-full bg-slate-200 px-4 py-3 text-base text-slate-500 sm:flex-none sm:px-6 sm:text-xl">
                                 <span>Search</span>
-                                <input type="text" id="tableSearch" class="w-48 border-0 bg-transparent text-xl text-slate-900 outline-none">
+                                <input type="search" id="tableSearch" aria-label="Search {{ $entityLabelPlural }}" placeholder="Search {{ $entityLabelPlural }}" class="min-w-0 flex-1 border-0 bg-transparent text-base text-slate-900 outline-none sm:w-48 sm:flex-none sm:text-xl">
                             </label>
 
                             
@@ -168,7 +168,7 @@
                             </div>
                         @endif
 
-                        <div class="mb-6 flex items-center justify-between">
+                        <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <h2 class="text-xl font-semibold">{{ $active === 'pending-approvals' ? ($portal === 'admin' ? 'Client accounts awaiting root review' : 'Employee accounts awaiting your approval') : 'All ' . $entityLabelPlural }}</h2>
                             @if ($portal === 'admin' && $active !== 'pending-approvals')
                                 <label class="flex items-center gap-2 text-base">
