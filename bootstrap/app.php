@@ -9,9 +9,13 @@ use Illuminate\Support\Facades\Route;
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         using: function () {
+            // Ecommerce module routes FIRST so subdomain routes ({store}.localhost:8000/*)
+            // are registered before the main app's root-level routes. Otherwise the
+            // main app's `/` and `/login` routes match first for every request,
+            // including storefront subdomain requests like techforge.localhost:8000/.
             Route::middleware('web')
                 ->group(__DIR__.'/../Modules/E-Commerce/Store/routes/web.php');
-            
+
             Route::middleware('web')
                 ->group(__DIR__.'/../routes/web.php');
         },

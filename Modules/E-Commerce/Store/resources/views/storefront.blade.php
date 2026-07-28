@@ -14,9 +14,18 @@
     $storefrontVisitKey = 'storefront_visited_'.($storefrontCompany?->ecommerce_slug ?: 'store');
 
     $primaryHex = $layout['primary_color'] ?? '#ff6b00';
-    $primaryR = hexdec(substr($primaryHex, 1, 2));
-    $primaryG = hexdec(substr($primaryHex, 3, 2));
-    $primaryB = hexdec(substr($primaryHex, 5, 2));
+    $primaryClean = ltrim($primaryHex, '#');
+    if (strlen($primaryClean) === 3) $primaryClean = $primaryClean[0].$primaryClean[0].$primaryClean[1].$primaryClean[1].$primaryClean[2].$primaryClean[2];
+    $primaryR = hexdec(substr($primaryClean, 0, 2));
+    $primaryG = hexdec(substr($primaryClean, 2, 2));
+    $primaryB = hexdec(substr($primaryClean, 4, 2));
+
+    $accentHex = $layout['accent_color'] ?? '#f59e0b';
+    $accentClean = ltrim($accentHex, '#');
+    if (strlen($accentClean) === 3) $accentClean = $accentClean[0].$accentClean[0].$accentClean[1].$accentClean[1].$accentClean[2].$accentClean[2];
+    $accentR = hexdec(substr($accentClean, 0, 2));
+    $accentG = hexdec(substr($accentClean, 2, 2));
+    $accentB = hexdec(substr($accentClean, 4, 2));
 @endphp
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="scroll-smooth">
@@ -55,6 +64,34 @@
 
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style id="dynamic-theme-vars">
+        :root {
+            --theme-primary: {{ $primaryHex }};
+            --theme-primary-rgb: {{ $primaryR }}, {{ $primaryG }}, {{ $primaryB }};
+            --theme-accent: {{ $accentHex }};
+            --theme-accent-rgb: {{ $accentR }}, {{ $accentG }}, {{ $accentB }};
+        }
+        .text-primary { color: var(--theme-primary) !important; }
+        .bg-primary { background-color: var(--theme-primary) !important; }
+        .border-primary { border-color: var(--theme-primary) !important; }
+        .text-accent { color: var(--theme-accent) !important; }
+        .bg-accent { background-color: var(--theme-accent) !important; }
+        .border-accent { border-color: var(--theme-accent) !important; }
+
+        .shadow-glow { box-shadow: 0 0 20px rgba(var(--theme-primary-rgb), 0.5) !important; }
+        .shadow-glow-lg { box-shadow: 0 0 30px rgba(var(--theme-primary-rgb), 0.35) !important; }
+        .shadow-glow-sm { box-shadow: 0 0 10px rgba(var(--theme-primary-rgb), 0.4) !important; }
+        .drop-shadow-glow { filter: drop-shadow(0 0 15px rgba(var(--theme-primary-rgb), 0.5)) !important; }
+        .drop-shadow-glow-lg { filter: drop-shadow(0 0 25px rgba(var(--theme-primary-rgb), 0.6)) !important; }
+        .drop-shadow-glow-sm { filter: drop-shadow(0 0 10px rgba(var(--theme-primary-rgb), 0.5)) !important; }
+
+        .from-primary { --tw-gradient-from: var(--theme-primary) !important; --tw-gradient-to: rgb(255 255 255 / 0) !important; --tw-gradient-stops: var(--tw-gradient-via-stops, var(--tw-gradient-from), var(--tw-gradient-to)) !important; }
+        .to-primary { --tw-gradient-to: var(--theme-primary) !important; }
+        .to-accent { --tw-gradient-to: var(--theme-accent) !important; }
+        .ambient-light-1 { background: radial-gradient(circle, rgba(var(--theme-primary-rgb), 0.35) 0%, transparent 65%) !important; }
+        .ambient-light-2 { background: radial-gradient(circle, rgba(var(--theme-accent-rgb), 0.4) 0%, transparent 65%) !important; }
+    </style>
 
     <style>
         body {
@@ -117,11 +154,83 @@
         ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: var(--tw-color-primary); }
 
-        @keyframes spinFastOnce { 0% { transform: rotate(0deg); } 100% { transform: rotate(720deg); } }
-        .animate-spin-fast { animation: spinFastOnce 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
-        @keyframes slideTextOut { 0% { max-width: 0; opacity: 0; padding-left: 0; } 100% { max-width: 400px; opacity: 1; padding-left: 1.5rem; } }
-        .animate-slide-text { animation: slideTextOut 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; animation-delay: 0.8s; overflow: hidden; white-space: nowrap; opacity: 0; max-width: 0; }
+        /* ── Lazy Image Blur-Up ── */
+        .lazy-img {
+            opacity: 0;
+            filter: blur(16px);
+            transform: scale(1.08);
+            transition: opacity 0.5s cubic-bezier(0.2, 0.8, 0.2, 1),
+                        filter 0.5s cubic-bezier(0.2, 0.8, 0.2, 1),
+                        transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+        .lazy-img.loaded {
+            opacity: 1;
+            filter: blur(0);
+            transform: scale(1);
+        }
 
+        /* ── Loading Skeleton Shimmer ── */
+        .skeleton {
+            position: relative;
+            overflow: hidden;
+            background: rgba(255,255,255,0.04);
+            border-radius: 8px;
+        }
+        .skeleton::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(90deg,
+                transparent 0%,
+                rgba(255,255,255,0.06) 50%,
+                transparent 100%);
+            animation: shimmer 1.8s ease-in-out infinite;
+            transform: translateX(-100%);
+        }
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        .skeleton-card {
+            border-radius: 16px;
+            overflow: hidden;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .skeleton-card > .skeleton-img {
+            aspect-ratio: 4/3;
+            width: 100%;
+        }
+        .skeleton-card > .skeleton-body {
+            padding: 20px;
+        }
+        .skeleton-card > .skeleton-body > .skeleton-line {
+            height: 14px;
+            margin-bottom: 10px;
+            width: 70%;
+        }
+        .skeleton-card > .skeleton-body > .skeleton-line:last-child {
+            width: 40%;
+            height: 20px;
+            margin-bottom: 0;
+        }
+        .skeleton-text {
+            height: 12px;
+            margin-bottom: 8px;
+            width: 100%;
+        }
+        .skeleton-text:last-child {
+            width: 60%;
+        }
+        .skeleton-badge {
+            display: inline-block;
+            height: 16px;
+            width: 80px;
+            margin-bottom: 12px;
+        }
+
+        /* ── Preloader animation keyframes moved to resources/css/preloader.css ── */
+        /* Loaded by components/preloader.blade.php via @@vite() */
         @if(request()->routeIs('ecommerce.admin.layout.preview'))
         /* Pause all animations in layout editor preview */
         *, *::before, *::after {
@@ -130,50 +239,37 @@
         @endif
     </style>
 
+    @vite('Modules/E-Commerce/Store/resources/css/preloader.css')
     @vite('Modules/E-Commerce/Store/resources/css/liquidglass.css')
 </head>
 <body class="relative antialiased selection:bg-primary selection:text-white">
     @if (session('success') || session('error'))
-        <div class="fixed top-5 right-5 z-[120] max-w-sm rounded-xl border px-5 py-4 text-sm shadow-2xl {{ session('success') ? 'border-emerald-400/40 bg-emerald-500/15 text-emerald-100' : 'border-red-400/40 bg-red-500/15 text-red-100' }}">
+        <div class="fixed bottom-5 right-5 z-[120] max-w-sm rounded-xl border px-5 py-4 text-sm shadow-2xl {{ session('success') ? 'border-emerald-400/40 bg-emerald-500/15 text-emerald-100' : 'border-red-400/40 bg-red-500/15 text-red-100' }}">
             {{ session('success') ?: session('error') }}
         </div>
     @endif
 
-    @if (request('preview'))
-        <div class="sticky top-0 z-[100] bg-amber-500/10 backdrop-blur-md border-b border-amber-500/20 px-5 py-2.5 text-center text-xs tracking-wider font-bold text-amber-400 uppercase shadow-[0_4px_30px_rgba(0,0,0,0.1)]">Preview mode Ã¢â‚¬â€ this draft is not public until you publish it.</div>
-    @endif
-
-    @if (!request('preview'))
-    <div id="preloader" data-visit-key="{{ $storefrontVisitKey }}" class="fixed inset-0 bg-[#050505] z-[100] flex items-center justify-center transition-opacity duration-1000 ease-in-out">
-        <script>
-            if (!sessionStorage.getItem(@json($storefrontVisitKey))) {
-                document.write(`
-                    <div class="relative flex items-center justify-center">
-                        <div class="absolute inset-0 bg-primary/20 blur-xl rounded-full animate-pulse"></div>
-                        <div class="flex items-center relative z-10">
-                            <img src="{{ $logoUrl }}" alt="{{ $storefrontName }} logo" class="h-20 w-auto object-contain animate-spin-fast">
-                            <span class="text-4xl md:text-5xl font-black text-white tracking-widest animate-slide-text">{{ $storefrontName }}</span>
-                        </div>
-                    </div>
-                `);
-            } else {
-                document.write(`
-                    <div class="w-16 h-16 border-4 border-white/10 border-t-primary rounded-full animate-spin shadow-[0_0_20px_rgba(255,107,0,0.3)]"></div>
-                `);
-            }
-        </script>
-    </div>
-    @endif
-
+    <x-preloader
+        :logoUrl="$logoUrl"
+        :storefrontName="$storefrontName"
+        :visitKey="$storefrontVisitKey"
+    />
     <div class="ambient-light-1"></div>
     <div class="ambient-light-2"></div>
 
     <x-navbar :storefrontName="$storefrontName" :store="$store" :logoUrl="$logoUrl" :layout="$layout" />
 
     <div class="pt-[140px] lg:pt-[180px]">
-    @foreach ($enabledSections as $section)
+    @php
+        $sectionsToRender = ($preview ?? false) ? collect($layout['sections'] ?? []) : $enabledSections;
+    @endphp
+    @foreach ($sectionsToRender as $section)
+        @php
+            $isSectionEnabled = (bool) ($section['enabled'] ?? false);
+            $sectionStyle = (($preview ?? false) && !$isSectionEnabled) ? 'display: none;' : '';
+        @endphp
         @if ($section['id'] === 'hero')
-            <main data-preview-section="hero" class="relative pb-0 overflow-hidden flex flex-col items-center justify-start mb-20 transition-all duration-300">
+            <main data-preview-section="hero" style="{{ $sectionStyle }}" class="relative pb-0 overflow-hidden flex flex-col items-center justify-start mb-20 transition-all duration-300">
                 @if($section['particles_enabled'] ?? false)
                 <canvas id="hero-particles" class="absolute inset-0 w-full h-full pointer-events-none z-10 opacity-50"></canvas>
                 <script>
@@ -356,7 +452,7 @@
                                     <div class="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-primary z-20 pointer-events-none"></div>
 
                                     <!-- Main Image -->
-                                    <img id="hero-main-img" src="{{ $heroDisplayItems[0]['image'] }}" alt="{{ $heroDisplayItems[0]['name'] }}" class="w-full h-full object-cover transition-opacity duration-700 opacity-90 group-hover/card:opacity-100 mix-blend-lighten">
+                                    <img id="hero-main-img" src="{{ $heroDisplayItems[0]['image'] }}" alt="{{ $heroDisplayItems[0]['name'] }}" loading="lazy" class="lazy-img w-full h-full object-cover opacity-90 group-hover/card:opacity-100 mix-blend-lighten transition-opacity duration-700">
 
                                     <!-- Overlay (opacity-controlled) -->
                                     <div class="absolute inset-0 bg-black pointer-events-none transition-opacity duration-500" style="opacity: {{ ($section['overlay_opacity'] ?? 0) / 100 }};"></div>
@@ -384,8 +480,8 @@
                             <!-- Thumbnails Gallery -->
                             <div class="w-full flex justify-between gap-2 sm:gap-3 z-40 overflow-x-hidden" id="hero-thumbnails-container">
                                 @foreach($heroDisplayItems as $index => $item)
-                                <button data-config-index="{{ $index }}" class="hero-thumbnail flex-1 h-14 sm:h-20 {{ $index === 0 ? 'border-2 border-primary shadow-[0_0_20px_rgba(255,107,0,0.2)]' : 'border border-white/20 hover:border-primary/50' }} bg-[#050505] relative overflow-hidden group cursor-pointer transition-colors rounded-lg">
-                                    <img src="{{ $item['image'] }}" alt="{{ $item['name'] }}" class="w-full h-full object-cover mix-blend-lighten {{ $index === 0 ? 'opacity-90' : 'opacity-40 group-hover:opacity-80 grayscale group-hover:grayscale-0' }} transition-opacity">
+                                <button data-config-index="{{ $index }}" class="hero-thumbnail flex-1 h-14 sm:h-20 {{ $index === 0 ? 'border-2 border-primary shadow-glow-sm' : 'border border-white/20 hover:border-primary/50' }} bg-[#050505] relative overflow-hidden group cursor-pointer transition-colors rounded-lg">
+                                    <img src="{{ $item['image'] }}" alt="{{ $item['name'] }}" loading="lazy" class="lazy-img w-full h-full object-cover mix-blend-lighten {{ $index === 0 ? 'opacity-90' : 'opacity-40 group-hover:opacity-80 grayscale group-hover:grayscale-0' }} transition-opacity">
                                     <div class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black via-black/80 to-transparent p-2">
                                         <div class="text-[8px] sm:text-[10px] font-black tracking-widest uppercase text-center {{ $index === 0 ? 'text-white' : 'text-gray-400 group-hover:text-white' }}">{{ $item['label'] }}</div>
                                     </div>
@@ -442,7 +538,7 @@
                                                 if (lbl) lbl.className = 'text-[8px] sm:text-[10px] font-black tracking-widest uppercase text-gray-400 group-hover:text-white text-center';
                                             });
 
-                                            this.className = 'hero-thumbnail flex-1 h-14 sm:h-20 border-2 border-primary bg-[#050505] relative overflow-hidden group cursor-pointer shadow-[0_0_20px_rgba(255,107,0,0.2)] rounded-lg';
+                                            this.className = 'hero-thumbnail flex-1 h-14 sm:h-20 border-2 border-primary bg-[#050505] relative overflow-hidden group cursor-pointer shadow-glow-sm rounded-lg';
                                             const aImg = this.querySelector('img');
                                             if (aImg) aImg.className = 'w-full h-full object-cover mix-blend-lighten opacity-90 transition-opacity';
                                             const aLbl = this.querySelector('div > div');
@@ -452,20 +548,34 @@
                                 });
                             </script>
                         </div>
-                    </div></div>
+                    </div>
                 </div>
 
                 <!-- Features Marquee -->
-                @if (!empty($section['hero_marquee']))
+                @php
+                    $rawMarquee = $section['hero_marquee'] ?? [];
+                    $marqueeItems = array_values(array_filter($rawMarquee, fn($m) => !empty(trim($m['text'] ?? ''))));
+                    if (empty($marqueeItems) && ($preview ?? false)) {
+                        $marqueeItems = [
+                            ['text' => 'CERTIFIED BUILD TECHNICIANS'],
+                            ['text' => 'RTX 4090 IN STOCK'],
+                            ['text' => '3-YEAR WARRANTY INCLUDED'],
+                            ['text' => 'FREE SHIPPING OVER ₱50,000'],
+                            ['text' => 'ZERO THERMAL THROTTLING'],
+                            ['text' => '72-HOUR STRESS TESTED'],
+                        ];
+                    }
+                @endphp
+                @if (!empty($marqueeItems))
                 <div data-preview-block="panel-hero-marquee" data-parent-section="hero" class="w-full relative z-20 mt-auto overflow-hidden py-3 liquid-glass border-y border-white/5 backdrop-blur-xl">
                     <div class="w-full h-full flex" style="mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent); -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);">
                         <div class="flex animate-marquee items-center w-max">
                             @for($i = 0; $i < 4; $i++)
                             <div class="flex items-center gap-6 sm:gap-12 px-3 sm:px-6">
-                                @foreach($section['hero_marquee'] as $item)
+                                @foreach($marqueeItems as $item)
                                 <div class="flex items-center gap-6 sm:gap-12">
                                     <span class="text-[9px] sm:text-[11px] font-bold text-gray-400 uppercase tracking-[0.3em] whitespace-nowrap">{{ $item['text'] }}</span>
-                                    <div class="w-1.5 h-1.5 bg-primary transform rotate-45 shadow-[0_0_5px_rgba(255,107,0,0.5)]"></div>
+                                    <div class="w-1.5 h-1.5 bg-primary transform rotate-45 shadow-glow-sm"></div>
                                 </div>
                                 @endforeach
                             </div>
@@ -477,7 +587,7 @@
             </main>
 
         @elseif ($section['id'] === 'benefits')
-            <div data-preview-section="benefits" class="w-full relative z-20 mt-auto overflow-hidden py-3 liquid-glass border-y border-white/5 backdrop-blur-xl mb-24 transition-all duration-300">
+            <div data-preview-section="benefits" style="{{ $sectionStyle }}" class="w-full relative z-20 mt-auto overflow-hidden py-3 liquid-glass border-y border-white/5 backdrop-blur-xl mb-24 transition-all duration-300">
                 <div class="w-full h-full flex" style="mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent); -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);">
                     <div class="flex animate-marquee items-center w-max">
                         @for($i=0; $i<4; $i++)
@@ -485,7 +595,7 @@
                             @foreach(['benefit_one', 'benefit_two', 'benefit_three'] as $benefitKey)
                             <div class="flex items-center gap-6 sm:gap-12">
                                 <span class="text-[9px] sm:text-[11px] font-bold text-gray-400 uppercase tracking-[0.3em] whitespace-nowrap">{{ $section[$benefitKey] ?? 'BENEFIT' }}</span>
-                                <div class="w-1.5 h-1.5 bg-primary transform rotate-45 shadow-[0_0_5px_rgba(255,107,0,0.5)]"></div>
+                                <div class="w-1.5 h-1.5 bg-primary transform rotate-45 shadow-glow-sm"></div>
                             </div>
                             @endforeach
                         </div>
@@ -502,10 +612,11 @@
                     if (!empty($b['listing_id'])) {
                         $listing = \Modules\Ecommerce\Models\StorefrontListing::find($b['listing_id']);
                         if ($listing) {
-                            // Block-level description override
+                            $originalDesc = $listing->description;
                             if (!empty($b['description'])) {
                                 $listing->description = $b['description'];
                             }
+                            $listing->original_description = $originalDesc;
                             $displayTiers->push($listing);
                         } else {
                             $displayTiers->push((object)['name' => 'Missing Item', 'image_url' => '', 'description' => 'Item not found.', 'price' => 0]);
@@ -515,7 +626,6 @@
                     }
                 }
 
-                // If no blocks at all but in preview, show placeholders
                 if ($displayTiers->isEmpty() && ($preview ?? false)) {
                     $displayTiers->push((object)['name' => 'Sample Tier 1', 'image_url' => '', 'description' => 'This is a placeholder description for the tier item.', 'price' => 50000]);
                     $displayTiers->push((object)['name' => 'Sample Tier 2', 'image_url' => '', 'description' => 'This is a placeholder description for the tier item.', 'price' => 75000]);
@@ -526,7 +636,25 @@
                 $isCarousel = true;
             @endphp
             @if($displayTiers->isNotEmpty())
-            <section data-preview-section="tiers" class="max-w-7xl mx-auto px-6 lg:px-8 mb-32 relative z-10 pt-20 transition-all duration-300">
+            <section data-preview-section="tiers" style="{{ $sectionStyle }}" class="max-w-7xl mx-auto px-6 lg:px-8 mb-32 relative z-10 pt-20 transition-all duration-300">
+                <!-- Skeleton overlay (fades out on window.load) -->
+                <div data-skeleton="tiers" class="absolute inset-0 z-20 bg-[#050505]" style="border-radius: inherit;">
+                    <div class="flex gap-6 overflow-hidden pt-20 px-6 lg:px-8">
+                        @for($s = 0; $s < 4; $s++)
+                        <div class="skeleton-card shrink-0 w-[85vw] sm:w-[calc(50%-12px)] md:w-[calc(33.333%-16px)] xl:w-[calc(25%-18px)]">
+                            <div class="skeleton skeleton-img"></div>
+                            <div class="skeleton-body">
+                                <div class="skeleton skeleton-badge"></div>
+                                <div class="skeleton skeleton-text"></div>
+                                <div class="skeleton skeleton-text" style="width:85%;"></div>
+                                <div class="skeleton skeleton-text" style="width:55%;"></div>
+                                <div style="height:16px;"></div>
+                                <div class="skeleton skeleton-line"></div>
+                            </div>
+                        </div>
+                        @endfor
+                    </div>
+                </div>
                 <div class="flex flex-col lg:flex-row justify-between items-start lg:items-end mb-16 border-b border-white/10 pb-8">
                     <div data-preview-block="panel-tiers-heading" data-parent-section="tiers">
                         @php
@@ -552,10 +680,10 @@
                 <div class="{{ $isCarousel ? 'relative w-full overflow-hidden' : '' }}" {!! $isCarousel ? 'style="mask-image: linear-gradient(to right, transparent, black 32px, black calc(100% - 32px), transparent); -webkit-mask-image: linear-gradient(to right, transparent, black 32px, black calc(100% - 32px), transparent);"' : '' !!}>
                     <div class="{{ $isCarousel ? 'flex gap-6 overflow-x-auto pb-8 pt-4 -mx-6 px-6 lg:-mx-8 lg:px-8 scroll-px-6 lg:scroll-px-8 snap-x snap-mandatory scrollbar-hide scroll-smooth' : 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6' }}" {!! $isCarousel ? 'id="tiers-carousel"' : '' !!}>
                         @foreach($displayTiers as $index => $listing)
-                        <div data-preview-block="panel-tiers-block-{{ $index }}" data-parent-section="tiers" class="liquid-glass backdrop-blur-2xl bg-black/40 rounded-2xl border border-white/5 flex flex-col group hover:border-primary/50 hover:shadow-[0_0_30px_rgba(255,107,0,0.15)] transition-all duration-500 relative overflow-hidden {{ $isCarousel ? 'shrink-0 snap-start w-[85vw] sm:w-[calc(50%-12px)] md:w-[calc(33.333%-16px)] xl:w-[calc(25%-18px)]' : '' }}">
+                        <div data-preview-block="panel-tiers-block-{{ $index }}" data-parent-section="tiers" class="liquid-glass backdrop-blur-2xl bg-black/40 rounded-2xl border border-white/5 flex flex-col group hover:border-primary/50 hover:shadow-glow-lg transition-all duration-500 relative overflow-hidden {{ $isCarousel ? 'shrink-0 snap-start w-[85vw] sm:w-[calc(50%-12px)] md:w-[calc(33.333%-16px)] xl:w-[calc(25%-18px)]' : '' }}">
                         <!-- Image Area -->
                         <div class="relative w-full aspect-[4/3] bg-[#0a0a0a] overflow-hidden">
-                            <img src="{{ $listing->image_url ? asset('storage/'.$listing->image_url) : 'https://images.unsplash.com/photo-1547082299-de196ea013d6?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80' }}" alt="{{ $listing->name }}" class="w-full h-full object-cover mix-blend-lighten opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700">
+                            <img src="{{ $listing->image_url ? asset('storage/'.$listing->image_url) : 'https://images.unsplash.com/photo-1547082299-de196ea013d6?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80' }}" alt="{{ $listing->name }}" loading="lazy" class="lazy-img w-full h-full object-cover mix-blend-lighten opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700">
 
                             <!-- Number -->
                             <div class="absolute top-4 left-4 text-primary font-mono text-sm tracking-widest">/0{{ $index + 1 }}</div>
@@ -567,7 +695,7 @@
 
                             <!-- Specs/Features generic list -->
                             <div class="space-y-4 mt-auto mb-8 flex-grow">
-                                <p class="text-gray-300 font-medium text-[11px] sm:text-xs leading-relaxed line-clamp-4">{{ $listing->description ?? 'No description available for this item. Contact support for more details.' }}</p>
+                                <p class="text-gray-300 font-medium text-[11px] sm:text-xs leading-relaxed" data-original-description="{{ $listing->original_description ?? $listing->description ?? '' }}">{!! $listing->description ?? 'No description available for this item. Contact support for more details.' !!}</p>
                             </div>
 
                             <!-- Footer -->
@@ -603,10 +731,12 @@
                         if (!empty($block['listing_id'])) {
                             $listing = \Modules\Ecommerce\Models\StorefrontListing::find($block['listing_id']);
                             if ($listing) {
+                                $originalDesc = $listing->description;
                                 // Block-level description override
                                 if (!empty($block['description'])) {
                                     $listing->description = $block['description'];
                                 }
+                                $listing->original_description = $originalDesc;
                                 $displayPrebuilts->push($listing);
                             } else {
                                 $displayPrebuilts->push((object)['name' => 'Missing Item', 'image_url' => '', 'description' => 'Item not found.', 'price' => 0]);
@@ -628,7 +758,23 @@
                 $isCarousel = true;
             @endphp
             @if($displayPrebuilts->isNotEmpty())
-            <section data-preview-section="prebuilts" class="max-w-7xl mx-auto px-6 lg:px-8 mb-32 relative z-10 pt-10 transition-all duration-300">
+            <section data-preview-section="prebuilts" style="{{ $sectionStyle }}" class="max-w-7xl mx-auto px-6 lg:px-8 mb-32 relative z-10 pt-10 transition-all duration-300">
+                <!-- Skeleton overlay (fades out on window.load) -->
+                <div data-skeleton="prebuilts" class="absolute inset-0 z-20 bg-[#050505]" style="border-radius: inherit;">
+                    <div class="flex gap-6 overflow-hidden pt-10 px-6 lg:px-8">
+                        @for($s = 0; $s < 4; $s++)
+                        <div class="skeleton-card shrink-0 w-[85vw] sm:w-[calc(50%-12px)] md:w-[calc(33.333%-16px)] xl:w-[calc(25%-18px)]">
+                            <div class="skeleton skeleton-img"></div>
+                            <div class="skeleton-body">
+                                <div class="skeleton skeleton-text"></div>
+                                <div class="skeleton skeleton-text" style="width:80%;"></div>
+                                <div style="height:16px;"></div>
+                                <div class="skeleton skeleton-line"></div>
+                            </div>
+                        </div>
+                        @endfor
+                    </div>
+                </div>
                 <div class="flex flex-col lg:flex-row justify-between items-start lg:items-end mb-16 border-b border-white/10 pb-8">
                     <div data-preview-block="panel-prebuilts-heading" data-parent-section="prebuilts">
                         @php
@@ -654,10 +800,10 @@
                 <div class="{{ $isCarousel ? 'relative w-full overflow-hidden' : '' }}" {!! $isCarousel ? 'style="mask-image: linear-gradient(to right, transparent, black 32px, black calc(100% - 32px), transparent); -webkit-mask-image: linear-gradient(to right, transparent, black 32px, black calc(100% - 32px), transparent);"' : '' !!}>
                     <div class="{{ $isCarousel ? 'flex gap-6 overflow-x-auto pb-8 pt-4 -mx-6 px-6 lg:-mx-8 lg:px-8 scroll-px-6 lg:scroll-px-8 snap-x snap-mandatory scrollbar-hide scroll-smooth' : 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6' }}" {!! $isCarousel ? 'id="prebuilt-carousel"' : '' !!}>
                         @foreach($displayPrebuilts as $index => $listing)
-                        <div data-preview-block="panel-prebuilts-block-{{ $index }}" data-parent-section="prebuilts" class="liquid-glass backdrop-blur-2xl bg-black/40 rounded-2xl border border-white/5 flex flex-col group hover:border-primary/50 hover:shadow-[0_0_30px_rgba(255,107,0,0.15)] transition-all duration-500 relative overflow-hidden {{ $isCarousel ? 'shrink-0 snap-start w-[85vw] sm:w-[calc(50%-12px)] md:w-[calc(33.333%-16px)] xl:w-[calc(25%-18px)]' : '' }}">
+                        <div data-preview-block="panel-prebuilts-block-{{ $index }}" data-parent-section="prebuilts" class="liquid-glass backdrop-blur-2xl bg-black/40 rounded-2xl border border-white/5 flex flex-col group hover:border-primary/50 hover:shadow-glow-lg transition-all duration-500 relative overflow-hidden {{ $isCarousel ? 'shrink-0 snap-start w-[85vw] sm:w-[calc(50%-12px)] md:w-[calc(33.333%-16px)] xl:w-[calc(25%-18px)]' : '' }}">
                         <!-- Image Area -->
                         <div class="relative w-full aspect-[4/3] bg-[#0a0a0a] overflow-hidden">
-                            <img src="{{ $listing->image_url ? asset('storage/'.$listing->image_url) : 'https://images.unsplash.com/photo-1547082299-de196ea013d6?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80' }}" alt="{{ $listing->name }}" class="w-full h-full object-cover mix-blend-lighten opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700">
+                            <img src="{{ $listing->image_url ? asset('storage/'.$listing->image_url) : 'https://images.unsplash.com/photo-1547082299-de196ea013d6?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80' }}" alt="{{ $listing->name }}" loading="lazy" class="lazy-img w-full h-full object-cover mix-blend-lighten opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700">
                         </div>
 
                         <!-- Title Area -->
@@ -666,7 +812,7 @@
 
                             <!-- Description -->
                             <div class="space-y-4 mt-auto mb-8 flex-grow">
-                                <p class="text-gray-300 font-medium text-[11px] sm:text-xs leading-relaxed line-clamp-4">{{ $listing->description ?? 'No description available for this item.' }}</p>
+                                <p class="text-gray-300 font-medium text-[11px] sm:text-xs leading-relaxed" data-original-description="{{ $listing->original_description ?? $listing->description ?? '' }}">{!! $listing->description ?? 'No description available for this item.' !!}</p>
                             </div>
                             <div class="pt-6 border-t border-white/10 flex items-end justify-between mt-auto">
                                 <div>
@@ -691,7 +837,7 @@
             @endif
 
         @elseif ($section['id'] === 'categories')
-            <section data-preview-section="categories" id="categories" class="max-w-7xl mx-auto px-6 lg:px-8 mb-32 relative z-10 pt-10 transition-all duration-300">
+            <section data-preview-section="categories" id="categories" style="{{ $sectionStyle }}" class="max-w-7xl mx-auto px-6 lg:px-8 mb-32 relative z-10 pt-10 transition-all duration-300">
                 <div class="flex flex-col lg:flex-row justify-between items-start lg:items-end mb-16 border-b border-white/10 pb-8">
                     <div data-preview-block="panel-categories-heading" data-parent-section="categories">
                         @php
@@ -704,42 +850,34 @@
                     </div>
                 </div>
 
-                <div class="flex flex-col gap-6" data-preview-block="panel-categories-grid" data-parent-section="categories">
-                    <!-- Top Row: 2 Items -->
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <!-- Prebuilt Gaming PCs -->
-                        <div class="liquid-glass backdrop-blur-2xl bg-black/40 rounded-2xl relative overflow-hidden group h-[350px] lg:h-[400px] border border-white/5 hover:border-primary/50 transition-all duration-500 hover:shadow-[0_0_30px_rgba(255,107,0,0.15)] flex flex-col justify-end">
-                            <img src="https://images.unsplash.com/photo-1547082299-de196ea013d6?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80" alt="Prebuilt PCs" class="absolute inset-0 w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700 opacity-30 mix-blend-lighten" style="mask-image: linear-gradient(to top, transparent, black 80%); -webkit-mask-image: linear-gradient(to top, transparent, black 80%);">
+                @php
+                    $catBlocks = $section['blocks'] ?? [];
+                    $defaultCatBlocks = [
+                        ['title' => 'Category Showcase 1', 'description' => 'Browse our first curated category of products.', 'image' => 'https://images.unsplash.com/photo-1547082299-de196ea013d6?auto=format&fit=crop&w=800&q=80'],
+                        ['title' => 'Category Showcase 2', 'description' => 'Discover featured products in our second category.', 'image' => 'https://images.unsplash.com/photo-1618339220157-daa2cd9ade56?auto=format&fit=crop&w=800&q=80'],
+                        ['title' => 'Category Showcase 3', 'description' => 'Explore our third category selection.', 'image' => 'https://images.unsplash.com/photo-1587202372634-32705e3bf49c?auto=format&fit=crop&w=800&q=80'],
+                    ];
+                    $catBlocks = !empty($catBlocks) ? $catBlocks : $defaultCatBlocks;
+                @endphp
 
-                            <div class="relative z-10 p-8 border-t border-white/5 bg-black/60 backdrop-blur-md">
-                                <div class="text-gray-500 text-[10px] uppercase font-bold tracking-widest mb-2">Ready to ship</div>
-                                <h3 class="text-white text-3xl font-black tracking-wide uppercase mb-4 group-hover:text-primary transition-colors">Prebuilt PCs</h3>
-                                <p class="text-sm text-gray-400 mb-8 max-w-md">Browse through our full range of ready-to-ship prebuilt gaming PCs.</p>
-                                <a href="#" class="border border-primary/50 hover:border-primary text-primary hover:text-white hover:bg-primary text-[10px] font-black uppercase tracking-widest px-6 py-3 transition-all flex items-center gap-2 w-max">
-                                    Browse &rarr;
-                                </a>
-                            </div>
-                        </div>
-
-                        <!-- Custom PC Builder -->
-                        <div class="liquid-glass backdrop-blur-2xl bg-black/40 rounded-2xl relative overflow-hidden group h-[350px] lg:h-[400px] border border-white/5 hover:border-primary/50 transition-all duration-500 hover:shadow-[0_0_30px_rgba(255,107,0,0.15)] flex flex-col justify-end">
-                            <img src="https://images.unsplash.com/photo-1618339220157-daa2cd9ade56?q=80&w=1935&auto=format&fit=crop" alt="Custom PC Builder" class="absolute inset-0 w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700 opacity-30 mix-blend-lighten" style="mask-image: linear-gradient(to top, transparent, black 80%); -webkit-mask-image: linear-gradient(to top, transparent, black 80%);">
-
-                            <div class="relative z-10 p-8 border-t border-white/5 bg-black/60 backdrop-blur-md">
-                                <div class="text-gray-500 text-[10px] uppercase font-bold tracking-widest mb-2">Built for you</div>
-                                <h3 class="text-white text-3xl font-black tracking-wide uppercase mb-4 group-hover:text-primary transition-colors">Custom Gaming PCs</h3>
-                                <p class="text-sm text-gray-400 mb-8 max-w-md">Customize your PC with top brands, with no compatibility worries.</p>
-                                <a href="#" class="border border-primary/50 hover:border-primary text-primary hover:text-white hover:bg-primary text-[10px] font-black uppercase tracking-widest px-6 py-3 transition-all flex items-center gap-2 w-max">
-                                    Start Building &rarr;
-                                </a>
-                            </div>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    @foreach($catBlocks as $ci => $cat)
+                    <div data-cat-card="{{ $ci }}" data-preview-block="panel-categories-card-{{ $ci + 1 }}" data-parent-section="categories" class="liquid-glass backdrop-blur-2xl bg-black/40 rounded-2xl relative overflow-hidden group h-[350px] lg:h-[400px] border border-white/5 hover:border-primary/50 transition-all duration-500 hover:shadow-glow-lg flex flex-col justify-end">
+                        <img src="{{ $cat['image'] ?? $defaultCatBlocks[$ci]['image'] }}" alt="{{ $cat['title'] ?? '' }}" loading="lazy" class="lazy-img cat-card-img absolute inset-0 w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700 opacity-30 mix-blend-lighten" style="mask-image: linear-gradient(to top, transparent, black 80%); -webkit-mask-image: linear-gradient(to top, transparent, black 80%);">
+                        <div class="relative z-10 p-8 border-t border-white/5 bg-black/60 backdrop-blur-md">
+                            <h3 class="cat-card-title text-white text-3xl font-black tracking-wide uppercase mb-4 group-hover:text-primary transition-colors">{{ $cat['title'] ?? $defaultCatBlocks[$ci]['title'] }}</h3>
+                            <p class="cat-card-desc text-sm text-gray-400 mb-8 max-w-md">{{ $cat['description'] ?? $defaultCatBlocks[$ci]['description'] }}</p>
+                            <a href="{{ route('ecommerce.categories.category' . ($ci + 1), ['store' => $store]) }}" class="cat-card-url border border-primary/50 hover:border-primary text-primary hover:text-white hover:bg-primary text-[10px] font-black uppercase tracking-widest px-6 py-3 transition-all flex items-center gap-2 w-max">
+                                Shop Now &rarr;
+                            </a>
                         </div>
                     </div>
+                    @endforeach
                 </div>
             </section>
 
         @elseif ($section['id'] === 'cta')
-            <section data-preview-section="cta" id="cta-section" class="relative w-full py-32 lg:py-40 flex items-center justify-center overflow-hidden border-t border-white/5 mt-10 transition-all duration-1000">
+            <section data-preview-section="cta" id="cta-section" style="{{ $sectionStyle }}" class="relative w-full py-32 lg:py-40 flex items-center justify-center overflow-hidden border-t border-white/5 mt-10 transition-all duration-1000">
                 <!-- Background elements -->
                 <div id="cta-bg-layer" class="absolute inset-0 liquid-glass bg-black/60 backdrop-blur-2xl opacity-100 z-0 pointer-events-none"></div>
                 <div class="absolute inset-0 bg-gradient-to-t from-[#000] via-transparent to-transparent z-0 pointer-events-none"></div>
@@ -758,7 +896,7 @@
 
                     <h2 data-preview-block="panel-cta-heading" data-parent-section="cta" class="text-5xl sm:text-7xl md:text-[5.5rem] font-black uppercase tracking-tight leading-[0.95] mb-10">
                         <span class="text-white block mb-2 sm:mb-4">{!! $section['title'] ?? 'Stop Settling.' !!}</span>
-                        <span class="text-primary block drop-shadow-[0_0_30px_rgba(255,107,0,0.2)]">{!! $section['subtitle'] ?? 'Start Winning.' !!}</span>
+                        <span class="text-primary block drop-shadow-glow">{!! $section['subtitle'] ?? 'Start Winning.' !!}</span>
                     </h2>
 
                     <p data-preview-block="panel-cta-subheading" data-parent-section="cta" class="text-gray-400 text-sm sm:text-base max-w-2xl mx-auto mb-12 font-medium leading-relaxed">
@@ -766,7 +904,7 @@
                     </p>
 
                     <div data-preview-block="panel-cta-buttons" data-parent-section="cta" class="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 w-full max-w-md mx-auto sm:max-w-none">
-                        <a href="{{ $section['primary_button_url'] ?? '#' }}" class="bg-primary hover:bg-[#ff8533] text-white text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] px-10 py-5 transition-all flex items-center justify-center w-full sm:w-auto shadow-[0_0_30px_rgba(255,107,0,0.3)] hover:shadow-[0_0_50px_rgba(255,107,0,0.5)] transform hover:-translate-y-1">
+                        <a href="{{ $section['primary_button_url'] ?? '#' }}" class="bg-primary hover:bg-primary/90 text-white text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] px-10 py-5 transition-all flex items-center justify-center w-full sm:w-auto shadow-glow hover:shadow-glow-lg transform hover:-translate-y-1">
                             {{ $section['primary_button_label'] ?? 'Build Yours Now' }} &rarr;
                         </a>
                         <a href="{{ $section['secondary_button_url'] ?? '#' }}" class="border border-white/20 hover:border-white text-gray-300 hover:text-white text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] px-10 py-5 transition-all flex items-center justify-center w-full sm:w-auto bg-black/20 backdrop-blur-sm">
@@ -779,82 +917,73 @@
     @endforeach
     </div>
 
-    <x-footer :storefrontName="$storefrontName" :store="$store" :logoUrl="$logoUrl" />
+    <x-footer :storefrontName="$storefrontName" :store="$store" :logoUrl="$logoUrl" :layout="$layout" />
 
     @vite(['Modules/E-Commerce/Store/resources/js/Common/Preloader.js', 'Modules/E-Commerce/Store/resources/js/Common/AmbientEffects.js'])
     @vite('Modules/E-Commerce/Store/resources/js/HomePage/Homepage.js')
 
-    @if(request()->routeIs('ecommerce.admin.layout.preview'))
+
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const sections = document.querySelectorAll('[data-preview-section]');
-            sections.forEach(section => {
-                section.style.cursor = 'pointer';
-                section.title = 'Click to edit this section';
-
-                section.addEventListener('mouseover', (e) => {
-                    e.stopPropagation();
-                    section.style.outline = '3px solid #1B6FC8';
-                    section.style.outlineOffset = '4px';
-                    section.style.borderRadius = '16px';
-                    section.style.boxShadow = '0 0 30px rgba(27,111,200,0.3)';
-                    section.style.zIndex = '50';
+        // ── Lazy Image Blur-Up: observe and load ──
+        document.addEventListener('DOMContentLoaded', function() {
+            // Skeleton auto-hide
+            const skeletons = document.querySelectorAll('[data-skeleton]');
+            if (skeletons.length > 0) {
+                window.addEventListener('load', function() {
+                    skeletons.forEach(function(el) {
+                        el.style.transition = 'opacity 0.5s ease';
+                        el.style.opacity = '0';
+                        setTimeout(function() { el.style.display = 'none'; }, 600);
+                    });
                 });
+            }
 
-                section.addEventListener('mouseout', () => {
-                    section.style.outline = '';
-                    section.style.outlineOffset = '';
-                    section.style.borderRadius = '';
-                    section.style.boxShadow = '';
-                    section.style.zIndex = '';
+            // Lazy image blur-up
+            const lazyImages = document.querySelectorAll('img.lazy-img');
+            if (lazyImages.length === 0) return;
+
+            function handleImageLoad(img) {
+                if (img.classList.contains('loaded')) return;
+                // If already naturally loaded (cached), mark immediately
+                if (img.complete && img.naturalWidth > 0) {
+                    img.classList.add('loaded');
+                    return;
+                }
+                // Otherwise wait for load event
+                img.addEventListener('load', function onLoad() {
+                    img.classList.add('loaded');
+                    img.removeEventListener('load', onLoad);
                 });
-
-                section.addEventListener('click', (e) => {
-                    if (!e.isTrusted) return; // Prevent programmatic clicks (like gallery auto-scroll) from triggering parent scroll
-
-                    e.preventDefault();
-                    e.stopPropagation();
-                    window.parent.postMessage({
-                        action: 'select_section',
-                        section: section.dataset.previewSection
-                    }, '*');
+                // Fallback: mark loaded even if error (avoids stuck blur)
+                img.addEventListener('error', function onErr() {
+                    img.classList.add('loaded');
+                    img.removeEventListener('error', onErr);
                 });
-            });
+            }
 
-            const blocks = document.querySelectorAll('[data-preview-block]');
-            blocks.forEach(block => {
-                block.style.cursor = 'pointer';
-                block.title = 'Click to edit this block';
+            // Intersection Observer for true lazy loading
+            if ('IntersectionObserver' in window) {
+                const observer = new IntersectionObserver(function(entries) {
+                    entries.forEach(function(entry) {
+                        if (entry.isIntersecting) {
+                            const img = entry.target;
+                            // Set src from data-src if present (for true lazy)
+                            if (img.dataset.src && !img.src) {
+                                img.src = img.dataset.src;
+                            }
+                            handleImageLoad(img);
+                            observer.unobserve(img);
+                        }
+                    });
+                }, { rootMargin: '200px 0px' });
 
-                block.addEventListener('mouseover', (e) => {
-                    e.stopPropagation();
-                    block.style.outline = '2px dashed #1B6FC8';
-                    block.style.outlineOffset = '2px';
-                    block.style.borderRadius = '8px';
-                });
-
-                block.addEventListener('mouseout', () => {
-                    block.style.outline = '';
-                    block.style.outlineOffset = '';
-                    block.style.borderRadius = '';
-                });
-
-                block.addEventListener('click', (e) => {
-                    if (!e.isTrusted) return;
-                    e.preventDefault();
-                    e.stopPropagation();
-                    window.parent.postMessage({
-                        action: 'select_block',
-                        section: block.dataset.parentSection,
-                        block: block.dataset.previewBlock
-                    }, '*');
-                });
-            });
+                lazyImages.forEach(function(img) { observer.observe(img); });
+            } else {
+                // Fallback: load all immediately
+                lazyImages.forEach(function(img) { handleImageLoad(img); });
+            }
         });
-    </script>
-    @endif
 
-    <script>
         function scrollCarousel(e, id, direction) {
             if (e) {
                 e.preventDefault();
@@ -900,5 +1029,9 @@
             requestAnimationFrame(animation);
         }
     </script>
+
+    @include('ecommerce::components.storefront-chat-bubble')
+    @include('ecommerce::components.storefront-scroll-top')
+
 </body>
 </html>

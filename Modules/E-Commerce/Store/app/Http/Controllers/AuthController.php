@@ -5,9 +5,7 @@ namespace Modules\Ecommerce\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rule;
 use Modules\Ecommerce\Models\User;
-use Modules\Ecommerce\Support\EcommerceClientContext;
 
 class AuthController extends Controller
 {
@@ -63,24 +61,15 @@ class AuthController extends Controller
 
     public function register(Request $request)
     {
-        $clientId = (int) app(EcommerceClientContext::class)->clientId();
-        abort_unless($clientId > 0, 404);
-
         $validated = $request->validate([
-            'email' => ['required', 'string', 'email', 'max:255', Rule::unique('ecommerce.users', 'email')->where('client_id', $clientId)],
+            'email' => ['required', 'string', 'email', 'max:255', 'unique:ecommerce.users,email'],
             'password' => ['required', 'string', 'min:8'],
         ]);
 
-        $baseUsername = str($validated['email'])->before('@')->slug('_')->value() ?: 'customer';
-        $username = $baseUsername;
-        $suffix = 1;
-        while (User::where('username', $username)->exists()) {
-            $username = $baseUsername.'_'.$suffix++;
-        }
+        $name = explode('@', $validated['email'])[0];
 
         $user = User::create([
-            'name' => $baseUsername,
-            'username' => $username,
+            'name' => $name,
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
         ]);

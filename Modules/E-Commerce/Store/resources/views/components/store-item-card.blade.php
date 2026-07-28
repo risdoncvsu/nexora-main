@@ -7,13 +7,15 @@
     'rating' => 5,
     'reviews' => rand(10, 150),
     'sale' => false,
-    'originalPrice' => null
+    'originalPrice' => null,
+    'productType' => 'accessory',
+    'configuration' => 'null'
 ])
 
 <div {{ $attributes->merge(['class' => 'store-item-card liquid-glass rounded-2xl p-5 border border-white/10 flex flex-col group hover:border-primary/50 transition-all duration-300']) }}>
 
     <div class="aspect-square w-full rounded-xl bg-black/40 mb-4 flex items-center justify-center p-4 border border-white/5 overflow-hidden">
-        <img src="{{ $image }}" alt="{{ $name }}" class="max-w-full max-h-full object-contain group-hover:scale-110 transition-transform duration-500 drop-shadow-[0_10px_15px_rgba(0,0,0,0.5)]">
+        <img src="{{ $image }}" alt="{{ $name }}" loading="lazy" class="lazy-img max-w-full max-h-full object-contain group-hover:scale-110 transition-transform duration-500 drop-shadow-[0_10px_15px_rgba(0,0,0,0.5)]">
     </div>
 
     <div class="flex justify-between items-start gap-3 mb-4">
@@ -50,8 +52,8 @@
                 </div>
             </div>
         </div>
-        <button onclick="addToCart('{{ $id }}', '{{ addslashes($name) }}', {{ $price }}, '{{ $image }}', 1, 'accessory', null, event.currentTarget)" class="w-10 h-10 rounded-xl bg-white/5 border border-white/10 text-white flex items-center justify-center hover:bg-primary hover:border-primary hover:text-white hover:scale-110 transition-all shrink-0 z-10 relative">
-            <i class="ph-bold ph-shopping-cart-simple text-lg"></i>
-        </button>
+        <a href="{{ route('ecommerce.listings.show', ['store' => request()->attributes->get('ecommerce_company')?->ecommerce_slug ?? 'techforge', 'listing' => $id]) }}" class="w-10 h-10 rounded-xl bg-white/5 border border-white/10 text-white flex items-center justify-center hover:bg-primary hover:border-primary hover:text-white hover:scale-110 transition-all shrink-0 z-10 relative" aria-label="View details for {{ $name }}">
+            <i class="ph-bold ph-arrow-right text-lg"></i>
+        </a>
     </div>
 </div>

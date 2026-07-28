@@ -4,163 +4,367 @@ namespace Modules\Ecommerce\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Hash;
+
 use Modules\Ecommerce\Models\Order;
-use Modules\Ecommerce\Support\EcommerceClientContext;
+use Modules\Ecommerce\CRM\Models\Customer as CrmCustomer;
+use Illuminate\Support\Facades\DB;
 
 class AccountController extends Controller
 {
+    protected function redirectToPasswordPane(): \Illuminate\Http\RedirectResponse
+    {
+        return redirect()->to(route('ecommerce.account.profile') . '#password');
+    }
     public function index(Request $request)
     {
         $user = Auth::guard('ecommerce')->user();
 
-        return view('ecommerce::account.index', [
-            'paymentMethods' => $user->paymentMethods()->orderBy('is_default', 'desc')->get(),
-            'addresses' => $user->addresses()->orderBy('is_default', 'desc')->get(),
-            'orders' => $this->ordersFor($user),
-        ]);
+        $paymentMethods = $user->paymentMethods()->orderBy('is_default', 'desc')->get();
+        $addresses = $user->addresses()->orderBy('is_default', 'desc')->get();
+
+        // Load CRM customer profile for loyalty tier display
+        $crmCustomer = null;
+        if ($user) {
+            $crmCustomer = CrmCustomer::withoutGlobalScope('ecommerce-client')
+                ->where('user_id', $user->id)
+                ->first();
+        }
+
+        $orders = collect();
+
+        if ($user) {
+            // Fetch ecommerce orders for this user
+            $ecomOrders = Order::with('items')
+                ->where('user_id', $user->id)
+                ->latest()
+                ->get();
+
+            $ecomOrderIds = $ecomOrders->pluck('id')->filter()->all();
+
+            $fulfillmentOrders = collect();
+            $shipments = collect();
+
+            // Always fetch fulfillment orders that match by ID
+            if (!empty($ecomOrderIds)) {
+                $fulfillmentOrders = DB::connection('order_fulfillment')
+                    ->table('orders')
+                    ->whereIn('id', $ecomOrderIds)
+                    ->get()
+                    ->keyBy('id');
+
+                $shipments = DB::connection('order_fulfillment')
+                    ->table('shipments')
+                    ->whereIn('order_id', $ecomOrderIds)
+                    ->get()
+                    ->keyBy('order_id');
+            }
+
+            // Also fetch fulfillment orders that match by customer_name but DON'T have a matching ecom order ID
+            $linkedFulfillmentIds = $fulfillmentOrders->pluck('id')->all();
+            $unmatchedFulfillmentOrders = DB::connection('order_fulfillment')
+                ->table('orders')
+                ->where('customer_name', 'LIKE', '%' . $user->name . '%')
+                ->whereNotIn('id', array_merge($ecomOrderIds, $linkedFulfillmentIds))
+                ->latest()
+                ->get();
+
+            $unmatchedShipmentIds = $unmatchedFulfillmentOrders->pluck('id')->all();
+            $unmatchedShipments = collect();
+            if (!empty($unmatchedShipmentIds)) {
+                $unmatchedShipments = DB::connection('order_fulfillment')
+                    ->table('shipments')
+                    ->whereIn('order_id', $unmatchedShipmentIds)
+                    ->get()
+                    ->keyBy('order_id');
+            }
+
+            // Build the merged orders collection
+            if ($ecomOrders->isNotEmpty()) {
+                foreach ($ecomOrders as $order) {
+                    $fo = $fulfillmentOrders->get($order->id);
+                    $shipment = $shipments->get($order->id);
+
+                    $order->fulfillment_status = strtoupper($fo->status ?? $order->status ?? 'NEW');
+                    $order->fulfillment_details = $fo;
+                    $order->shipment_details = $shipment;
+
+                    // Parse shipping_address JSON for use in the view/modal
+                    $addr = $order->shipping_address;
+                    if (is_string($addr)) {
+                        $addr = json_decode($addr, true);
+                    }
+                    $order->shipping_address_parsed = $addr;
+
+                    // If fulfillment DB has address but ecom doesn't, use fulfillment address
+                    if (empty($addr) && $fo && isset($fo->address)) {
+                        $order->shipping_address_parsed = ['raw' => $fo->address];
+                    }
+
+                    $orders->push($order);
+                }
+            }
+
+            // Append unmatched fulfillment-only orders (created directly in fulfillment DB)
+            foreach ($unmatchedFulfillmentOrders as $fo) {
+                $fakeOrder = new Order();
+                $fakeOrder->id = $fo->id;
+                $fakeOrder->user_id = $user->id;
+                $fakeOrder->total = $fo->product_amount ?? 0;
+                $fakeOrder->status = strtolower($fo->status ?? 'NEW');
+                $fakeOrder->created_at = Carbon::parse($fo->created_at);
+                $fakeOrder->tracking_number = 'TF-' . strtoupper(substr(md5($fo->id), 0, 8));
+
+                $fakeItem = (object)[
+                    'name' => $fo->product_name ?? 'Storefront order',
+                    'price' => $fo->product_amount ?? 0,
+                    'quantity' => $fo->qty ?? 1
+                ];
+                $fakeOrder->setRelation('items', collect([$fakeItem]));
+
+                $fakeOrder->fulfillment_status = strtoupper($fo->status);
+                $fakeOrder->fulfillment_details = $fo;
+                $fakeOrder->shipment_details = $unmatchedShipments->get($fo->id);
+                $fakeOrder->shipping_address_parsed = ['raw' => $fo->address ?? ''];
+
+                $orders->push($fakeOrder);
+            }
+        }
+
+        return view('ecommerce::account.index', compact('paymentMethods', 'addresses', 'orders', 'crmCustomer'));
     }
 
     public function orderHistory(Request $request)
     {
-        return $this->index($request);
+        $user = Auth::guard('ecommerce')->user();
+        $orders = collect();
+
+        if ($user) {
+            $ecomOrders = Order::with('items')
+                ->where('user_id', $user->id)
+                ->latest()
+                ->get();
+
+            $ecomOrderIds = $ecomOrders->pluck('id')->filter()->all();
+
+            $fulfillmentOrders = collect();
+            $shipments = collect();
+
+            if (!empty($ecomOrderIds)) {
+                $fulfillmentOrders = DB::connection('order_fulfillment')
+                    ->table('orders')
+                    ->whereIn('id', $ecomOrderIds)
+                    ->get()
+                    ->keyBy('id');
+
+                $shipments = DB::connection('order_fulfillment')
+                    ->table('shipments')
+                    ->whereIn('order_id', $ecomOrderIds)
+                    ->get()
+                    ->keyBy('order_id');
+            }
+
+            if ($ecomOrders->isEmpty()) {
+                $legacyFulfillmentOrders = DB::connection('order_fulfillment')
+                    ->table('orders')
+                    ->where('customer_name', 'LIKE', '%' . $user->name . '%')
+                    ->latest()
+                    ->get();
+
+                if ($legacyFulfillmentOrders->isNotEmpty()) {
+                    $legacyShipments = DB::connection('order_fulfillment')
+                        ->table('shipments')
+                        ->whereIn('order_id', $legacyFulfillmentOrders->pluck('id'))
+                        ->get()
+                        ->keyBy('order_id');
+
+                    foreach ($legacyFulfillmentOrders as $fo) {
+                        $fakeOrder = new Order();
+                        $fakeOrder->id = $fo->id;
+                        $fakeOrder->user_id = $user->id;
+                        $fakeOrder->total = $fo->product_amount;
+                        $fakeOrder->status = strtolower($fo->status);
+                        $fakeOrder->created_at = Carbon::parse($fo->created_at);
+                        $fakeOrder->tracking_number = 'TF-' . strtoupper(substr(md5($fo->id), 0, 8));
+                        
+                        $fakeItem = (object)[
+                            'name' => $fo->product_name,
+                            'price' => $fo->product_amount,
+                            'quantity' => $fo->qty
+                        ];
+                        $fakeOrder->setRelation('items', collect([$fakeItem]));
+
+                        $fakeOrder->fulfillment_status = strtoupper($fo->status);
+                        $fakeOrder->fulfillment_details = $fo;
+                        $fakeOrder->shipment_details = $legacyShipments->get($fo->id);
+
+                        $orders->push($fakeOrder);
+                    }
+                }
+            } else {
+                foreach ($ecomOrders as $order) {
+                    $fo = $fulfillmentOrders->get($order->id);
+                    $shipment = $shipments->get($order->id);
+
+                    $order->fulfillment_status = strtoupper($fo->status ?? $order->status ?? 'NEW');
+                    $order->fulfillment_details = $fo;
+                    $order->shipment_details = $shipment;
+
+                    $orders->push($order);
+                }
+            }
+        }
+
+        return redirect()->to(route('ecommerce.account.profile') . '#order-history');
     }
 
-    public function showOrder(Request $request, string $store, string $id)
+    public function showOrder(Request $request, $id)
     {
         $user = Auth::guard('ecommerce')->user();
-        $order = $this->ordersFor($user)->firstWhere('id', $id);
 
-        abort_unless($order, 404);
+        $order = Order::with('items')->where('user_id', $user->id)->where('id', $id)->first();
+
+        $fo = DB::connection('order_fulfillment')->table('orders')->where('id', $id)->first();
+        $shipment = DB::connection('order_fulfillment')->table('shipments')->where('order_id', $id)->first();
+
+        if (!$order && $fo) {
+            // Legacy / demo order fallback
+            $order = new Order();
+            $order->id = $fo->id;
+            $order->user_id = $user->id;
+        $order->total = $fo->product_amount ?? 0;
+        $order->status = strtolower($fo->status ?? 'NEW');
+        $order->created_at = Carbon::parse($fo->created_at);
+        $order->tracking_number = 'TF-' . strtoupper(substr(md5($fo->id), 0, 8));
+        $order->shipping_address = ['address' => $fo->address ?? '', 'name' => $fo->customer_name ?? ''];
+        
+        $fakeItem = (object)[
+            'name' => $fo->product_name ?? 'Storefront order',
+            'price' => $fo->product_amount ?? 0,
+            'quantity' => $fo->qty ?? 1,
+                'configuration' => null,
+            ];
+            $order->setRelation('items', collect([$fakeItem]));
+        }
+
+        if (!$order) {
+            return response()->json(['error' => 'Order not found'], 404);
+        }
+
+        $order->fulfillment_status = strtoupper($fo->status ?? $order->status ?? 'NEW');
+        $order->fulfillment_details = $fo;
+        $order->shipment_details = $shipment;
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'order' => $order
+            ]);
+        }
+
+        return view('ecommerce::account.order-detail', compact('order'));
+    }
+
+    public function confirmReceived(Request $request, $id)
+    {
+        $user = Auth::guard('ecommerce')->user();
+
+        if (!$user) {
+            return response()->json(['success' => false, 'error' => 'Unauthenticated.'], 401);
+        }
+
+        $order = Order::with('items')
+            ->where('user_id', $user->id)
+            ->where('id', $id)
+            ->first();
+
+        if (!$order) {
+            return response()->json(['success' => false, 'error' => 'Order not found.'], 404);
+        }
+
+        // Prevent double-confirmation: if already marked delivered/completed
+        $status = strtoupper($order->status ?? 'NEW');
+        if (in_array($status, ['DELIVERED', 'COMPLETED'])) {
+            return response()->json([
+                'success' => false,
+                'error' => 'This order has already been confirmed as received.',
+            ], 409);
+        }
+
+        // Safety net: verify the fulfillment status is actually deliverable
+        try {
+            $fo = DB::connection('order_fulfillment')
+                ->table('orders')
+                ->where('id', $id)
+                ->first();
+
+            if ($fo) {
+                $fulfillmentStatus = strtoupper($fo->status ?? '');
+                $confirmable = ['SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED', 'COMPLETED'];
+                if (!in_array($fulfillmentStatus, $confirmable)) {
+                    return response()->json([
+                        'success' => false,
+                        'error' => 'This order is not yet in a deliverable state. Please wait until it has been shipped.',
+                    ], 422);
+                }
+            }
+        } catch (\Throwable $e) {
+            // Fulfillment DB check is best-effort; proceed if the DB is unreachable
+            report($e);
+        }
+
+        // Update the ecommerce order status
+        $order->status = 'delivered';
+        $order->save();
+
+        // Also update the fulfillment DB if the order exists there
+        try {
+            DB::connection('order_fulfillment')
+                ->table('orders')
+                ->where('id', $order->id)
+                ->update([
+                    'status' => 'DELIVERED',
+                    'delivered_at' => now(),
+                    'updated_at' => now(),
+                ]);
+        } catch (\Throwable $e) {
+            // Fulfillment DB update is best-effort — don't fail the request
+            report($e);
+        }
+
+        // Trigger CRM tier recalculation
+        try {
+            \Modules\Ecommerce\CRM\Models\Customer::recalculateForUser($user->id);
+        } catch (\Throwable $e) {
+            report($e);
+        }
 
         return response()->json([
             'success' => true,
-            'order' => $order,
+            'message' => 'Order confirmed as received! Thank you.',
         ]);
-    }
-
-    public function confirmReceived(Request $request, string $store, string $id)
-    {
-        $user = Auth::guard('ecommerce')->user();
-        $order = Order::query()
-            ->where('user_id', $user->id)
-            ->whereKey($id)
-            ->firstOrFail();
-
-        $clientId = app(EcommerceClientContext::class)->clientId();
-        $fulfillmentSchema = Schema::connection('order_fulfillment');
-
-        if ($fulfillmentSchema->hasTable('shipments')) {
-            $shipmentQuery = DB::connection('order_fulfillment')
-                ->table('shipments')
-                ->where('order_id', $order->id);
-            if ($clientId !== null && $fulfillmentSchema->hasColumn('shipments', 'client_id')) {
-                $shipmentQuery->where('client_id', $clientId);
-            }
-
-            $shipmentQuery->update(['status' => 'DELIVERED', 'updated_at' => now()]);
-        }
-
-        if ($fulfillmentSchema->hasTable('orders')) {
-            $fulfillmentOrder = DB::connection('order_fulfillment')
-                ->table('orders')
-                ->where('id', $order->id);
-            if ($clientId !== null && $fulfillmentSchema->hasColumn('orders', 'client_id')) {
-                $fulfillmentOrder->where('client_id', $clientId);
-            }
-            $fulfillmentOrder->update(['status' => 'DELIVERED', 'updated_at' => now()]);
-        }
-
-        $order->update(['status' => 'delivered']);
-
-        $response = [
-            'success' => true,
-            'status' => 'DELIVERED',
-        ];
-
-        if ($request->expectsJson()) {
-            return response()->json($response);
-        }
-
-        return redirect()
-            ->route('ecommerce.account.order-history')
-            ->with('success', 'Order confirmed as received. Thank you.');
-    }
-
-    /**
-     * Load an authenticated customer's orders and enrich them with the
-     * fulfillment and shipment status for the same storefront client.
-     */
-    private function ordersFor($user)
-    {
-        $orders = Order::with('items')
-            ->where('user_id', $user->id)
-            ->latest()
-            ->get();
-
-        $orderIds = $orders->pluck('id')->filter()->all();
-        if ($orderIds === [] || ! Schema::connection('order_fulfillment')->hasTable('orders')) {
-            return $orders;
-        }
-
-        $clientId = app(EcommerceClientContext::class)->clientId();
-        $fulfillmentQuery = DB::connection('order_fulfillment')
-            ->table('orders')
-            ->whereIn('id', $orderIds);
-        if ($clientId !== null && Schema::connection('order_fulfillment')->hasColumn('orders', 'client_id')) {
-            $fulfillmentQuery->where('client_id', $clientId);
-        }
-        $fulfillmentOrders = $fulfillmentQuery->get()->keyBy('id');
-
-        $shipments = collect();
-        if (Schema::connection('order_fulfillment')->hasTable('shipments')) {
-            $shipmentQuery = DB::connection('order_fulfillment')
-                ->table('shipments')
-                ->whereIn('order_id', $orderIds);
-            if ($clientId !== null && Schema::connection('order_fulfillment')->hasColumn('shipments', 'client_id')) {
-                $shipmentQuery->where('client_id', $clientId);
-            }
-            $shipments = $shipmentQuery->get()->keyBy('order_id');
-        }
-
-        return $orders->each(function (Order $order) use ($fulfillmentOrders, $shipments): void {
-            $fulfillment = $fulfillmentOrders->get($order->id);
-            $shipment = $shipments->get($order->id);
-
-            $order->setAttribute('fulfillment_status', strtoupper($fulfillment->status ?? $shipment->status ?? $order->status ?? 'NEW'));
-            $order->setAttribute('shipment_details', $shipment);
-            $address = $order->shipping_address;
-            if (is_string($address)) {
-                $address = json_decode($address, true);
-            }
-            $order->setAttribute('shipping_address_parsed', $address);
-            if (! $order->tracking_number && $shipment?->tracking_number) {
-                $order->setAttribute('tracking_number', $shipment->tracking_number);
-            }
-        });
     }
 
     public function updateProfile(Request $request)
     {
         $user = Auth::guard('ecommerce')->user();
 
+        // ========== PROFILE FIELDS ==========
         $validated = $request->validate([
             'name' => 'nullable|string|max:255',
-            'email' => 'nullable|email|max:255|unique:users,email,' . $user->id,
-            'phone' => 'nullable|string|max:20|unique:users,phone,' . $user->id,
+            'email' => 'nullable|email|max:255',
+            'phone' => 'nullable|string|max:20',
             'gender' => 'nullable|in:male,female,other',
             'dob_year' => 'nullable|integer',
             'dob_month' => 'nullable|integer',
             'dob_day' => 'nullable|integer',
         ]);
 
-        $user->name = $validated['name'] ?? null;
-        $user->email = $validated['email'] ?? null;
-        $user->phone = $validated['phone'] ?? null;
-        $user->gender = $validated['gender'] ?? null;
+        $user->name = $validated['name'] ?? $user->name;
+        $user->email = $validated['email'] ?? $user->email;
+        $user->phone = $validated['phone'] ?? $user->phone;
+        $user->gender = $validated['gender'] ?? $user->gender;
 
         if (!empty($validated['dob_year']) && !empty($validated['dob_month']) && !empty($validated['dob_day'])) {
             try {
@@ -175,28 +379,25 @@ class AccountController extends Controller
         return redirect()->route('ecommerce.account.profile')->with('success', 'Profile updated successfully!');
     }
 
-    /** Change the password for the authenticated customer storefront account. */
     public function updatePassword(Request $request)
     {
-        $user = Auth::guard('ecommerce')->user();
-
-        $validated = $request->validateWithBag('updatePassword', [
-            'current_password' => ['required', 'string'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
+            'current_password' => ['required', 'current_password:ecommerce'],
+            'new_password' => ['required', 'string', 'min:8', 'confirmed'],
         ]);
 
-        if (! Hash::check($validated['current_password'], $user->password)) {
-            return back()
-                ->withInput($request->except(['current_password', 'password', 'password_confirmation']))
-                ->withErrors(['current_password' => 'Your current password is incorrect.'], 'updatePassword');
+        if ($validator->fails()) {
+            return $this->redirectToPasswordPane()
+                ->withErrors($validator)
+                ->withInput();
         }
 
-        // The User password cast hashes this assignment before persistence.
-        $user->password = $validated['password'];
-        $user->save();
-        $request->session()->regenerate();
+        $validated = $validator->validated();
 
-        return redirect()->route('ecommerce.account.profile')
-            ->with('success', 'Password updated successfully.');
+        $user = Auth::guard('ecommerce')->user();
+        $user->password = Hash::make($validated['new_password']);
+        $user->save();
+
+        return $this->redirectToPasswordPane()->with('success', 'Password updated successfully!');
     }
 }

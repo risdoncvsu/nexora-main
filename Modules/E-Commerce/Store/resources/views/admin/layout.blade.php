@@ -3,68 +3,33 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ $title ?? 'Nexora E-commerce' }}</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>@yield('title', 'Nexora E-commerce')</title>
     <link rel="icon" type="image/x-icon" href="{{ asset('images/nexora-icon.ico') }}">
     <!-- Load Phosphor Icons for the sidebar -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    @yield('head')
     <style>
         :root {
-            --c-sidebar-bg: #f1f1f1;
-            --c-sidebar-hover: #e5e5e5;
-            --c-header-bg: #1a1a1a;
-            --c-bg: #fcfcfc;
-            --c-text: #1a1a1a;
-            --c-text-muted: #666;
-            --c-border: #e6e6e6;
-            --c-primary: #1d4e89;
-            --c-primary-hover: #163e6d;
+            --c-sidebar-bg: #0B1E3D;
+            --c-sidebar-hover: #132B52;
+            --c-sidebar-text: #FFFFFF;
+            --c-sidebar-text-muted: #7BBEF0;
+            --c-sidebar-active-bg: #1B6FC8;
+            --c-sidebar-active-text: #FFFFFF;
+            --c-header-bg: #132B52;
+            --c-bg: #F4F6FA;
+            --c-text: #0B1E3D;
+            --c-text-muted: #5B7A9D;
+            --c-border: #E2E8F0;
+            --c-primary: #1B6FC8;
+            --c-primary-hover: #1B3A6B;
             font-family: Inter, Arial, sans-serif;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { background: var(--c-bg); color: var(--c-text); display: flex; flex-direction: column; min-height: 100vh; }
 
-        /* Top Header */
-        .shopify-header {
-            height: 56px;
-            background: var(--c-header-bg);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 20px;
-            position: sticky;
-            top: 0;
-            z-index: 50;
-        }
-        .header-logo { display: flex; align-items: center; text-decoration: none; }
-        .header-logo img { height: 32px; object-fit: contain; }
-        .header-search {
-            background: rgba(255,255,255,0.15);
-            border: 1px solid rgba(255,255,255,0.2);
-            border-radius: 6px;
-            padding: 6px 12px;
-            color: #fff;
-            font-size: 14px;
-            width: 400px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .header-search i { font-size: 16px; opacity: 0.7; }
-        .header-search span { opacity: 0.7; flex: 1; }
-        .header-search .shortcut { background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 4px; font-size: 11px; }
-
-        .header-actions { display: flex; align-items: center; gap: 16px; color: #fff; }
-        .header-actions i { font-size: 20px; cursor: pointer; opacity: 0.8; transition: opacity 0.2s; }
-        .header-actions i:hover { opacity: 1; }
-
-        .user-menu { position: relative; }
-        .user-button { display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%; background: #4caf50; color: #fff; font-weight: 600; font-size: 13px; cursor: pointer; }
-        .user-dropdown { visibility: hidden; position: absolute; z-index: 20; top: 40px; right: 0; width: 220px; overflow: hidden; border-radius: 8px; background: #fff; box-shadow: 0 4px 12px rgba(0,0,0,.15); opacity: 0; transform: translateY(-8px); transition: .16s ease; border: 1px solid var(--c-border); }
-        .user-menu[data-open="true"] .user-dropdown { visibility: visible; opacity: 1; transform: translateY(0); }
-        .user-dropdown a, .user-dropdown button { display: block; width: 100%; padding: 12px 16px; border: 0; background: #fff; color: var(--c-text); font: 500 14px Inter, Arial, sans-serif; text-align: left; text-decoration: none; cursor: pointer; }
-        .user-dropdown a:hover, .user-dropdown button:hover { background: #f5f5f5; }
-        .user-dropdown form { margin: 0; }
-        .user-dropdown form button { color: #dc2626; border-top: 1px solid var(--c-border); }
+        /* Top header styles moved to components/admin-navbar.blade.php */
 
         /* Layout Structure */
         .layout-wrapper { display: flex; flex: 1; overflow: hidden; }
@@ -73,7 +38,7 @@
         .sidebar {
             width: 240px;
             background: var(--c-sidebar-bg);
-            border-right: 1px solid var(--c-border);
+            border-right: none;
             display: flex;
             flex-direction: column;
             padding: 16px 12px;
@@ -82,15 +47,15 @@
         .sidebar-link {
             display: flex; align-items: center; gap: 12px;
             padding: 8px 12px; border-radius: 6px;
-            color: var(--c-text); text-decoration: none;
+            color: var(--c-sidebar-text); text-decoration: none;
             font-size: 14px; font-weight: 500; transition: background 0.1s;
         }
         .sidebar-link:hover { background: var(--c-sidebar-hover); }
-        .sidebar-link.active { background: #fff; font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .sidebar-link i { font-size: 18px; color: var(--c-text-muted); }
-        .sidebar-link.active i { color: var(--c-text); }
+        .sidebar-link.active { background: var(--c-sidebar-active-bg); color: var(--c-sidebar-active-text); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .sidebar-link i { font-size: 18px; color: var(--c-sidebar-text-muted); }
+        .sidebar-link.active i { color: var(--c-sidebar-active-text); }
         .sidebar-section-title {
-            font-size: 12px; font-weight: 600; color: var(--c-text-muted);
+            font-size: 12px; font-weight: 600; color: var(--c-sidebar-text-muted);
             margin: 16px 0 8px 12px; text-transform: uppercase; letter-spacing: 0.5px;
         }
 
@@ -118,8 +83,8 @@
         label { display: block; margin-top: 16px; color: var(--c-text); font-size: 14px; font-weight: 500; }
 
         .hint { margin: 6px 0 0; color: var(--c-text-muted); font-size: 13px; }
-        .success { margin-bottom: 24px; border-radius: 8px; padding: 14px; background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; font-size: 14px; display: flex; align-items: center; gap: 8px;}
-        .error { color: #d32f2f; font-size: 13px; margin-top: 4px;}
+        .success { margin-bottom: 24px; border-radius: 8px; padding: 14px; background: #DCFCE7; color: #16A34A; border: 1px solid #BBF7D0; font-size: 14px; display: flex; align-items: center; gap: 8px;}
+        .error { color: #DC2626; font-size: 13px; margin-top: 4px;}
 
         /* Layout Editor Specifics overriding */
         .editor-grid { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(320px, .8fr); gap: 24px; align-items: start; }
@@ -134,53 +99,14 @@
         @media (max-width: 900px) {
             .editor-grid { grid-template-columns: 1fr; }
             .sidebar { display: none; }
-            .header-search { display: none; }
+
             .main-area { padding: 20px; }
         }
     </style>
 </head>
 <body>
-    @php
-        $ecommerceHasAccessProfile = (bool) request()->attributes->get('ecommerce_has_access_profile', false);
-        $ecommercePermissions = (array) request()->attributes->get('ecommerce_permissions', []);
-        $canManageListings = ! $ecommerceHasAccessProfile || in_array('ecommerce.manage_product_listings', $ecommercePermissions, true);
-        $canViewOrders = ! $ecommerceHasAccessProfile || in_array('ecommerce.view_orders', $ecommercePermissions, true);
-    @endphp
     @if(!($hideLayout ?? false))
-    <header class="shopify-header">
-        <a class="header-logo" href="{{ route('ecommerce.admin.dashboard') }}">
-            <img src="{{ asset('images/Banner Transparent.png') }}" style="filter: brightness(0) invert(1);" alt="Nexora Logo">
-        </a>
-
-        <div class="header-search">
-            <i class="ph ph-magnifying-glass"></i>
-            <span>Search</span>
-            <div class="shortcut">CTRL K</div>
-        </div>
-
-        <div class="header-actions">
-            <i class="ph ph-bell"></i>
-            <div class="user-menu" data-user-menu>
-                @php
-                    $companyName = auth('ecommerce_admin')->user()?->getCompany()?->company_name ?? 'Store';
-                    $initials = strtoupper(substr($companyName, 0, 2));
-                @endphp
-                <button type="button" class="user-button" data-user-menu-button aria-label="Open user menu" aria-expanded="false">
-                    {{ $initials }}
-                </button>
-                <div class="user-dropdown" data-user-menu-dropdown>
-                    <div style="padding: 12px 16px; border-bottom: 1px solid var(--c-border); background: #fafafa;">
-                        <strong>{{ $companyName }}</strong>
-                    </div>
-                    @php($slug = auth('ecommerce_admin')->user()?->getCompany()?->ecommerce_slug)
-                    @if($slug)
-                        <a href="{{ route('ecommerce.home', ['store' => $slug]) }}" target="_blank" rel="noopener">Open Storefront</a>
-                    @endif
-                    <form method="post" action="{{ route('ecommerce.admin.logout') }}">@csrf<button type="submit" style="color: #d32f2f; background: none; text-align: left; padding: 0;">Log Out</button></form>
-                </div>
-            </div>
-        </div>
-    </header>
+        @include('ecommerce::components.admin-navbar')
     @endif
 
     <div class="layout-wrapper">
@@ -190,26 +116,37 @@
                 <a class="sidebar-link {{ request()->routeIs('ecommerce.admin.dashboard') ? 'active' : '' }}" href="{{ route('ecommerce.admin.dashboard') }}">
                     <i class="ph ph-house"></i> Home
                 </a>
-                @if ($canViewOrders)
-                    <a class="sidebar-link {{ request()->routeIs('ecommerce.admin.orders') ? 'active' : '' }}" href="{{ route('ecommerce.admin.orders') }}">
-                        <i class="ph ph-shopping-cart"></i> Orders
-                    </a>
-                @endif
-                @if ($canManageListings)
-                    <a class="sidebar-link {{ request()->routeIs('ecommerce.admin.listings*') ? 'active' : '' }}" href="{{ route('ecommerce.admin.listings') }}">
-                        <i class="ph ph-tag"></i> Products
-                    </a>
-                    <a class="sidebar-link {{ request()->routeIs('ecommerce.admin.customer-notifications*') ? 'active' : '' }}" href="{{ route('ecommerce.admin.customer-notifications') }}">
-                        <i class="ph ph-bell"></i> Customer notifications
-                    </a>
-                @endif
+                <a class="sidebar-link {{ request()->routeIs('ecommerce.admin.orders') ? 'active' : '' }}" href="{{ route('ecommerce.admin.orders') }}">
+                    <i class="ph ph-shopping-cart"></i> Orders
+                </a>
+                <a class="sidebar-link {{ request()->routeIs('ecommerce.admin.listings*') ? 'active' : '' }}" href="{{ route('ecommerce.admin.listings') }}">
+                    <i class="ph ph-tag"></i> Products
+                </a>
 
-                @if ($canManageListings)
-                    <div class="sidebar-section-title">Sales Channels</div>
-                    <a class="sidebar-link {{ request()->routeIs('ecommerce.admin.layout.*') ? 'active' : '' }}" href="{{ route('ecommerce.admin.layout.edit') }}">
-                        <i class="ph ph-storefront"></i> {{ auth('ecommerce_admin')->user()?->getCompany()?->company_name ?? 'Online Store' }}
-                    </a>
-                @endif
+                <div class="sidebar-section-title">Sales Channels</div>
+                <a class="sidebar-link {{ request()->routeIs('ecommerce.admin.layout.*') ? 'active' : '' }}" href="{{ route('ecommerce.admin.layout.edit') }}">
+                    <i class="ph ph-storefront"></i> {{ auth('ecommerce_admin')->user()?->getCompany()?->company_name ?? 'Online Store' }}
+                </a>
+
+                <div class="sidebar-section-title">CRM</div>
+                <a class="sidebar-link {{ request()->routeIs('ecommerce.admin.crm.dashboard') ? 'active' : '' }}" href="{{ route('ecommerce.admin.crm.dashboard') }}">
+                    <i class="ph ph-gauge"></i> Dashboard
+                </a>
+                <a class="sidebar-link {{ request()->routeIs('ecommerce.admin.customer-notifications*') ? 'active' : '' }}" href="{{ route('ecommerce.admin.customer-notifications') }}">
+                    <i class="ph ph-megaphone"></i> Notifications
+                </a>
+                <a class="sidebar-link {{ request()->routeIs('ecommerce.admin.crm.customers*') ? 'active' : '' }}" href="{{ route('ecommerce.admin.crm.customers') }}">
+                    <i class="ph ph-users"></i> Customers
+                </a>
+                <a class="sidebar-link {{ request()->routeIs('ecommerce.admin.crm.segments') ? 'active' : '' }}" href="{{ route('ecommerce.admin.crm.segments') }}">
+                    <i class="ph ph-funnel"></i> Segments &amp; RFM
+                </a>
+                <a class="sidebar-link" href="#" onclick="toggleChatWidget(); return false;">
+                    <i class="ph ph-chats"></i> Live Chat
+                </a>
+                <a class="sidebar-link {{ request()->routeIs('ecommerce.admin.crm.tickets') ? 'active' : '' }}" href="{{ route('ecommerce.admin.crm.tickets') }}">
+                    <i class="ph ph-ticket"></i> Tickets
+                </a>
             </nav>
 
             <nav style="margin-top: auto;">
@@ -237,20 +174,6 @@
         </main>
     </div>
 
-    <script>
-        document.querySelectorAll('[data-user-menu]').forEach((menu) => {
-            const button = menu.querySelector('[data-user-menu-button]');
-            button?.addEventListener('click', (event) => {
-                event.stopPropagation();
-                const open = menu.dataset.open !== 'true';
-                menu.dataset.open = open ? 'true' : 'false';
-                button.setAttribute('aria-expanded', String(open));
-            });
-            window.addEventListener('click', () => {
-                menu.dataset.open = 'false';
-                button?.setAttribute('aria-expanded', 'false');
-            });
-        });
-    </script>
+    <!-- User menu JS is in components/admin-navbar.blade.php -->
 </body>
 </html>

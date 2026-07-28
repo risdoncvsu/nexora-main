@@ -11,7 +11,7 @@ class DynamicPageController extends Controller
 {
     public function show(string $slug, EcommerceClientContext $context)
     {
-        $company = $context->company();
+        $company = request()->attributes->get('ecommerce_company');
         if (!$company) {
             abort(404);
         }
@@ -35,9 +35,7 @@ class DynamicPageController extends Controller
             'storefront' => app(StorefrontController::class)->index(),
             'cart' => app(CartController::class)->index(),
             'checkout' => app(CheckoutController::class)->index(),
-            'pc-configurator' => app(\Modules\Ecommerce\Http\Controllers\CustomPcController::class)->index(),
-            'gaming-laptops' => app(\Modules\Ecommerce\Http\Controllers\LaptopController::class)->index(),
-            'prebuilt-pcs' => app(\Modules\Ecommerce\Http\Controllers\PrebuiltPcController::class)->index(),
+            'collections', 'accessories', 'monitors', 'category1', 'category2', 'category3' => app(\Modules\Ecommerce\Http\Controllers\CollectionsController::class)->index(),
             default => abort(404, "Blueprint '{$blueprint}' not found."),
         };
     }

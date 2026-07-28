@@ -1,3 +1,36 @@
+@php
+    $storefrontCompany = request()->attributes->get('ecommerce_company');
+    if (!$storefrontCompany) {
+        $storefrontCompany = auth('ecommerce_admin')->user()?->getCompany() ?? auth('ecommerce')->user()?->company ?? \App\Models\Company::first();
+    }
+
+    $isPreview = request()->boolean('preview') || auth('ecommerce_admin')->check();
+    $publishedLayout = $storefrontCompany 
+        ? ($isPreview ? \Modules\Ecommerce\Models\StorefrontLayout::editableFor($storefrontCompany) : \Modules\Ecommerce\Models\StorefrontLayout::publishedFor($storefrontCompany))
+        : [];
+
+    $layout = empty($layout) ? $publishedLayout : $layout;
+
+    $storefrontName = $storefrontCompany?->company_name ?: ($layout['brand_name'] ?? 'Nexora Store');
+    $store = $storefrontCompany?->ecommerce_slug ?: 'store';
+    $logoUrl = !empty($layout['logo_path']) 
+        ? (str_starts_with($layout['logo_path'], 'Modules/') ? Vite::asset($layout['logo_path']) : asset('storage/'.$layout['logo_path'])) 
+        : ($storefrontCompany?->logoUrl() ?: asset('ecommerce/Nexora_Logo.png'));
+
+    $primaryHex = $layout['primary_color'] ?? '#ff6b00';
+    $primaryClean = ltrim($primaryHex, '#');
+    if (strlen($primaryClean) === 3) $primaryClean = $primaryClean[0].$primaryClean[0].$primaryClean[1].$primaryClean[1].$primaryClean[2].$primaryClean[2];
+    $primaryR = hexdec(substr($primaryClean, 0, 2));
+    $primaryG = hexdec(substr($primaryClean, 2, 2));
+    $primaryB = hexdec(substr($primaryClean, 4, 2));
+
+    $accentHex = $layout['accent_color'] ?? '#f59e0b';
+    $accentClean = ltrim($accentHex, '#');
+    if (strlen($accentClean) === 3) $accentClean = $accentClean[0].$accentClean[0].$accentClean[1].$accentClean[1].$accentClean[2].$accentClean[2];
+    $accentR = hexdec(substr($accentClean, 0, 2));
+    $accentG = hexdec(substr($accentClean, 2, 2));
+    $accentB = hexdec(substr($accentClean, 4, 2));
+@endphp
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="scroll-smooth">
 <head>
@@ -7,7 +40,7 @@
     
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
 
-    <title>{{ config('app.name', 'TechForge') }} | Set Password</title>
+    <title>{{ $layout['brand_name'] ?? $storefrontName }} | Set Password</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -16,7 +49,7 @@
             theme: {
                 extend: {
                     colors: {
-                        primary: { DEFAULT: '#ff6b00', hover: '#e56000', glow: 'rgba(255, 107, 0, 0.5)' },
+                        primary: { DEFAULT: '{{ $primaryHex }}', hover: '{{ $primaryHex }}CC', glow: 'rgba({{ $primaryR }}, {{ $primaryG }}, {{ $primaryB }}, 0.5)' },\n                        accent: '{{ $accentHex }}',
                         dark: { bg: '#050505', surface: '#121212' }
                     },
                     fontFamily: { sans: ['Inter', 'sans-serif'] }

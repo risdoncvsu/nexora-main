@@ -4,12 +4,12 @@ namespace Modules\Ecommerce\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Modules\Ecommerce\Models\Cart;
+use Modules\Ecommerce\Models\CustomerNotification;
 use Modules\Ecommerce\Models\Order;
+use Modules\Ecommerce\CRM\Models\Customer as CrmCustomer;
 use App\Services\ErpIntegrationService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Str;
 use Modules\Ecommerce\Support\EcommerceClientContext;
 
 class CheckoutController extends Controller
@@ -19,6 +19,18 @@ class CheckoutController extends Controller
         if (!Auth::guard('ecommerce')->check()) {
             session()->put('redirect_after_auth', route('ecommerce.checkout.index'));
             return redirect()->route('ecommerce.login');
+        }
+
+        $user = Auth::guard('ecommerce')->user();
+
+        // Fetch saved addresses and payment methods
+        $addresses = $user->addresses()->orderBy('is_default', 'desc')->get();
+        $paymentMethods = $user->paymentMethods()->orderBy('is_default', 'desc')->get();
+
+        // Require at least one saved address to proceed
+        if ($addresses->isEmpty()) {
+            return redirect()->route('ecommerce.account.profile')
+                ->with('error', 'Please add a delivery address in your account before checking out.');
         }
 
         $cart = Cart::with('items')->where('user_id', Auth::guard('ecommerce')->id())->first();
@@ -46,12 +58,17 @@ class CheckoutController extends Controller
             return $item['price'] * $item['quantity'];
         });
 
+        // Tier-based item discount
+        $tierBenefits = CrmCustomer::benefitsForUser($user->id);
+        $tierDiscountPct = $tierBenefits['item_discount_pct'];
+        $tierDiscountAmount = $tierDiscountPct > 0 ? round($subtotal * ($tierDiscountPct / 100), 2) : 0;
+
         // Simple default shipping fee
         $shipping = 150; 
-        $discount = 0;
+        $discount = $tierDiscountAmount;
         $total = $subtotal + $shipping - $discount;
 
-        return view('ecommerce::checkout', compact('cartItems', 'subtotal', 'shipping', 'discount', 'total'));
+        return view('ecommerce::checkout', compact('cartItems', 'subtotal', 'shipping', 'discount', 'total', 'addresses', 'paymentMethods', 'tierBenefits', 'tierDiscountPct', 'tierDiscountAmount'));
     }
 
     public function process(Request $request)
@@ -60,19 +77,32 @@ class CheckoutController extends Controller
             return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
         }
 
+        $user = Auth::guard('ecommerce')->user();
+
         $request->validate([
-            'firstName' => 'required|string|max:255',
-            'lastName' => 'required|string|max:255',
-            'phone' => 'required|string|max:20',
-            'address' => 'required|string|max:255',
-            'city' => 'required|string|max:255',
-            'province' => 'required|string|max:255',
-            'zip' => 'required|string|max:20',
+            'addressId' => 'required|integer',
             'shippingMethod' => 'required|string',
             'paymentMethod' => 'required|string',
         ]);
 
-        $cart = Cart::with('items')->where('user_id', Auth::guard('ecommerce')->id())->first();
+        // Resolve the saved address
+        $address = $user->addresses()->where('id', $request->addressId)->first();
+        if (!$address) {
+            return response()->json(['success' => false, 'message' => 'Selected address not found.'], 422);
+        }
+
+        // Resolve payment method (skip for COD)
+        $paymentLabel = $request->paymentMethod;
+        $paymentMethodRecord = null;
+        if ($request->paymentMethod !== 'cod') {
+            $paymentMethodRecord = $user->paymentMethods()->where('id', $request->paymentMethod)->first();
+            if (!$paymentMethodRecord) {
+                return response()->json(['success' => false, 'message' => 'Selected payment method not found.'], 422);
+            }
+            $paymentLabel = $paymentMethodRecord->type . ' ending in ' . substr($paymentMethodRecord->account_number_mask ?? '', -4);
+        }
+
+        $cart = Cart::with('items')->where('user_id', $user->id)->first();
         if (!$cart || $cart->items->count() === 0) {
             return response()->json(['success' => false, 'message' => 'Cart is empty'], 400);
         }
@@ -81,97 +111,133 @@ class CheckoutController extends Controller
             return $item->price * $item->quantity;
         });
 
+        // Determine base shipping fee
         $shippingFee = $request->shippingMethod === 'express' ? 300 : ($request->shippingMethod === 'pickup' ? 0 : 150);
-        $total = $subtotal + $shippingFee;
+
+        // Apply tier shipping benefit
+        $tierBenefits = CrmCustomer::benefitsForUser($user->id);
+        $shippingBenefit = $tierBenefits['benefits']['shipping_benefit'] ?? null;
+
+        if ($shippingBenefit === 'free_general') {
+            // Platinum: free any shipping method
+            $shippingFee = 0;
+        } elseif ($shippingBenefit === 'free_standard') {
+            // Gold: free standard shipping only
+            if ($request->shippingMethod === 'standard' || $request->shippingMethod === 'pickup') {
+                $shippingFee = 0;
+            }
+        } elseif ($shippingBenefit === '50%_off') {
+            // Silver: 50% off any shipping
+            $shippingFee = round($shippingFee * 0.5, 2);
+        }
+
+        // Apply tier item discount
+        $tierDiscountPct = $tierBenefits['item_discount_pct'] ?? 0;
+        $tierDiscountAmount = $tierDiscountPct > 0 ? round($subtotal * ($tierDiscountPct / 100), 2) : 0;
+
+        $total = $subtotal + $shippingFee - $tierDiscountAmount;
 
         $clientId = app(EcommerceClientContext::class)->clientId();
         if (! $clientId) {
             return response()->json(['success' => false, 'message' => 'Storefront client could not be resolved.'], 422);
         }
 
+        // Build shipping address from saved address record
+        $fullName = $address->full_name ?? $user->name;
+        $nameParts = explode(' ', $fullName, 2);
+        $shippingAddress = [
+            'first_name' => $nameParts[0] ?? $fullName,
+            'last_name' => $nameParts[1] ?? '',
+            'phone' => $address->phone_number ?? '',
+            'address' => trim(($address->detailed_address ?? '') . ', ' . ($address->barangay ?? '')),
+            'city' => $address->city ?? '',
+            'province' => $address->province ?? '',
+            'zip' => $address->postal_code ?? '',
+            'country' => $address->region ?? 'Philippines',
+        ];
+
         try {
-        app(ErpIntegrationService::class)->assertPackingMaterialsAvailable($clientId);
+            // 1. Create the order within its own ecommerce transaction
+            $order = DB::connection('ecommerce')->transaction(function () use ($cart, $request, $subtotal, $shippingFee, $total, $paymentLabel, $shippingAddress) {
+                $order = Order::create([
+                    'user_id' => Auth::guard('ecommerce')->id(),
+                    'status' => 'processing',
+                    'total' => $total,
+                    'shipping_fee' => $shippingFee,
+                    'payment_method' => $paymentLabel,
+                    'payment_status' => $request->paymentMethod === 'cod' ? 'unpaid' : 'paid',
+                    'shipping_address' => $shippingAddress,
+                    'tracking_number' => 'TF-' . strtoupper(\Illuminate\Support\Str::random(8)),
+                ]);
 
-        $order = DB::connection('ecommerce')->transaction(function () use ($cart, $request, $subtotal, $shippingFee, $total, $clientId) {
-        // Create Order
-        $order = Order::create([
-            'user_id' => Auth::guard('ecommerce')->id(),
-            'status' => 'processing',
-            'total' => $total,
-            'shipping_fee' => $shippingFee,
-            'payment_method' => $request->paymentMethod,
-            'payment_status' => $request->paymentMethod === 'cod' ? 'unpaid' : 'paid',
-            'shipping_address' => [
-                'first_name' => $request->firstName,
-                'last_name' => $request->lastName,
-                'phone' => $request->phone,
-                'address' => $request->address,
-                'city' => $request->city,
-                'province' => $request->province,
-                'zip' => $request->zip,
-            ],
-            'tracking_number' => 'TF-' . strtoupper(\Illuminate\Support\Str::random(8)),
-        ]);
+                foreach ($cart->items as $item) {
+                    $order->items()->create([
+                        'product_id' => $item->product_id,
+                        'product_type' => $item->product_type,
+                        'name' => $item->name,
+                        'price' => $item->price,
+                        'quantity' => $item->quantity,
+                        'configuration' => $item->configuration,
+                    ]);
+                }
 
-        // Create Order Items
-        foreach ($cart->items as $item) {
-            $order->items()->create([
-                'product_id' => $item->product_id,
-                'product_type' => $item->product_type,
-                'name' => $item->name,
-                'price' => $item->price,
-                'quantity' => $item->quantity,
-                'configuration' => $item->configuration,
-            ]);
-        }
+                return $order;
+            });
 
-        app(ErpIntegrationService::class)->propagateEcommerceOrder($clientId, $order, $order->items);
+            // 2. Propagate to ERP outside the ecommerce transaction.
+            //    Each module handles its own database transaction independently,
+            //    avoiding cross-connection transaction aborts like PostgreSQL 25P02.
+            app(ErpIntegrationService::class)->propagateEcommerceOrder($clientId, $order, $order->items);
 
-        // Clear Cart only after every required ERP record has been created.
-        $cart->items()->delete();
+            // 3. Create a notification for the customer
+            try {
+                CustomerNotification::create([
+                    'client_id' => $clientId,
+                    'user_id' => $user->id,
+                    'type' => 'order_status',
+                    'title' => 'Order Received',
+                    'body' => 'Your order ' . $order->tracking_number . ' has been received and is being processed.',
+                    'link' => route('ecommerce.account.orders.show', ['store' => $request->route('store') ?? 'store', 'id' => $order->id]),
+                    'icon' => 'ph-package',
+                    'icon_color' => 'green',
+                    'is_read' => false,
+                ]);
+            } catch (\Throwable $e) {
+                \Log::warning('Failed to create order notification: ' . $e->getMessage());
+            }
 
-        return $order;
-        });
+            // 4. Clear Cart only after every required ERP record has been created.
+            $cart->items()->delete();
+        } catch (\RuntimeException $exception) {
+            return response()->json(['success' => false, 'message' => $exception->getMessage()], 422);
         } catch (\Throwable $exception) {
-            report($exception);
-
-            return response()->json([
-                'success' => false,
-                'message' => $exception instanceof \RuntimeException
-                    ? $exception->getMessage()
-                    : 'We could not finalize this order. Please try again shortly.',
-            ], 422);
+            return response()->json(['success' => false, 'message' => 'An unexpected error occurred. Please try again.'], 500);
         }
 
         return response()->json([
             'success' => true,
-            // The storefront route also has a {store} subdomain parameter.
-            // Pass the order by name so Laravel keeps the current storefront
-            // default instead of placing the order UUID in the host slot.
-            'redirect_url' => route('ecommerce.checkout.success', ['id' => $order->id])
+            'redirect_url' => route('ecommerce.checkout.success', $order->id)
         ]);
     }
 
-    public function success(Request $request, string $store, string $id)
+    public function success($first, $id = null)
     {
-        // Route parameters arrive in domain order: {store} first, then {id}.
-        // Reject malformed values before PostgreSQL attempts a UUID lookup.
-        abort_unless(Str::isUuid($id), 404);
+        // $id is the order ID when called from subdomain ({store}.domain.com/checkout/success/{id})
+        // $first is the order ID when called from localhost fallback (no subdomain)
+        $orderId = $id ?? $first;
+        $order = Order::with('items')->where('user_id', Auth::guard('ecommerce')->id())->findOrFail($orderId);
 
-        $order = Order::query()
-            ->whereKey($id)
-            ->where('user_id', Auth::guard('ecommerce')->id())
-            ->firstOrFail();
+        // Load tier benefits for discount breakdown display
+        $user = Auth::guard('ecommerce')->user();
+        $tierBenefits = $user ? \Modules\Ecommerce\CRM\Models\Customer::benefitsForUser($user->id) : null;
+        $tierDiscountPct = $tierBenefits['item_discount_pct'] ?? 0;
 
-        // Orders placed before the storefront schema was fully installed can
-        // still be confirmed even when their optional line-item table is not
-        // yet available. The order remains client- and customer-scoped.
-        if (Schema::connection('ecommerce')->hasTable('order_items')) {
-            $order->load('items');
-        } else {
-            $order->setRelation('items', collect());
-        }
+        // Recalculate the original subtotal from order items
+        $originalSubtotal = $order->items->sum(fn($i) => $i->price * $i->quantity);
+        $tierDiscountAmount = $tierDiscountPct > 0 ? round($originalSubtotal * ($tierDiscountPct / 100), 2) : 0;
 
-        return view('ecommerce::checkout-success', compact('order'));
+        return view('ecommerce::checkout-success', compact(
+            'order', 'tierBenefits', 'tierDiscountPct', 'tierDiscountAmount', 'originalSubtotal'
+        ));
     }
 }

@@ -1,3 +1,36 @@
+@php
+    $storefrontCompany = request()->attributes->get('ecommerce_company');
+    if (!$storefrontCompany) {
+        $storefrontCompany = auth('ecommerce_admin')->user()?->getCompany() ?? auth('ecommerce')->user()?->company ?? \App\Models\Company::first();
+    }
+
+    $isPreview = request()->boolean('preview') || auth('ecommerce_admin')->check();
+    $publishedLayout = $storefrontCompany 
+        ? ($isPreview ? \Modules\Ecommerce\Models\StorefrontLayout::editableFor($storefrontCompany) : \Modules\Ecommerce\Models\StorefrontLayout::publishedFor($storefrontCompany))
+        : [];
+
+    $layout = empty($layout) ? $publishedLayout : $layout;
+
+    $storefrontName = $storefrontCompany?->company_name ?: ($layout['brand_name'] ?? 'Nexora Store');
+    $store = $storefrontCompany?->ecommerce_slug ?: 'store';
+    $logoUrl = !empty($layout['logo_path']) 
+        ? (str_starts_with($layout['logo_path'], 'Modules/') ? Vite::asset($layout['logo_path']) : asset('storage/'.$layout['logo_path'])) 
+        : ($storefrontCompany?->logoUrl() ?: asset('ecommerce/Nexora_Logo.png'));
+
+    $primaryHex = $layout['primary_color'] ?? '#ff6b00';
+    $primaryClean = ltrim($primaryHex, '#');
+    if (strlen($primaryClean) === 3) $primaryClean = $primaryClean[0].$primaryClean[0].$primaryClean[1].$primaryClean[1].$primaryClean[2].$primaryClean[2];
+    $primaryR = hexdec(substr($primaryClean, 0, 2));
+    $primaryG = hexdec(substr($primaryClean, 2, 2));
+    $primaryB = hexdec(substr($primaryClean, 4, 2));
+
+    $accentHex = $layout['accent_color'] ?? '#f59e0b';
+    $accentClean = ltrim($accentHex, '#');
+    if (strlen($accentClean) === 3) $accentClean = $accentClean[0].$accentClean[0].$accentClean[1].$accentClean[1].$accentClean[2].$accentClean[2];
+    $accentR = hexdec(substr($accentClean, 0, 2));
+    $accentG = hexdec(substr($accentClean, 2, 2));
+    $accentB = hexdec(substr($accentClean, 4, 2));
+@endphp
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="scroll-smooth">
 <head>
@@ -7,7 +40,7 @@
     
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
 
-    <title>{{ config('app.name', 'TechForge') }} | Cart & Returns</title>
+    <title>{{ $layout['brand_name'] ?? $storefrontName }} | Account</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -16,7 +49,8 @@
             theme: {
                 extend: {
                     colors: {
-                        primary: { DEFAULT: '#ff6b00', hover: '#e56000', glow: 'rgba(255, 107, 0, 0.5)' },
+                        primary: { DEFAULT: '{{ $primaryHex }}', hover: '{{ $primaryHex }}CC', glow: 'rgba({{ $primaryR }}, {{ $primaryG }}, {{ $primaryB }}, 0.5)' },
+                        accent: '{{ $accentHex }}',
                         dark: { bg: '#050505', surface: '#121212' }
                     },
                     fontFamily: { sans: ['Inter', 'sans-serif'] }
@@ -119,7 +153,7 @@
             border-radius: 4px;
         }
         ::-webkit-scrollbar-thumb:hover {
-            background: #ff6b00;
+            background: {{ $primaryHex }};
         }
 
         /* Preloader Animations */
@@ -151,19 +185,19 @@
     <!-- Preloader -->
     <div id="preloader" class="fixed inset-0 bg-[#050505] z-[100] flex items-center justify-center transition-opacity duration-1000 ease-in-out">
         <script>
-            if (!sessionStorage.getItem('techforge_visited')) {
+            if (!sessionStorage.getItem('storefront_visited')) {
                 document.write(`
                     <div class="relative flex items-center justify-center">
                         <div class="absolute inset-0 bg-primary/20 blur-xl rounded-full animate-pulse"></div>
                         <div class="flex items-center relative z-10">
-                            <img src="{{ Vite::asset('Modules/E-Commerce/Store/resources/img/Techforge_Logo.png') }}" alt="TechForge Logo" class="h-20 w-auto object-contain animate-spin-fast drop-shadow-[0_0_25px_rgba(255,107,0,0.6)]">
-                            <span class="text-4xl md:text-5xl font-black text-white tracking-widest animate-slide-text">TECHFORGE</span>
+                            <img src="{{ $logoUrl }}" alt="{{ $layout['brand_name'] ?? $storefrontName }} Logo" class="h-20 w-auto object-contain animate-spin-fast drop-shadow-[0_0_25px_rgba({{ $primaryR }},{{ $primaryG }},{{ $primaryB }},0.6)]">
+                            <span class="text-4xl md:text-5xl font-black text-white tracking-widest animate-slide-text uppercase">{{ $layout['brand_name'] ?? $storefrontName }}</span>
                         </div>
                     </div>
                 `);
             } else {
                 document.write(`
-                    <div class="w-16 h-16 border-4 border-white/10 border-t-primary rounded-full animate-spin shadow-[0_0_20px_rgba(255,107,0,0.3)]"></div>
+                    <div class="w-16 h-16 border-4 border-white/10 border-t-primary rounded-full animate-spin shadow-[0_0_20px_rgba({{ $primaryR }},{{ $primaryG }},{{ $primaryB }},0.3)]"></div>
                 `);
             }
         </script>
@@ -210,6 +244,10 @@
                         <a href="#" class="flex items-center gap-3 text-gray-400 hover:text-white transition-colors font-bold text-base mt-2">
                             <i class="ph ph-ticket text-xl"></i>
                             Vouchers
+                        </a>
+                        <a href="#" class="flex items-center gap-3 text-gray-400 hover:text-white transition-colors font-bold text-base mt-2">
+                            <i class="ph ph-coins text-xl"></i>
+                            Forge Points
                         </a>
                     </div>
                 </div>

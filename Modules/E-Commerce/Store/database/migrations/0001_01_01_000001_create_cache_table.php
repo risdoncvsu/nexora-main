@@ -6,13 +6,22 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    public $withinTransaction = false;
     /**
      * Run the migrations.
      */
     public function up(): void
     {
-        // Cache is owned by ITSM's primary connection.
+        Schema::create('cache', function (Blueprint $table) {
+            $table->string('key')->primary();
+            $table->mediumText('value');
+            $table->integer('expiration')->index();
+        });
+
+        Schema::create('cache_locks', function (Blueprint $table) {
+            $table->string('key')->primary();
+            $table->string('owner');
+            $table->integer('expiration')->index();
+        });
     }
 
     /**
@@ -20,6 +29,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Intentionally non-destructive: production storefront data is never removed by rollback.
+        Schema::dropIfExists('cache');
+        Schema::dropIfExists('cache_locks');
     }
 };

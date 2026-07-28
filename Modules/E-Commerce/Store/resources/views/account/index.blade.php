@@ -1,3 +1,37 @@
+@php
+    $storefrontCompany = request()->attributes->get('ecommerce_company');
+    if (!$storefrontCompany) {
+        $storefrontCompany = auth('ecommerce_admin')->user()?->getCompany() ?? auth('ecommerce')->user()?->company ?? \App\Models\Company::first();
+    }
+
+    $isPreview = request()->boolean('preview') || auth('ecommerce_admin')->check();
+    $publishedLayout = $storefrontCompany 
+        ? ($isPreview ? \Modules\Ecommerce\Models\StorefrontLayout::editableFor($storefrontCompany) : \Modules\Ecommerce\Models\StorefrontLayout::publishedFor($storefrontCompany))
+        : [];
+
+    $layout = empty($layout) ? $publishedLayout : $layout;
+
+    $storefrontName = $storefrontCompany?->company_name ?: ($layout['brand_name'] ?? 'Nexora Store');
+    $store = $storefrontCompany?->ecommerce_slug ?: 'store';
+    $logoUrl = !empty($layout['logo_path']) 
+        ? (str_starts_with($layout['logo_path'], 'Modules/') ? Vite::asset($layout['logo_path']) : asset('storage/'.$layout['logo_path'])) 
+        : ($storefrontCompany?->logoUrl() ?: asset('ecommerce/Nexora_Logo.png'));
+
+    $primaryHex = $layout['primary_color'] ?? '#ff6b00';
+    $primaryClean = ltrim($primaryHex, '#');
+    if (strlen($primaryClean) === 3) $primaryClean = $primaryClean[0].$primaryClean[0].$primaryClean[1].$primaryClean[1].$primaryClean[2].$primaryClean[2];
+    $primaryR = hexdec(substr($primaryClean, 0, 2));
+    $primaryG = hexdec(substr($primaryClean, 2, 2));
+    $primaryB = hexdec(substr($primaryClean, 4, 2));
+    $primaryShadow = "rgba($primaryR, $primaryG, $primaryB, 0.05)";
+
+    $accentHex = $layout['accent_color'] ?? '#f59e0b';
+    $accentClean = ltrim($accentHex, '#');
+    if (strlen($accentClean) === 3) $accentClean = $accentClean[0].$accentClean[0].$accentClean[1].$accentClean[1].$accentClean[2].$accentClean[2];
+    $accentR = hexdec(substr($accentClean, 0, 2));
+    $accentG = hexdec(substr($accentClean, 2, 2));
+    $accentB = hexdec(substr($accentClean, 4, 2));
+@endphp
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="scroll-smooth">
 <head>
@@ -7,7 +41,7 @@
     
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
 
-    <title>{{ config('app.name', 'TechForge') }} | Cart & Returns</title>
+    <title>{{ $layout['brand_name'] ?? $storefrontName }} | Account</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -16,7 +50,8 @@
             theme: {
                 extend: {
                     colors: {
-                        primary: { DEFAULT: '#ff6b00', hover: '#e56000', glow: 'rgba(255, 107, 0, 0.5)' },
+                        primary: { DEFAULT: '{{ $primaryHex }}', hover: '{{ $primaryHex }}CC', glow: 'rgba({{ $primaryR }}, {{ $primaryG }}, {{ $primaryB }}, 0.5)' },
+                        accent: '{{ $accentHex }}',
                         dark: { bg: '#050505', surface: '#121212' }
                     },
                     fontFamily: { sans: ['Inter', 'sans-serif'] }
@@ -43,7 +78,7 @@
             left: -20%;
             width: 70vw;
             height: 70vw;
-            background: radial-gradient(circle, rgba(255, 107, 0, 0.35) 0%, rgba(255, 107, 0, 0) 65%);
+            background: radial-gradient(circle, rgba({{ $primaryR }}, {{ $primaryG }}, {{ $primaryB }}, 0.35) 0%, rgba({{ $primaryR }}, {{ $primaryG }}, {{ $primaryB }}, 0) 65%);
             z-index: -1;
             pointer-events: none;
             animation: floatPulse1 20s ease-in-out infinite;
@@ -55,7 +90,7 @@
             right: -20%;
             width: 80vw;
             height: 80vw;
-            background: radial-gradient(circle, rgba(153, 0, 0, 0.4) 0%, rgba(153, 0, 0, 0) 65%);
+            background: radial-gradient(circle, rgba({{ max(0, $primaryR - 100) }}, {{ max(0, $primaryG - 100) }}, {{ max(0, $primaryB - 100) }}, 0.4) 0%, rgba({{ max(0, $primaryR - 100) }}, {{ max(0, $primaryG - 100) }}, {{ max(0, $primaryB - 100) }}, 0) 65%);
             z-index: -1;
             pointer-events: none;
             animation: floatPulse2 25s ease-in-out infinite;
@@ -107,6 +142,16 @@
             background-clip: text;
         }
 
+        /* Password toggle */
+        .pw-toggle {
+            position: absolute; right: 2.75rem; top: 50%;
+            transform: translateY(-50%); color: #6b7280;
+            background: none; border: none; cursor: pointer;
+            z-index: 3; transition: color 0.2s;
+        }
+        .pw-toggle:hover { color: #ffffff; }
+        #confirm-match-indicator { transition: all 0.2s ease; }
+
         /* Custom Scrollbar */
         ::-webkit-scrollbar {
             width: 8px;
@@ -119,7 +164,7 @@
             border-radius: 4px;
         }
         ::-webkit-scrollbar-thumb:hover {
-            background: #ff6b00;
+            background: {{ $primaryHex }};
         }
 
         /* Preloader Animations */
@@ -142,6 +187,79 @@
             opacity: 0;
             max-width: 0;
         }
+
+        .pw-toggle {
+            position: absolute; right: 2.75rem; top: 50%;
+            transform: translateY(-50%); color: #6b7280;
+            background: none; border: none; cursor: pointer;
+            z-index: 3; transition: color 0.2s;
+        }
+        .pw-toggle:hover { color: #ffffff; }
+        #confirm-match-indicator { transition: all 0.2s ease; }
+
+        /* ── Loyalty Pane Animations ── */
+
+        /* Sparkle twinkle */
+        @keyframes sparkle {
+            0%, 100% { opacity: 0; transform: scale(0) rotate(0deg); }
+            50% { opacity: 1; transform: scale(1) rotate(180deg); }
+        }
+        .animate-sparkle {
+            animation: sparkle 2.5s ease-in-out infinite;
+        }
+        .animate-sparkle-delayed {
+            animation: sparkle 3s ease-in-out 1s infinite;
+        }
+
+        /* Shimmer sweep across hero card */
+        @keyframes shimmerSweep {
+            0% { transform: translateX(-100%) rotate(-15deg); }
+            100% { transform: translateX(250%) rotate(-15deg); }
+        }
+        .animate-shimmer {
+            animation: shimmerSweep 4s ease-in-out 0.5s infinite;
+        }
+
+        /* Floating dot particles */
+        @keyframes floatDot {
+            0%, 100% { transform: translateY(0) translateX(0); opacity: 0; }
+            10% { opacity: 0.6; }
+            50% { opacity: 0.8; }
+            90% { opacity: 0.6; }
+        }
+        .float-dot-1 { animation: floatDot 6s ease-in-out 0s infinite; }
+        .float-dot-2 { animation: floatDot 7s ease-in-out 1.5s infinite; }
+        .float-dot-3 { animation: floatDot 8s ease-in-out 3s infinite; }
+        .float-dot-4 { animation: floatDot 9s ease-in-out 0.8s infinite; }
+        .float-dot-5 { animation: floatDot 5.5s ease-in-out 2.2s infinite; }
+
+        /* Glow pulse on the current tier icon */
+        @keyframes glowPulse {
+            0%, 100% { box-shadow: 0 0 20px var(--glow-color); }
+            50% { box-shadow: 0 0 40px var(--glow-color), 0 0 60px var(--glow-color); }
+        }
+        .glow-pulse {
+            animation: glowPulse 2.5s ease-in-out infinite;
+        }
+
+        /* Subtle shine line on hero card */
+        @keyframes heroShine {
+            0% { transform: translateX(-100%) skewX(-15deg); }
+            60% { transform: translateX(100%) skewX(-15deg); }
+            100% { transform: translateX(100%) skewX(-15deg); }
+        }
+        .animate-hero-shine {
+            animation: heroShine 5s ease-in-out 1s infinite;
+        }
+
+        /* Gentle float for the hero icon */
+        @keyframes gentleFloat {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-4px); }
+        }
+        .animate-gentle-float {
+            animation: gentleFloat 3s ease-in-out infinite;
+        }
     </style>
 
     @vite('Modules/E-Commerce/Store/resources/css/liquidglass.css')
@@ -151,19 +269,19 @@
     <!-- Preloader -->
     <div id="preloader" class="fixed inset-0 bg-[#050505] z-[100] flex items-center justify-center transition-opacity duration-1000 ease-in-out">
         <script>
-            if (!sessionStorage.getItem('techforge_visited')) {
+            if (!sessionStorage.getItem('storefront_visited')) {
                 document.write(`
                     <div class="relative flex items-center justify-center">
                         <div class="absolute inset-0 bg-primary/20 blur-xl rounded-full animate-pulse"></div>
                         <div class="flex items-center relative z-10">
-                            <img src="{{ Vite::asset('Modules/E-Commerce/Store/resources/img/Techforge_Logo.png') }}" alt="TechForge Logo" class="h-20 w-auto object-contain animate-spin-fast drop-shadow-[0_0_25px_rgba(255,107,0,0.6)]">
-                            <span class="text-4xl md:text-5xl font-black text-white tracking-widest animate-slide-text">TECHFORGE</span>
+                            <img src="{{ $logoUrl }}" alt="{{ $layout['brand_name'] ?? $storefrontName }} Logo" class="h-20 w-auto object-contain animate-spin-fast drop-shadow-[0_0_25px_rgba({{ $primaryR }},{{ $primaryG }},{{ $primaryB }},0.6)]">
+                            <span class="text-4xl md:text-5xl font-black text-white tracking-widest animate-slide-text uppercase">{{ $layout['brand_name'] ?? $storefrontName }}</span>
                         </div>
                     </div>
                 `);
             } else {
                 document.write(`
-                    <div class="w-16 h-16 border-4 border-white/10 border-t-primary rounded-full animate-spin shadow-[0_0_20px_rgba(255,107,0,0.3)]"></div>
+                    <div class="w-16 h-16 border-4 border-white/10 border-t-primary rounded-full animate-spin shadow-[0_0_20px_rgba({{ $primaryR }},{{ $primaryG }},{{ $primaryB }},0.3)]"></div>
                 `);
             }
         </script>
@@ -227,9 +345,9 @@
                             <i class="ph ph-receipt text-xl category-icon"></i>
                             Order History
                         </a>
-                        <a href="#vouchers" data-target="pane-vouchers" class="sidebar-link main-category-link flex items-center gap-3 text-gray-400 hover:text-white transition-colors font-bold text-base">
-                            <i class="ph ph-ticket text-xl category-icon"></i>
-                            Vouchers
+                        <a href="#loyalty-points" data-target="pane-loyalty-points" class="sidebar-link main-category-link flex items-center gap-3 text-gray-400 hover:text-white transition-colors font-bold text-base">
+                            <i class="ph ph-star text-xl category-icon"></i>
+                            Loyalty Points
                         </a>
                     </div>
                 </div>
@@ -242,10 +360,9 @@
                     <!-- PANE: PROFILE -->
                     <div id="pane-profile" class="content-pane block">
 
-                    <form action="{{ route('ecommerce.account.profile.update') }}" method="POST" class="flex flex-col-reverse md:flex-row gap-12 relative z-10">
+                    <form id="profile-form" action="{{ route('ecommerce.account.profile.update') }}" method="POST" class="relative z-10 max-w-2xl mx-auto">
                         @csrf
-                        <!-- Form (Left side) -->
-                        <div class="flex-1 space-y-6">
+                        <div class="space-y-7">
                             
                             <!-- Username -->
                             <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6">
@@ -287,7 +404,7 @@
                                         <div class="relative flex items-center justify-center">
                                             <input type="radio" name="gender" value="male" class="peer sr-only" {{ (Auth::guard('ecommerce')->user()->gender ?? '') == 'male' ? 'checked' : '' }}>
                                             <div class="w-5 h-5 rounded-full border-2 border-gray-600 peer-checked:border-primary transition-colors"></div>
-                                            <div class="w-2.5 h-2.5 bg-primary rounded-full absolute scale-0 peer-checked:scale-100 transition-transform shadow-[0_0_8px_rgba(255,107,0,0.8)]"></div>
+                                            <div class="w-2.5 h-2.5 bg-primary rounded-full absolute scale-0 peer-checked:scale-100 transition-transform shadow-[0_0_8px_rgba({{ $primaryR }},{{ $primaryG }},{{ $primaryB }},0.8)]"></div>
                                         </div>
                                         <span class="text-sm font-medium text-gray-400 group-hover:text-white transition-colors">Male</span>
                                     </label>
@@ -295,7 +412,7 @@
                                         <div class="relative flex items-center justify-center">
                                             <input type="radio" name="gender" value="female" class="peer sr-only" {{ (Auth::guard('ecommerce')->user()->gender ?? '') == 'female' ? 'checked' : '' }}>
                                             <div class="w-5 h-5 rounded-full border-2 border-gray-600 peer-checked:border-primary transition-colors"></div>
-                                            <div class="w-2.5 h-2.5 bg-primary rounded-full absolute scale-0 peer-checked:scale-100 transition-transform shadow-[0_0_8px_rgba(255,107,0,0.8)]"></div>
+                                            <div class="w-2.5 h-2.5 bg-primary rounded-full absolute scale-0 peer-checked:scale-100 transition-transform shadow-[0_0_8px_rgba({{ $primaryR }},{{ $primaryG }},{{ $primaryB }},0.8)]"></div>
                                         </div>
                                         <span class="text-sm font-medium text-gray-400 group-hover:text-white transition-colors">Female</span>
                                     </label>
@@ -303,7 +420,7 @@
                                         <div class="relative flex items-center justify-center">
                                             <input type="radio" name="gender" value="other" class="peer sr-only" {{ (Auth::guard('ecommerce')->user()->gender ?? '') == 'other' ? 'checked' : '' }}>
                                             <div class="w-5 h-5 rounded-full border-2 border-gray-600 peer-checked:border-primary transition-colors"></div>
-                                            <div class="w-2.5 h-2.5 bg-primary rounded-full absolute scale-0 peer-checked:scale-100 transition-transform shadow-[0_0_8px_rgba(255,107,0,0.8)]"></div>
+                                            <div class="w-2.5 h-2.5 bg-primary rounded-full absolute scale-0 peer-checked:scale-100 transition-transform shadow-[0_0_8px_rgba({{ $primaryR }},{{ $primaryG }},{{ $primaryB }},0.8)]"></div>
                                         </div>
                                         <span class="text-sm font-medium text-gray-400 group-hover:text-white transition-colors">Other</span>
                                     </label>
@@ -345,42 +462,20 @@
                             </div>
 
                             <div class="pt-6 flex justify-start">
-                                <button type="submit" class="bg-gradient-to-r from-primary to-[#ff8c33] hover:from-[#ff8c33] hover:to-primary text-white px-8 py-3 rounded-xl text-sm font-bold transition-all shadow-[0_0_15px_rgba(255,107,0,0.3)] hover:shadow-[0_0_25px_rgba(255,107,0,0.5)] transform hover:-translate-y-0.5">
+                                <button type="submit" class="bg-primary hover:from-primary hover:to-primary text-white px-8 py-3 rounded-xl text-sm font-bold transition-all shadow-[0_0_15px_rgba({{ $primaryR }},{{ $primaryG }},{{ $primaryB }},0.3)] hover:shadow-[0_0_25px_rgba({{ $primaryR }},{{ $primaryG }},{{ $primaryB }},0.5)] transform hover:-translate-y-0.5">
                                     Save Changes
                                 </button>
                             </div>
                         </div>
 
-                        <!-- Right Side (Profile Picture) -->
-                        <div class="md:w-64 flex flex-col items-center justify-center border-b md:border-b-0 md:border-l border-white/10 pb-8 md:pb-0 md:pl-10">
-                            <div class="w-32 h-32 rounded-full border-2 border-white/10 overflow-hidden mb-6 bg-black/40 flex items-center justify-center relative group cursor-pointer shadow-xl transition-all hover:border-primary/50">
-                                <!-- Fallback user icon if no image -->
-                                <i class="ph ph-user text-5xl text-gray-500 group-hover:opacity-0 transition-opacity duration-300"></i>
-                                
-                                <!-- Hover overlay -->
-                                <div class="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center justify-center backdrop-blur-sm">
-                                    <i class="ph ph-camera text-2xl text-white mb-1"></i>
-                                    <span class="text-[10px] text-white font-bold uppercase tracking-wider">Change</span>
-                                </div>
-                            </div>
-                            
-                            <button class="bg-white/5 border border-white/10 hover:border-white/30 hover:bg-white/10 text-white px-6 py-2.5 rounded-xl text-sm font-bold transition-all w-full text-center">
-                                Select Image
-                            </button>
-
-                            <p class="text-[11px] text-gray-500 mt-4 text-center leading-relaxed">
-                                File size: max. 1 MB<br>
-                                File extension: .JPEG, .PNG
-                            </p>
-                        </div>
-                    </form>
+                        </form>
                     </div> <!-- END PANE: PROFILE -->
 
 
                     <!-- PANE: BANK & CARDS -->
                     <div id="pane-bank-cards" class="content-pane hidden">
                         <div class="flex items-center justify-end mb-6 relative z-10">
-                            <button onclick="openModal('add-card-modal')" class="bg-primary hover:bg-[#ff8c33] text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-lg flex items-center gap-2 whitespace-nowrap">
+                            <button onclick="openModal('add-card-modal')" class="bg-primary hover:brightness-[1.1] text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-lg flex items-center gap-2 whitespace-nowrap">
                                 <i class="ph-bold ph-plus"></i> Add New Card
                             </button>
                         </div>
@@ -526,14 +621,18 @@
                     <!-- PANE: ADDRESSES -->
                     <div id="pane-addresses" class="content-pane hidden">
                         <div class="flex items-center justify-end mb-6 relative z-10">
-                            <button onclick="openAddAddressModal()" class="bg-primary hover:bg-[#ff8c33] text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-lg flex items-center gap-2 whitespace-nowrap">
+                            <button onclick="openAddAddressModal()" class="bg-primary hover:brightness-[1.1] text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-lg flex items-center gap-2 whitespace-nowrap">
                                 <i class="ph-bold ph-plus"></i> Add New Address
                             </button>
                         </div>
                         
                         <div class="flex flex-col gap-4 mt-4">
                             @forelse($addresses as $address)
-                            <div class="{{ $address->is_default ? 'bg-[#13131a] border-primary/30 shadow-[0_4px_20px_rgba(255,107,0,0.05)]' : 'bg-[#1a1a1a] border-white/5 hover:border-white/10' }} border rounded-xl p-5 md:p-6 transition-all group">
+                            @if($address->is_default)
+                            <div class="bg-[#13131a] border-primary/30 border rounded-xl p-5 md:p-6 transition-all group" style="box-shadow: 0 4px 20px {{ $primaryShadow }}">
+                            @else
+                            <div class="bg-[#1a1a1a] border-white/5 hover:border-white/10 border rounded-xl p-5 md:p-6 transition-all group">
+                            @endif
                                 <div class="flex flex-col md:flex-row md:items-start justify-between gap-4">
                                     <div class="flex-1">
                                         <div class="flex items-center gap-3 mb-2">
@@ -555,7 +654,7 @@
                                     <div class="flex flex-col items-start gap-4 md:items-end">
                                         <div class="flex items-center gap-4">
                                             <!-- Edit Address -->
-                                            <button type="button" onclick="openEditAddressModal({{ $address->toJson() }})" class="{{ $address->is_default ? 'text-primary hover:text-[#ff8c33]' : 'text-blue-400 hover:text-blue-300' }} p-1 text-lg transition-colors" title="Edit">
+                                            <button type="button" onclick="openEditAddressModal({{ $address->toJson() }})" class="{{ $address->is_default ? 'text-primary hover:text-primary' : 'text-blue-400 hover:text-blue-300' }} p-1 text-lg transition-colors" title="Edit">
                                                 <i class="ph-bold ph-pencil-simple"></i>
                                             </button>
                                             
@@ -588,20 +687,72 @@
                         </div>
                     </div>
 
+                    {{-- Global flash messages (visible across all panes) --}}
+                    @if(session('success') || (session('error')))
+                        <div class="mb-6 @if(session('success')) bg-green-500/10 border-green-500/30 text-green-400 @else bg-red-500/10 border-red-500/30 text-red-400 @endif border rounded-xl px-5 py-4 flex items-center gap-3 text-sm">
+                            <i class="ph-fill @if(session('success')) ph-check-circle @else ph-warning-circle @endif text-lg shrink-0"></i>
+                            <span class="font-medium">{{ session('success') ?? session('error') }}</span>
+                        </div>
+                    @endif
+
+                    {{-- Validation errors that span across panes --}}
+                    @if($errors->any() && !$errors->has('current_password') && !$errors->has('new_password') && !$errors->has('new_password_confirmation'))
+                        <div class="mb-6 bg-red-500/10 border border-red-500/30 rounded-xl px-5 py-4 flex items-center gap-3 text-sm text-red-400">
+                            <i class="ph-fill ph-warning-circle text-lg shrink-0"></i>
+                            <div class="flex flex-col gap-1">
+                                @foreach($errors->all() as $err)
+                                    <span class="font-medium">{{ $err }}</span>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
+
                     <!-- PANE: PASSWORD -->
                     <div id="pane-password" class="content-pane hidden">
                         <div class="py-10 max-w-md mx-auto">
-                            <form method="POST" action="{{ route('ecommerce.account.password.update') }}" class="flex flex-col gap-4">
+                            <form action="{{ route('ecommerce.account.password.update') }}" method="POST" class="flex flex-col gap-4">
                                 @csrf
-                                @method('PUT')
+                                
+                                {{-- Current Password --}}
                                 <div class="flex flex-col gap-2">
                                     <label class="text-sm text-gray-400 font-medium shrink-0">Current Password</label>
-                                    <input type="password" name="current_password" required autocomplete="current-password" placeholder="••••••••" class="w-full bg-black/40 border border-white/10 focus:border-primary focus:ring-1 focus:ring-primary focus:bg-black/60 rounded-xl px-4 py-2.5 text-sm text-white transition-all outline-none placeholder-gray-600">
-                                    @error('current_password', 'updatePassword')<p class="text-xs text-red-400">{{ $message }}</p>@enderror
+                                    <div class="relative">
+                                        <input type="password" name="current_password" id="current-password-input" autocomplete="current-password" placeholder="••••••••"
+                                            class="w-full bg-black/40 border @error('current_password') border-red-500/60 focus:border-red-500 focus:ring-red-500/30 @else border-white/10 focus:border-primary focus:ring-primary @enderror focus:ring-1 focus:bg-black/60 rounded-xl px-4 py-2.5 text-sm text-white transition-all outline-none placeholder-gray-600 pr-10">
+                                        @error('current_password')
+                                            <i class="ph-fill ph-x-circle text-red-400 absolute right-3 top-1/2 -translate-y-1/2 text-lg"></i>
+                                        @enderror
+                                        <button type="button" onclick="togglePassword('current-password-input', this)" class="pw-toggle" tabindex="-1">
+                                            <i class="ph ph-eye text-lg"></i>
+                                        </button>
+                                    </div>
+                                    @error('current_password')
+                                        <p class="text-xs text-red-400 flex items-center gap-1.5 mt-1">
+                                            <i class="ph-fill ph-warning-circle text-xs"></i>
+                                            {{ $message }}
+                                        </p>
+                                    @enderror
                                 </div>
+
+                                {{-- New Password --}}
                                 <div class="flex flex-col gap-2 mt-4 relative">
                                     <label class="text-sm text-gray-400 font-medium shrink-0">New Password</label>
-                                    <input type="password" id="new-password-input" name="password" required autocomplete="new-password" placeholder="••••••••" class="w-full bg-black/40 border border-white/10 focus:border-primary focus:ring-1 focus:ring-primary focus:bg-black/60 rounded-xl px-4 py-2.5 text-sm text-white transition-all outline-none placeholder-gray-600">
+                                    <div class="relative">
+                                        <input type="password" name="new_password" id="new-password-input" autocomplete="new-password" placeholder="••••••••"
+                                            class="w-full bg-black/40 border @error('new_password') border-red-500/60 focus:border-red-500 focus:ring-red-500/30 @else border-white/10 focus:border-primary focus:ring-primary @enderror focus:ring-1 focus:bg-black/60 rounded-xl px-4 py-2.5 text-sm text-white transition-all outline-none placeholder-gray-600 pr-10">
+                                        @error('new_password')
+                                            <i class="ph-fill ph-x-circle text-red-400 absolute right-3 top-1/2 -translate-y-1/2 text-lg"></i>                                        @enderror
+                                        <button type="button" onclick="togglePassword('new-password-input', this)" class="pw-toggle" tabindex="-1">
+                                            <i class="ph ph-eye text-lg"></i>
+                                        </button>
+                                    </div>
+
+                                    @error('new_password')
+                                        <p class="text-xs text-red-400 flex items-center gap-1.5 mt-1">
+                                            <i class="ph-fill ph-warning-circle text-xs"></i>
+                                            {{ $message }}
+                                        </p>
+                                    @enderror
                                     
                                     <!-- Password Strength Meter -->
                                     <div class="mt-2 flex flex-col gap-2">
@@ -640,13 +791,35 @@
                                             document.getElementById('pw-strength-3').className = `h-full flex-1 rounded-full transition-colors duration-300 ${strength >= 3 ? 'bg-green-500' : 'bg-white/10'}`;
                                         });
                                     </script>
-                                    @error('password', 'updatePassword')<p class="text-xs text-red-400">{{ $message }}</p>@enderror
                                 </div>
+
+                                {{-- Confirm New Password --}}
                                 <div class="flex flex-col gap-2">
                                     <label class="text-sm text-gray-400 font-medium shrink-0">Confirm New Password</label>
-                                    <input type="password" name="password_confirmation" required autocomplete="new-password" placeholder="••••••••" class="w-full bg-black/40 border border-white/10 focus:border-primary focus:ring-1 focus:ring-primary focus:bg-black/60 rounded-xl px-4 py-2.5 text-sm text-white transition-all outline-none placeholder-gray-600">
+                                    <div class="relative">
+                                        <input type="password" name="new_password_confirmation" id="confirm-password-input" autocomplete="new-password" placeholder="••••••••"
+                                            class="w-full bg-black/40 border @error('new_password_confirmation') border-red-500/60 focus:border-red-500 focus:ring-red-500/30 @else border-white/10 focus:border-primary focus:ring-primary @enderror focus:ring-1 focus:bg-black/60 rounded-xl px-4 py-2.5 text-sm text-white transition-all outline-none placeholder-gray-600 pr-10">
+                                        @error('new_password_confirmation')
+                                            <i class="ph-fill ph-x-circle text-red-400 absolute right-3 top-1/2 -translate-y-1/2 text-lg"></i>
+                                        @enderror
+                                        <button type="button" onclick="togglePassword('confirm-password-input', this)" class="pw-toggle" tabindex="-1">
+                                            <i class="ph ph-eye text-lg"></i>
+                                        </button>
+                                    </div>
+                                    @error('new_password_confirmation')
+                                        <p class="text-xs text-red-400 flex items-center gap-1.5 mt-1">
+                                            <i class="ph-fill ph-warning-circle text-xs"></i>
+                                            {{ $message }}
+                                        </p>
+                                    @enderror
+                                {{-- Confirm match indicator --}}
+                                    <div id="confirm-match-indicator" class="text-xs flex items-center gap-1.5 mt-1 hidden">
+                                        <i class="ph-fill text-sm"></i>
+                                        <span></span>
+                                    </div>
                                 </div>
-                                <button type="submit" class="mt-6 bg-gradient-to-r from-primary to-[#ff8c33] hover:from-[#ff8c33] hover:to-primary text-white w-full py-3 rounded-xl text-sm font-bold transition-all shadow-[0_0_15px_rgba(255,107,0,0.3)] hover:shadow-[0_0_25px_rgba(255,107,0,0.5)] transform hover:-translate-y-0.5">
+
+                                <button type="submit" class="mt-6 bg-primary hover:from-primary hover:to-primary text-white w-full py-3 rounded-xl text-sm font-bold transition-all shadow-[0_0_15px_rgba({{ $primaryR }},{{ $primaryG }},{{ $primaryB }},0.3)] hover:shadow-[0_0_25px_rgba({{ $primaryR }},{{ $primaryG }},{{ $primaryB }},0.5)] transform hover:-translate-y-0.5">
                                     Update Password
                                 </button>
                             </form>
@@ -659,6 +832,65 @@
                         <script>
                             (function() {
                                 window.userAccountOrders = @json($orders);
+
+                                window.confirmReceived = function(orderId, btn) {
+                                    if (btn.disabled) return;
+                                    btn.disabled = true;
+                                    const originalHtml = btn.innerHTML;
+                                    btn.innerHTML = '<i class="ph-bold ph-spinner animate-spin text-xs"></i> Confirming...';
+
+                                    var confirmUrl = '{{ route('ecommerce.account.orders.confirm-received', ['id' => 'ORDER_ID_PLACEHOLDER']) }}';
+                                    confirmUrl = confirmUrl.replace('ORDER_ID_PLACEHOLDER', encodeURIComponent(orderId));
+
+                                    fetch(confirmUrl, {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                                            'X-Requested-With': 'XMLHttpRequest'
+                                        },
+                                        body: JSON.stringify({})
+                                    })
+                                    .then(function(res) {
+                                        if (!res.ok) {
+                                            return res.text().then(function(text) {
+                                                try { return JSON.parse(text); } catch(e) { return { success: false, error: 'Server returned HTTP ' + res.status + ': ' + text.substring(0, 200) }; }
+                                            });
+                                        }
+                                        return res.json();
+                                    })
+                                    .then(function(data) {
+                                        if (data.success) {
+                                            // Show success toast
+                                            var toast = document.getElementById('oh-toast') || (function() {
+                                                var t = document.createElement('div');
+                                                t.id = 'oh-toast';
+                                                t.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 bg-green-600 text-white px-6 py-3 rounded-xl text-sm font-bold shadow-lg z-[999] transition-all duration-300 opacity-0';
+                                                document.body.appendChild(t);
+                                                return t;
+                                            })();
+                                            toast.textContent = data.message || 'Order confirmed as received!';
+                                            toast.style.background = '#16a34a';
+                                            toast.classList.remove('opacity-0');
+                                            toast.classList.add('opacity-100');
+                                            setTimeout(function() {
+                                                toast.classList.remove('opacity-100');
+                                                toast.classList.add('opacity-0');
+                                            }, 3000);
+                                            // Reload after short delay to reflect the updated status
+                                            setTimeout(function() { location.reload(); }, 1500);
+                                        } else {
+                                            btn.innerHTML = originalHtml;
+                                            btn.disabled = false;
+                                            alert(data.error || 'Something went wrong. Please try again.');
+                                        }
+                                    })
+                                    .catch(function(err) {
+                                        btn.innerHTML = originalHtml;
+                                        btn.disabled = false;
+                                        alert('Network error. Please try again.');
+                                    });
+                                };
 
                                 window.filterOrderHistory = function(category, btn) {
                                     const tabs = document.querySelectorAll('.oh-tab-btn');
@@ -820,7 +1052,7 @@
                                                 
                                                 <div class="relative pt-4 pb-2">
                                                     <div class="absolute top-6 left-[10%] right-[10%] h-1 bg-white/10 rounded-full"></div>
-                                                    <div class="absolute top-6 left-[10%] h-1 bg-gradient-to-r from-[#ff5100] to-primary rounded-full transition-all duration-500" style="width: calc(${barWidth} * 0.8);"></div>
+                                                    <div class="absolute top-6 left-[10%] h-1 bg-primary rounded-full transition-all duration-500" style="width: calc(${barWidth} * 0.8);"></div>
                                                     
                                                     <div class="flex justify-between relative z-10 text-[10px] uppercase font-bold">
                                                         <div class="flex flex-col items-center gap-1.5 ${stepIndex >= 1 ? 'text-primary' : 'text-gray-500'}">
@@ -892,7 +1124,7 @@
                                                 </div>
                                                 <div class="flex justify-between text-base font-black text-white pt-2 border-t border-white/10">
                                                     <span>Total Paid</span>
-                                                    <span class="text-transparent bg-clip-text bg-gradient-to-r from-primary to-[#ff8c33]">₱${Number(order.total || 0).toLocaleString()}</span>
+                                                    <span class="text-transparent bg-clip-text bg-primary">₱${Number(order.total || 0).toLocaleString()}</span>
                                                 </div>
                                             </div>
                                         `;
@@ -1027,11 +1259,11 @@
                                         ? 'bg-red-500' 
                                         : ($status === 'DELIVERED' || $status === 'COMPLETED' 
                                             ? 'bg-gradient-to-r from-green-500 to-emerald-400' 
-                                            : 'bg-gradient-to-r from-[#ff5100] to-primary');
+                                            : 'bg-primary');
                                 @endphp
 
                                 <!-- Order Card -->
-                                <div class="order-history-card group relative bg-[#0f0f0f] border border-white/[0.06] rounded-2xl overflow-hidden transition-all duration-300 hover:border-primary/30 hover:shadow-[0_0_30px_rgba(255,107,0,0.08)]" data-category="{{ $filterCat }}" data-order-id="{{ $order->id }}">
+                                <div class="order-history-card group relative bg-[#0f0f0f] border border-white/[0.06] rounded-2xl overflow-hidden transition-all duration-300 hover:border-primary/30 hover:shadow-[0_0_30px_rgba({{ $primaryR }},{{ $primaryG }},{{ $primaryB }},0.08)]" data-category="{{ $filterCat }}" data-order-id="{{ $order->id }}">
                                     
                                     <!-- Top Gradient Accent -->
                                     <div class="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
@@ -1071,7 +1303,7 @@
 
                                             <!-- Right: Price & Badge -->
                                             <div class="flex sm:flex-col items-center sm:items-end gap-3 sm:gap-1.5 shrink-0">
-                                                <p class="text-lg font-black text-transparent bg-clip-text bg-gradient-to-r from-primary to-[#ff8c33]">₱{{ number_format($order->total, 2) }}</p>
+                                                <p class="text-lg font-black text-transparent bg-clip-text bg-primary">₱{{ number_format($order->total, 2) }}</p>
                                                 <span class="text-[10px] font-bold {{ $statusColorClass }} border px-2 py-0.5 rounded-md uppercase tracking-wider">
                                                     {{ $badgeText }}
                                                 </span>
@@ -1099,12 +1331,9 @@
                                                     Cancel
                                                 </button>
                                             @elseif($filterCat === 'to-receive')
-                                                <form action="{{ route('ecommerce.account.orders.received', $order->id) }}" method="POST" onclick="event.stopPropagation();">
-                                                    @csrf
-                                                    <button type="submit" class="bg-green-600 hover:bg-green-500 text-white px-4 py-1.5 rounded-lg font-bold text-[11px] transition-all shadow-lg shadow-green-500/20 flex items-center gap-1">
-                                                        <i class="ph-bold ph-check text-xs"></i> Confirm Received
-                                                    </button>
-                                                </form>
+                                                <button type="button" onclick="event.stopPropagation(); confirmReceived('{{ $order->id }}', this)" class="bg-green-600 hover:bg-green-500 text-white px-4 py-1.5 rounded-lg font-bold text-[11px] transition-all shadow-lg shadow-green-500/20 flex items-center gap-1">
+                                                    <i class="ph-bold ph-check text-xs"></i> Confirm Received
+                                                </button>
                                             @elseif($filterCat === 'completed')
                                                 <a href="{{ route('ecommerce.prebuilt-pcs') }}" onclick="event.stopPropagation();" class="bg-white/5 hover:bg-white/10 text-white border border-white/10 px-4 py-1.5 rounded-lg font-bold text-[11px] transition-all flex items-center gap-1">
                                                     <i class="ph-bold ph-arrows-counter-clockwise text-xs"></i> Buy Again
@@ -1125,7 +1354,7 @@
                                     </div>
                                     <h3 class="text-lg font-bold text-white mb-2">No Order History Found</h3>
                                     <p class="text-gray-500 text-sm max-w-xs">When you place orders, your complete order history and real-time build tracking will appear here.</p>
-                                    <a href="{{ route('ecommerce.prebuilt-pcs') }}" class="mt-6 bg-gradient-to-r from-primary to-[#ff8c33] hover:from-[#ff8c33] hover:to-primary text-white px-6 py-2.5 rounded-xl text-sm font-bold transition-all shadow-lg shadow-primary/20 hover:shadow-primary/40 transform hover:-translate-y-0.5">
+                                    <a href="{{ route('ecommerce.prebuilt-pcs') }}" class="mt-6 bg-primary hover:from-primary hover:to-primary text-white px-6 py-2.5 rounded-xl text-sm font-bold transition-all shadow-lg shadow-primary/20 hover:shadow-primary/40 transform hover:-translate-y-0.5">
                                         Browse PCs & Parts
                                     </a>
                                 </div>
@@ -1141,106 +1370,288 @@
                         </div>
                     </div>
 
-                    <!-- PANE: VOUCHERS -->
-                    <div id="pane-vouchers" class="content-pane hidden">
-                        
-                        <!-- Add Voucher Input -->
-                        <div class="bg-[#13131a]/50 border border-white/5 rounded-xl p-5 md:p-6 mb-8 shadow-inner flex flex-col md:flex-row items-center gap-4">
-                            <h3 class="text-white font-bold whitespace-nowrap flex items-center"><i class="ph-bold ph-plus-circle text-primary text-xl mr-2"></i>Add Voucher</h3>
-                            <div class="flex items-center w-full gap-2">
-                                <input type="text" placeholder="Enter voucher code" class="flex-1 bg-black/40 border border-white/10 focus:border-primary focus:ring-1 focus:ring-primary focus:bg-black/60 rounded-xl px-4 py-3 text-sm text-white transition-all outline-none placeholder-gray-600 font-mono uppercase tracking-widest">
-                                <button class="bg-primary hover:bg-[#ff8c33] text-white px-6 py-3 rounded-xl text-sm font-bold transition-all shadow-lg whitespace-nowrap">
-                                    Apply
-                                </button>
-                            </div>
-                        </div>
+                    <!-- PANE: LOYALTY POINTS -->
+                    @php
+                        // Tier thresholds (in PHP)
+                        $tierThresholds = [
+                            'none'     => 0,
+                            'bronze'   => 1000,
+                            'silver'   => 5000,
+                            'gold'     => 20000,
+                            'platinum' => 50000,
+                        ];
 
-                        <!-- Active Vouchers List -->
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <!-- Physical Voucher Ticket Design 1 -->
-                            <div class="relative flex bg-[#1a1a1a] border border-white/5 rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.4)] transition-all hover:border-primary/30 group overflow-hidden">
-                                
-                                <!-- Left Logo/Color Section -->
-                                <div class="w-24 bg-gradient-to-br from-[#ff5100] to-primary flex flex-col items-center justify-center border-r-[3px] border-dashed border-[#1a1a1a] relative shrink-0">
-                                    <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center mb-1 backdrop-blur-sm shadow-inner">
-                                        <i class="ph-bold ph-gift text-xl text-white"></i>
-                                    </div>
-                                    <span class="text-[10px] font-black text-white text-center uppercase tracking-widest mt-1">REWARD</span>
-                                    
-                                    <!-- Semi-circle Cutouts -->
-                                    <div class="absolute -top-3 -right-[11px] w-5 h-5 bg-[#0a0a0a] rounded-full border border-white/5 z-10"></div>
-                                    <div class="absolute -bottom-3 -right-[11px] w-5 h-5 bg-[#0a0a0a] rounded-full border border-white/5 z-10"></div>
+                        $totalSpent = $crmCustomer?->total_spent ?? 0;
+
+                        // Determine current tier based on total_spent
+                        $currentTier = 'none';
+                        foreach (['platinum', 'gold', 'silver', 'bronze'] as $t) {
+                            if ($totalSpent >= $tierThresholds[$t]) {
+                                $currentTier = $t;
+                                break;
+                            }
+                        }
+
+                        // Find next tier
+                        $tierNames = ['none', 'bronze', 'silver', 'gold', 'platinum'];
+                        $currentIdx = array_search($currentTier, $tierNames);
+                        $nextTier = $tierNames[$currentIdx + 1] ?? null;
+                        $nextThreshold = $nextTier ? $tierThresholds[$nextTier] : null;
+
+                        // Progress within current tier → next tier
+                        if ($nextThreshold) {
+                            $currentThreshold = $tierThresholds[$currentTier];
+                            $progress = ($totalSpent - $currentThreshold) / ($nextThreshold - $currentThreshold);
+                            $progressPercent = min(100, max(0, round($progress * 100)));
+                            $remaining = $nextThreshold - $totalSpent;
+                        } else {
+                            $progressPercent = 100;
+                            $remaining = 0;
+                        }
+
+                        // Tier display data
+                        $tierMeta = [
+                            'none' => [
+                                'label' => 'No Tier',
+                                'color' => '#6B7280',
+                                'icon' => 'ph-arrow-up',
+                                'glow' => 'rgba(107,114,128,0.15)',
+                                'bg_grad' => 'from-gray-800 to-gray-900',
+                                'benefits' => ['Standard customer support', 'Standard shipping rates'],
+                            ],
+                            'bronze' => [
+                                'label' => 'Bronze',
+                                'color' => '#CD7F32',
+                                'icon' => 'ph-shield',
+                                'glow' => 'rgba(205,127,50,0.25)',
+                                'bg_grad' => 'from-amber-950 to-yellow-950',
+                                'benefits' => ['Priority support', '5% discount on all items'],
+                            ],
+                            'silver' => [
+                                'label' => 'Silver',
+                                'color' => '#A0AEC0',
+                                'icon' => 'ph-shield-check',
+                                'glow' => 'rgba(160,174,192,0.25)',
+                                'bg_grad' => 'from-slate-800 to-zinc-800',
+                                'benefits' => ['Priority support', '50% discount on shipping', '5% discount on all items'],
+                            ],
+                            'gold' => [
+                                'label' => 'Gold',
+                                'color' => '#F59E0B',
+                                'icon' => 'ph-crown',
+                                'glow' => 'rgba(245,158,11,0.3)',
+                                'bg_grad' => 'from-yellow-900 to-amber-900',
+                                'benefits' => ['Priority support', 'Free standard shipping', '8% discount on all items'],
+                            ],
+                            'platinum' => [
+                                'label' => 'Platinum',
+                                'color' => '#718096',
+                                'icon' => 'ph-diamond',
+                                'glow' => 'rgba(113,128,150,0.3)',
+                                'bg_grad' => 'from-indigo-900 to-slate-900',
+                                'benefits' => ['Priority support', 'Free general shipping', '10% discount on all items'],
+                            ],
+                        ];
+
+                        $meta = $tierMeta[$currentTier];
+                        $r = hexdec(substr(ltrim($meta['color'], '#'), 0, 2));
+                        $g = hexdec(substr(ltrim($meta['color'], '#'), 2, 2));
+                        $b = hexdec(substr(ltrim($meta['color'], '#'), 4, 2));
+                    @endphp
+
+                    <div id="pane-loyalty-points" class="content-pane hidden">
+                        <div class="max-w-3xl mx-auto">
+
+                            {{-- Current Tier Hero Card --}}
+                            <div class="relative bg-gradient-to-br {{ $meta['bg_grad'] }} border border-white/10 rounded-3xl p-8 sm:p-10 mb-10 overflow-hidden group">
+                                {{-- Floating sparkle particles --}}
+                                @if($currentTier !== 'none')
+                                <i class="ph-fill ph-sparkle absolute text-[8px] float-dot-1 pointer-events-none" style="color: {{ $meta['color'] }}; top: 12%; left: 8%;"></i>
+                                <i class="ph-fill ph-sparkle absolute text-[6px] float-dot-2 pointer-events-none" style="color: {{ $meta['color'] }}; top: 25%; right: 12%;"></i>
+                                <i class="ph-fill ph-sparkle absolute text-[10px] float-dot-3 pointer-events-none" style="color: {{ $meta['color'] }}; bottom: 30%; left: 15%;"></i>
+                                <i class="ph-fill ph-sparkle absolute text-[7px] float-dot-4 pointer-events-none" style="color: {{ $meta['color'] }}; top: 60%; right: 8%;"></i>
+                                <i class="ph-fill ph-sparkle absolute text-[5px] float-dot-5 pointer-events-none" style="color: {{ $meta['color'] }}; bottom: 15%; right: 25%;"></i>
+                                @endif
+
+                                {{-- Shimmer sweep overlay --}}
+                                <div class="absolute inset-0 pointer-events-none overflow-hidden rounded-3xl">
+                                    <div class="absolute top-0 -left-1/2 w-1/3 h-full bg-gradient-to-r from-transparent via-white/5 to-transparent animate-hero-shine"></div>
                                 </div>
-                                
-                                <!-- Right Details Section -->
-                                <div class="flex-1 p-4 flex flex-col justify-between relative">
-                                    <div class="flex flex-col">
-                                        <div class="flex items-center justify-between mb-1">
-                                            <span class="text-[9px] font-bold text-primary border border-primary/30 bg-primary/10 px-1.5 py-0.5 rounded uppercase tracking-wider">New User</span>
-                                            <a href="#" class="text-[10px] text-blue-400 hover:text-blue-300 hover:underline transition-colors">T&C</a>
+
+                                {{-- Ambient glow matching tier color --}}
+                                <div class="absolute -top-20 -right-20 w-60 h-60 rounded-full blur-3xl pointer-events-none" style="background: {{ $meta['glow'] }};"></div>
+                                <div class="absolute -bottom-10 -left-10 w-40 h-40 rounded-full blur-2xl pointer-events-none" style="background: {{ $meta['glow'] }};"></div>
+
+                                <div class="relative z-10 flex flex-col md:flex-row md:items-center gap-8">
+                                    {{-- Tier Icon --}}
+                                    <div class="shrink-0">
+                                        <div class="w-28 h-28 rounded-full border-2 flex items-center justify-center animate-gentle-float" style="border-color: {{ $meta['color'] }}40; box-shadow: 0 0 40px {{ $meta['glow'] }};">
+                                            <div class="w-24 h-24 rounded-full flex items-center justify-center glow-pulse" style="--glow-color: {{ $meta['glow'] }}; background: radial-gradient(circle, {{ $meta['color'] }}20, transparent);">
+                                                <i class="ph-fill {{ $meta['icon'] }} text-5xl" style="color: {{ $meta['color'] }};"></i>
+                                            </div>
                                         </div>
-                                        <h4 class="text-base font-black text-white mb-0.5 leading-tight">20% OFF DISCOUNT</h4>
-                                        <p class="text-xs text-gray-400">Min. Spend ₱0 • Max ₱2,000</p>
                                     </div>
-                                    
-                                    <div class="flex items-center justify-between mt-4">
-                                        <div class="flex items-center gap-1.5 text-[10px] font-medium text-[#ff5100] bg-[#ff5100]/10 px-2 py-1 rounded border border-[#ff5100]/20">
-                                            <i class="ph-fill ph-clock"></i> 7 days left
+
+                                    {{-- Tier Info --}}
+                                    <div class="flex-1">
+                                        <div class="flex items-center gap-3 mb-1">
+                                            <span class="text-[10px] font-bold uppercase tracking-[0.15em] text-gray-500">Current Tier</span>
+                                            @if($currentTier === 'none')
+                                                <span class="text-[10px] font-bold text-gray-500 border border-gray-600/30 bg-gray-600/10 px-2 py-0.5 rounded-full">Start shopping to rank up</span>
+                                            @endif
                                         </div>
-                                        
-                                        <button class="bg-transparent border border-primary text-primary hover:bg-primary hover:text-white hover:shadow-[0_0_15px_rgba(255,107,0,0.4)] px-4 py-1.5 rounded-lg text-xs font-black transition-all uppercase tracking-wider">
-                                            Use
-                                        </button>
+                                        <h2 class="text-4xl sm:text-5xl font-black tracking-tight mb-2" style="color: {{ $meta['color'] }};">
+                                            {{ $meta['label'] }}
+                                        </h2>
+                                        <p class="text-sm text-gray-400 max-w-lg">
+                                            @if($currentTier === 'none')
+                                                You haven't reached a tier yet. Spend at least ₱1,000 to unlock <span style="color: #CD7F32;">Bronze</span> status and start earning rewards!
+                                            @elseif($nextTier)
+                                                You're <span class="font-bold text-white">₱{{ number_format($remaining, 2) }}</span> away from reaching <span style="color: {{ $tierMeta[$nextTier]['color'] }};">{{ $tierMeta[$nextTier]['label'] }}</span>.
+                                            @else
+                                                You've reached the highest tier! Enjoy all Platinum benefits.
+                                            @endif
+                                        </p>
+                                    </div>
+
+                                    {{-- Spend Amount --}}
+                                    <div class="shrink-0 text-center">
+                                        <div class="text-3xl sm:text-4xl font-black text-white tracking-tight">₱{{ number_format($totalSpent, 2) }}</div>
+                                        <div class="text-[10px] font-bold text-gray-500 uppercase tracking-[0.15em] mt-1">Total Spent</div>
                                     </div>
                                 </div>
+
+                                {{-- Progress Bar --}}
+                                @if($nextThreshold)
+                                <div class="mt-8 relative z-10">
+                                    <div class="flex justify-between text-xs font-bold mb-2">
+                                        <span style="color: {{ $meta['color'] }};">{{ $meta['label'] }}</span>
+                                        <span style="color: {{ $tierMeta[$nextTier]['color'] }};">{{ $tierMeta[$nextTier]['label'] }}</span>
+                                    </div>
+                                    <div class="h-2.5 bg-white/10 rounded-full relative overflow-hidden">
+                                        <div class="absolute top-0 left-0 h-full rounded-full transition-all duration-1000 ease-out"
+                                             style="width: {{ $progressPercent }}%; background: linear-gradient(90deg, {{ $meta['color'] }}, {{ $tierMeta[$nextTier]['color'] }}); box-shadow: 0 0 12px {{ $meta['glow'] }};">
+                                        </div>
+                                        {{-- Shimmer --}}
+                                        <div class="absolute top-0 left-0 w-20 h-full bg-white/10 rounded-full blur-sm animate-pulse" style="transform: translateX({{ $progressPercent }}%);"></div>
+                                    </div>
+                                    <div class="flex justify-between text-[10px] text-gray-500 mt-1.5">
+                                        <span>₱{{ number_format($tierThresholds[$currentTier]) }}</span>
+                                        <span>₱{{ number_format($nextThreshold) }}</span>
+                                    </div>
+                                </div>
+                                @endif
                             </div>
 
-                            <!-- Physical Voucher Ticket Design 2 (Duplicate for demo) -->
-                            <div class="relative flex bg-[#1a1a1a] border border-white/5 rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.4)] transition-all hover:border-primary/30 group overflow-hidden opacity-50 grayscale hover:grayscale-0 hover:opacity-100 cursor-not-allowed">
-                                
-                                <!-- Left Logo/Color Section -->
-                                <div class="w-24 bg-gradient-to-br from-[#ff5100] to-primary flex flex-col items-center justify-center border-r-[3px] border-dashed border-[#1a1a1a] relative shrink-0">
-                                    <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center mb-1 backdrop-blur-sm shadow-inner">
-                                        <i class="ph-bold ph-truck text-xl text-white"></i>
-                                    </div>
-                                    <span class="text-[10px] font-black text-white text-center uppercase tracking-widest mt-1">SHIPPING</span>
-                                    
-                                    <!-- Semi-circle Cutouts -->
-                                    <div class="absolute -top-3 -right-[11px] w-5 h-5 bg-[#0a0a0a] rounded-full border border-white/5 z-10"></div>
-                                    <div class="absolute -bottom-3 -right-[11px] w-5 h-5 bg-[#0a0a0a] rounded-full border border-white/5 z-10"></div>
-                                </div>
-                                
-                                <!-- Right Details Section -->
-                                <div class="flex-1 p-4 flex flex-col justify-between relative">
-                                    <div class="flex flex-col">
-                                        <div class="flex items-center justify-between mb-1">
-                                            <span class="text-[9px] font-bold text-gray-400 border border-white/10 bg-white/5 px-1.5 py-0.5 rounded uppercase tracking-wider">Expired</span>
-                                            <a href="#" class="text-[10px] text-blue-400 hover:text-blue-300 hover:underline transition-colors pointer-events-auto">T&C</a>
-                                        </div>
-                                        <h4 class="text-base font-black text-white mb-0.5 leading-tight">FREE SHIPPING</h4>
-                                        <p class="text-xs text-gray-400">Min. Spend ₱5,000</p>
-                                    </div>
-                                    
-                                    <div class="flex items-center justify-between mt-4">
-                                        <div class="flex items-center gap-1.5 text-[10px] font-medium text-gray-500 bg-white/5 px-2 py-1 rounded border border-white/10">
-                                            <i class="ph-fill ph-x-circle"></i> Expired
-                                        </div>
-                                        
-                                        <button disabled class="bg-white/5 border border-white/10 text-gray-500 px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider cursor-not-allowed">
-                                            Use
-                                        </button>
-                                    </div>
-                                </div>
+                            {{-- Tier Comparison / Benefits Grid --}}
+                            <div class="mb-6">
+                                <h3 class="text-lg font-black text-white mb-1">Tier Benefits</h3>
+                                <p class="text-xs text-gray-500">Compare what each tier unlocks. Your current tier is highlighted.</p>
                             </div>
-                        </div>
 
-                        <!-- Empty State (Hidden when vouchers exist) -->
-                        <div class="hidden py-10 flex-col items-center justify-center text-center">
-                            <div class="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center mb-6 shadow-inner">
-                                <i class="ph ph-ticket text-5xl text-gray-600"></i>
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+                                @php
+                                    $orderedTiers = ['bronze', 'silver', 'gold', 'platinum'];
+                                @endphp
+                                @foreach($orderedTiers as $tierKey)
+                                    @php
+                                        $tm = $tierMeta[$tierKey];
+                                        $tierR = hexdec(substr(ltrim($tm['color'], '#'), 0, 2));
+                                        $tierG = hexdec(substr(ltrim($tm['color'], '#'), 2, 2));
+                                        $tierB = hexdec(substr(ltrim($tm['color'], '#'), 4, 2));
+                                        $isUnlocked = $totalSpent >= $tierThresholds[$tierKey];
+                                        $isCurrent = $currentTier === $tierKey;
+                                    @endphp
+                                    <div class="relative rounded-2xl border overflow-hidden transition-all duration-300 group hover:-translate-y-1 hover:shadow-lg h-full flex flex-col"
+                                         style="border-color: {{ $isCurrent ? $tm['color'] : 'rgba(255,255,255,0.06)' }};
+                                                background: {{ $isCurrent ? 'linear-gradient(180deg, rgba('.$tierR.','.$tierG.','.$tierB.',0.07), rgba('.$tierR.','.$tierG.','.$tierB.',0.02))' : '#0a0a0a' }};">
+                                        {{-- Top accent bar --}}
+                                        <div class="h-1 w-full shrink-0" style="background: {{ $tm['color'] }};"></div>
+
+                                        {{-- Current badge --}}
+                                        @if($isCurrent)
+                                            <div class="absolute top-3 right-3 z-20 text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full"
+                                                 style="background: {{ $tm['color'] }}20; color: {{ $tm['color'] }}; border: 1px solid {{ $tm['color'] }}50;">
+                                                ● Current
+                                            </div>
+                                        @endif
+
+                                        <div class="p-5 flex flex-col items-center text-center flex-1">
+                                            {{-- Tier Icon Medal --}}
+                                            <div class="relative mb-3 mt-1">
+                                                <div class="w-14 h-14 rounded-full flex items-center justify-center"
+                                                     style="background: radial-gradient(circle at 35% 35%, {{ $tm['color'] }}25, {{ $tm['color'] }}10);
+                                                            border: 2px solid {{ $tm['color'] }}30;
+                                                            box-shadow: 0 4px 20px {{ $tm['color'] }}15;">
+                                                    <i class="ph-fill {{ $tm['icon'] }} text-2xl" style="color: {{ $tm['color'] }};"></i>
+                                                </div>
+                                                {{-- Small decorative ring --}}
+                                                @if($isCurrent)
+                                                    <div class="absolute -inset-1.5 rounded-full" style="border: 1.5px dashed {{ $tm['color'] }}30; animation: spin 20s linear infinite;"></div>
+                                                @endif
+                                            </div>
+
+                                            {{-- Tier Name --}}
+                                            <h4 class="text-base font-black tracking-wide" style="color: {{ $tm['color'] }};">{{ $tm['label'] }}</h4>
+                                            <p class="text-[10px] text-gray-500 font-semibold uppercase tracking-wider mt-0.5">
+                                                Min. ₱{{ number_format($tierThresholds[$tierKey]) }} spend
+                                            </p>
+
+                                            {{-- Divider --}}
+                                            <div class="w-8 h-px my-3" style="background: linear-gradient(90deg, transparent, {{ $tm['color'] }}25, transparent);"></div>
+
+                                            {{-- Benefits list --}}
+                                            <ul class="w-full space-y-2 text-left">
+                                                @foreach($tm['benefits'] as $benefit)
+                                                    <li class="flex items-start gap-2">
+                                                        <i class="ph-fill ph-check-circle shrink-0 mt-0.5"
+                                                           style="color: {{ $isUnlocked || $isCurrent ? $tm['color'] : '#3a3a3a' }}; font-size: 12px;"></i>
+                                                        <span class="text-xs leading-snug {{ $isUnlocked || $isCurrent ? 'text-gray-300' : 'text-gray-600' }}">{{ $benefit }}</span>
+                                                    </li>
+                                                @endforeach
+                                            </ul>
+
+                                            {{-- Spacer to push CTA to bottom --}}
+                                            <div class="flex-1 min-h-2"></div>
+
+                                            {{-- Status footer --}}
+                                            <div class="mt-2 w-full pt-2.5 border-t" style="border-color: rgba(255,255,255,0.04);">
+                                                @if($isCurrent)
+                                                    <span class="text-[10px] font-bold uppercase tracking-wider" style="color: {{ $tm['color'] }};">
+                                                        <i class="ph-fill ph-check-circle text-xs"></i> Your current tier
+                                                    </span>
+                                                @elseif($isUnlocked)
+                                                    <span class="text-[10px] font-bold uppercase tracking-wider text-gray-500">
+                                                        <i class="ph-fill ph-check-circle text-xs" style="color: {{ $tm['color'] }};"></i> Unlocked
+                                                    </span>
+                                                @else
+                                                    <span class="text-[10px] font-bold uppercase tracking-wider text-gray-600">
+                                                        <i class="ph-fill ph-lock-simple text-xs"></i> Locked
+                                                    </span>
+                                                @endif
+                                            </div>
+                                        </div>
+
+                                        {{-- Lock overlay for non-current non-unlocked --}}
+                                        @if(!$isUnlocked && !$isCurrent)
+                                            <div class="absolute inset-0 bg-black/60 backdrop-blur-[1.5px] rounded-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10">
+                                                <div class="text-center px-4">
+                                                    <div class="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2" style="background: {{ $tm['color'] }}15; border: 1.5px solid {{ $tm['color'] }}30;">
+                                                        <i class="ph-fill ph-lock-simple-open text-xl" style="color: {{ $tm['color'] }};"></i>
+                                                    </div>
+                                                    <p class="text-xs font-bold leading-snug" style="color: {{ $tm['color'] }};">
+                                                        Reach {{ $tm['label'] }}
+                                                    </p>
+                                                    <p class="text-[10px] text-gray-400 mt-0.5">
+                                                        ₱{{ number_format($tierThresholds[$tierKey]) }} total spend
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        @endif
+                                    </div>
+                                @endforeach
                             </div>
-                            <h3 class="text-lg font-bold text-white mb-2">No active vouchers</h3>
-                            <p class="text-gray-400 text-sm max-w-sm">You don't have any vouchers available right now. Keep an eye out for special promotions!</p>
+
                         </div>
                     </div>
 
@@ -1298,7 +1709,7 @@
                                 'pane-addresses': { title: 'Addresses', sub: 'Manage your delivery and shipping addresses.' },
                                 'pane-password': { title: 'Change Password', sub: 'Update your account security and password.' },
                                 'pane-order-history': { title: 'Order History', sub: 'Track live fulfillment status, view past purchases, and inspect build specifications.' },
-                                'pane-vouchers': { title: 'My Vouchers', sub: 'Manage and use your discount codes.' }
+                                'pane-loyalty-points': { title: 'Loyalty Points', sub: 'Your loyalty tier, rewards, and member benefits overview.' }
                             };
                             const headerTitleEl = document.getElementById('account-header-title');
                             const headerSubEl = document.getElementById('account-header-sub');
@@ -1352,18 +1763,8 @@
                         // Handle initial load based on hash or path
                         const hash = window.location.hash.replace('#', '');
                         const path = window.location.pathname;
-                        const passwordValidationFailed = @json($errors->updatePassword->any());
                         
-                        if (passwordValidationFailed) {
-                            openPane('pane-password', false);
-                            const passwordLink = document.querySelector('[data-target="pane-password"]');
-                            const dropdown = passwordLink?.closest('.category-dropdown');
-                            if (dropdown) {
-                                dropdown.style.maxHeight = '500px';
-                                dropdown.classList.add('border-white/10', 'mt-2');
-                                dropdown.classList.remove('opacity-0', 'border-transparent');
-                            }
-                        } else if (hash && document.getElementById('pane-' + hash)) {
+                        if (hash && document.getElementById('pane-' + hash)) {
                             openPane('pane-' + hash, false);
                             
                             // Make sure dropdown is open if we selected an item inside it
@@ -1457,7 +1858,7 @@
                                     <input type="text" name="cardholder_name" placeholder="JOHN DOE" required class="w-full bg-black/40 border border-white/10 focus:border-primary focus:ring-1 focus:ring-primary focus:bg-black/60 rounded-xl px-4 py-3 text-sm text-white transition-all outline-none uppercase font-mono tracking-wider">
                                     <span class="error-msg text-red-500 text-xs font-mono font-bold hidden" data-error-for="cardholder_name"></span>
                                 </div>
-                                <button type="submit" class="mt-4 bg-gradient-to-r from-primary to-[#ff8c33] hover:from-[#ff8c33] hover:to-primary text-white w-full py-3 rounded-xl text-sm font-bold transition-all shadow-[0_0_15px_rgba(255,107,0,0.3)] hover:shadow-[0_0_25px_rgba(255,107,0,0.5)] flex justify-center items-center gap-2">
+                                <button type="submit" class="mt-4 bg-primary hover:from-primary hover:to-primary text-white w-full py-3 rounded-xl text-sm font-bold transition-all shadow-[0_0_15px_rgba({{ $primaryR }},{{ $primaryG }},{{ $primaryB }},0.3)] hover:shadow-[0_0_25px_rgba({{ $primaryR }},{{ $primaryG }},{{ $primaryB }},0.5)] flex justify-center items-center gap-2">
                                     <i class="ph-bold ph-lock"></i> Save Card Securely
                                 </button>
                                 
@@ -1586,7 +1987,7 @@
                                     <label class="text-xs font-bold text-gray-400 uppercase tracking-wider font-mono">Account Number</label>
                                     <input type="text" name="account_number" placeholder="0000 0000 0000" required class="w-full bg-black/40 border border-white/10 focus:border-primary focus:ring-1 focus:ring-primary focus:bg-black/60 rounded-xl px-4 py-3 text-sm text-white transition-all outline-none font-mono">
                                 </div>
-                                <button type="submit" class="mt-4 bg-[#1a1a1a] hover:bg-white/10 border border-white/10 text-white w-full py-3 rounded-xl text-sm font-bold transition-all shadow-[0_0_15px_rgba(255,107,0,0.1)] hover:shadow-[0_0_25px_rgba(255,255,255,0.1)]">
+                                <button type="submit" class="mt-4 bg-[#1a1a1a] hover:bg-white/10 border border-white/10 text-white w-full py-3 rounded-xl text-sm font-bold transition-all shadow-[0_0_15px_rgba({{ $primaryR }},{{ $primaryG }},{{ $primaryB }},0.1)] hover:shadow-[0_0_25px_rgba(255,255,255,0.1)]">
                                     Save Bank Account
                                 </button>
                             </div>
@@ -1598,13 +1999,13 @@
                 @if (session('success'))
                 <div id="success-modal" class="fixed inset-0 z-[9999] flex items-center justify-center">
                     <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal('success-modal')"></div>
-                    <div class="relative bg-[#13131a] border border-primary/30 rounded-2xl p-8 w-full max-w-sm shadow-[0_0_50px_rgba(255,107,0,0.3)] transform scale-100 opacity-100 transition-all duration-300 text-center flex flex-col items-center">
-                        <div class="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center mb-4 shadow-[0_0_20px_rgba(255,107,0,0.4)]">
+                    <div class="relative bg-[#13131a] border border-primary/30 rounded-2xl p-8 w-full max-w-sm shadow-[0_0_50px_rgba({{ $primaryR }},{{ $primaryG }},{{ $primaryB }},0.3)] transform scale-100 opacity-100 transition-all duration-300 text-center flex flex-col items-center">
+                        <div class="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center mb-4 shadow-[0_0_20px_rgba({{ $primaryR }},{{ $primaryG }},{{ $primaryB }},0.4)]">
                             <i class="ph-bold ph-check text-3xl text-primary"></i>
                         </div>
                         <h3 class="text-xl font-black text-white mb-2 font-mono uppercase tracking-widest">Success!</h3>
                         <p class="text-sm text-gray-400 mb-6 font-mono">{{ session('success') }}</p>
-                        <button onclick="closeModal('success-modal')" class="bg-primary hover:bg-[#ff8c33] text-white px-8 py-2.5 rounded-xl text-sm font-bold transition-all shadow-[0_0_15px_rgba(255,107,0,0.3)] hover:shadow-[0_0_25px_rgba(255,107,0,0.5)] w-full font-mono uppercase">
+                        <button onclick="closeModal('success-modal')" class="bg-primary hover:brightness-[1.1] text-white px-8 py-2.5 rounded-xl text-sm font-bold transition-all shadow-[0_0_15px_rgba({{ $primaryR }},{{ $primaryG }},{{ $primaryB }},0.3)] hover:shadow-[0_0_25px_rgba({{ $primaryR }},{{ $primaryG }},{{ $primaryB }},0.5)] w-full font-mono uppercase">
                             Close
                         </button>
                     </div>
@@ -1636,7 +2037,7 @@
                                     <span class="error-msg text-red-500 text-xs font-mono font-bold hidden" data-error-for="expiry_date"></span>
                                 </div>
                                 <div class="mt-4 pt-4 border-t border-white/10">
-                                    <button type="submit" class="bg-primary hover:bg-[#ff8c33] text-white px-8 py-3 rounded-xl text-sm font-bold transition-all w-full flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(255,107,0,0.3)] hover:shadow-[0_0_25px_rgba(255,107,0,0.5)] font-mono uppercase tracking-wider">
+                                    <button type="submit" class="bg-primary hover:brightness-[1.1] text-white px-8 py-3 rounded-xl text-sm font-bold transition-all w-full flex items-center justify-center gap-2 shadow-[0_0_15px_rgba({{ $primaryR }},{{ $primaryG }},{{ $primaryB }},0.3)] hover:shadow-[0_0_25px_rgba({{ $primaryR }},{{ $primaryG }},{{ $primaryB }},0.5)] font-mono uppercase tracking-wider">
                                         <i class="ph-bold ph-floppy-disk"></i> Save Changes
                                     </button>
                                 </div>
@@ -1797,7 +2198,7 @@
                                     </div>
                                 </div>
 
-                                <button type="submit" class="mt-2 bg-gradient-to-r from-primary to-[#ff8c33] hover:from-[#ff8c33] hover:to-primary text-white w-full py-2.5 rounded-xl text-sm font-bold transition-all shadow-[0_0_15px_rgba(255,107,0,0.3)] hover:shadow-[0_0_25px_rgba(255,107,0,0.5)]">
+                                <button type="submit" class="mt-2 bg-primary hover:from-primary hover:to-primary text-white w-full py-2.5 rounded-xl text-sm font-bold transition-all shadow-[0_0_15px_rgba({{ $primaryR }},{{ $primaryG }},{{ $primaryB }},0.3)] hover:shadow-[0_0_25px_rgba({{ $primaryR }},{{ $primaryG }},{{ $primaryB }},0.5)]">
                                     Save Address
                                 </button>
                             </div>
@@ -1838,7 +2239,7 @@
                         
                         openModal('add-address-modal');
                         
-                        // Reset map
+                        // Reset map (will be initialized by MutationObserver if not yet loaded)
                         if (window.map) {
                             const defaultLocation = [14.5995, 120.9842];
                             window.map.setView(defaultLocation, 13);
@@ -1893,7 +2294,7 @@
 
                         openModal('add-address-modal');
                         
-                        // Pan map to existing coordinates
+                        // Pan map to existing coordinates (map is initialized by MutationObserver on modal open)
                         setTimeout(() => {
                             if (window.map && address.latitude && address.longitude) {
                                 const lat = parseFloat(address.latitude);
@@ -1901,7 +2302,7 @@
                                 window.map.setView([lat, lon], 15);
                                 if (window.marker) window.marker.setLatLng([lat, lon]);
                             }
-                        }, 250); // wait for modal animation
+                        }, 500); // wait for modal animation + map init
                     };
 
                     window.openModal = function(id) {
@@ -2088,7 +2489,7 @@
     @vite(['Modules/E-Commerce/Store/resources/js/Common/Preloader.js', 'Modules/E-Commerce/Store/resources/js/Common/AmbientEffects.js'])
 
     <!-- Global Toast Notification -->
-    <div id="toast-notification" class="fixed bottom-6 right-6 z-[200] transform translate-y-20 opacity-0 transition-all duration-300 flex items-center gap-3 bg-[#13131a] border border-primary/30 shadow-[0_0_20px_rgba(255,107,0,0.2)] rounded-xl px-5 py-4 pointer-events-none">
+    <div id="toast-notification" class="fixed bottom-6 right-6 z-[200] transform translate-y-20 opacity-0 transition-all duration-300 flex items-center gap-3 bg-[#13131a] border border-primary/30 shadow-[0_0_20px_rgba({{ $primaryR }},{{ $primaryG }},{{ $primaryB }},0.2)] rounded-xl px-5 py-4 pointer-events-none">
         <div class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
             <i class="ph-fill ph-check-circle text-primary text-xl"></i>
         </div>
@@ -2255,60 +2656,92 @@
         }
 
         // --- Leaflet Maps Logic (Free Alternative) ---
-        let map;
-        let marker;
+        window.map = null;
+        window.marker = null;
+        window.leafletLoaded = false;
+        window.leafletLoading = false;
 
-        // Load Leaflet CSS and JS dynamically
-        if (!document.getElementById('leaflet-css')) {
-            const css = document.createElement('link');
-            css.id = 'leaflet-css';
-            css.rel = 'stylesheet';
-            css.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-            document.head.appendChild(css);
-        }
+        function ensureLeafletLoaded(callback) {
+            if (window.L && window.leafletLoaded) {
+                callback();
+                return;
+            }
+            if (window.leafletLoading) {
+                // Already loading, wait for it
+                const checkInterval = setInterval(() => {
+                    if (window.L && window.leafletLoaded) {
+                        clearInterval(checkInterval);
+                        callback();
+                    }
+                }, 100);
+                return;
+            }
+            window.leafletLoading = true;
 
-        if (!document.getElementById('leaflet-script')) {
-            const script = document.createElement('script');
-            script.id = 'leaflet-script';
-            script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-            script.onload = initMap;
-            document.head.appendChild(script);
-        } else if (window.L) {
-            initMap();
+            // Load Leaflet CSS
+            if (!document.getElementById('leaflet-css')) {
+                const css = document.createElement('link');
+                css.id = 'leaflet-css';
+                css.rel = 'stylesheet';
+                css.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+                document.head.appendChild(css);
+            }
+
+            // Load Leaflet JS
+            if (!document.getElementById('leaflet-script')) {
+                const script = document.createElement('script');
+                script.id = 'leaflet-script';
+                script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+                script.onload = function() {
+                    window.leafletLoaded = true;
+                    callback();
+                };
+                document.head.appendChild(script);
+            } else if (window.L) {
+                window.leafletLoaded = true;
+                callback();
+            }
         }
 
         function initMap() {
-            if (map) return;
+            if (window.map) {
+                // Already initialized — just invalidate size
+                setTimeout(() => { window.map.invalidateSize(); }, 100);
+                return;
+            }
             const defaultLocation = [14.5995, 120.9842]; // Manila
             
-            map = L.map('addressMap').setView(defaultLocation, 13);
+            window.map = L.map('addressMap').setView(defaultLocation, 13);
             
             // Use CartoDB Dark Matter tile layer for dark theme
             L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
                 attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
                 maxZoom: 19
-            }).addTo(map);
+            }).addTo(window.map);
 
-            marker = L.marker(defaultLocation, { draggable: true }).addTo(map);
+            window.marker = L.marker(defaultLocation, { draggable: true }).addTo(window.map);
 
             document.getElementById("latitude").value = defaultLocation[0];
             document.getElementById("longitude").value = defaultLocation[1];
 
-            marker.on('dragend', function(event) {
-                const position = marker.getLatLng();
+            window.marker.on('dragend', function(event) {
+                const position = window.marker.getLatLng();
                 document.getElementById("latitude").value = position.lat;
                 document.getElementById("longitude").value = position.lng;
             });
 
-            map.on('click', function(event) {
-                marker.setLatLng(event.latlng);
+            window.map.on('click', function(event) {
+                window.marker.setLatLng(event.latlng);
                 document.getElementById("latitude").value = event.latlng.lat;
                 document.getElementById("longitude").value = event.latlng.lng;
             });
+
+            // Force a size recalculation after the container is visible
+            setTimeout(() => { window.map.invalidateSize(); }, 150);
         }
 
         function updateMapLocation(addressQuery) {
-            if (!map) return;
+            if (!window.map) return;
             // Nominatim Geocoding API (Free OpenStreetMap Geocoding)
             fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addressQuery)}`)
                 .then(res => res.json())
@@ -2316,8 +2749,8 @@
                     if (data && data.length > 0) {
                         const lat = parseFloat(data[0].lat);
                         const lon = parseFloat(data[0].lon);
-                        map.setView([lat, lon], 13);
-                        marker.setLatLng([lat, lon]);
+                        window.map.setView([lat, lon], 13);
+                        window.marker.setLatLng([lat, lon]);
                         document.getElementById("latitude").value = lat;
                         document.getElementById("longitude").value = lon;
                     }
@@ -2325,15 +2758,16 @@
                 .catch(err => console.error("Geocoding error:", err));
         }
         
-        // Re-initialize map when modal is opened to fix sizing issues
+        // Initialize map ONLY when the modal becomes visible
         const observer = new MutationObserver(function(mutations) {
             mutations.forEach(function(mutation) {
                 if (mutation.target.id === 'add-address-modal' && !mutation.target.classList.contains('hidden')) {
-                    if (map) {
-                        setTimeout(() => {
-                            map.invalidateSize();
-                        }, 200);
-                    }
+                    // Wait for the CSS transition (scale+opacity) to finish before init
+                    setTimeout(() => {
+                        ensureLeafletLoaded(function() {
+                            initMap();
+                        });
+                    }, 350);
                 }
             });
         });
@@ -2398,6 +2832,7 @@
                     submitBtn.innerHTML = originalBtnText;
                     submitBtn.disabled = false;
                 });
+            });
         }
     });
 
@@ -2488,8 +2923,7 @@
         }
     });
 
-    const userAccountOrders = @json($orders);
-
+    // Uses window.userAccountOrders already set in the Order History script block
     window.openOrderModal = window._openOrderModal = function(orderId) {
         const modal = document.getElementById('order-details-modal');
         const body = document.getElementById('modal-order-body');
@@ -2501,7 +2935,7 @@
         modal.classList.remove('hidden');
         modal.classList.add('flex');
 
-        const order = userAccountOrders.find(o => String(o.id) === String(orderId));
+        const order = (window.userAccountOrders || []).find(o => String(o.id) === String(orderId));
 
         if (!order) {
             body.innerHTML = `<p class="text-gray-400 text-center py-8">Order details could not be loaded.</p>`;
@@ -2581,7 +3015,7 @@
                 
                 <div class="relative pt-4 pb-2">
                     <div class="absolute top-6 left-[10%] right-[10%] h-1 bg-white/10 rounded-full"></div>
-                    <div class="absolute top-6 left-[10%] h-1 bg-gradient-to-r from-[#ff5100] to-primary rounded-full transition-all duration-500" style="width: calc(${barWidth} * 0.8);"></div>
+                    <div class="absolute top-6 left-[10%] h-1 bg-primary rounded-full transition-all duration-500" style="width: calc(${barWidth} * 0.8);"></div>
                     
                     <div class="flex justify-between relative z-10 text-[10px] uppercase font-bold">
                         <div class="flex flex-col items-center gap-1.5 ${stepIndex >= 1 ? 'text-primary' : 'text-gray-500'}">
@@ -2651,7 +3085,7 @@
                 </div>
                 <div class="flex justify-between text-base font-black text-white pt-2 border-t border-white/10">
                     <span>Total Paid</span>
-                    <span class="text-transparent bg-clip-text bg-gradient-to-r from-primary to-[#ff8c33]">₱${Number(order.total || 0).toLocaleString()}</span>
+                    <span class="text-transparent bg-clip-text bg-primary">₱${Number(order.total || 0).toLocaleString()}</span>
                 </div>
             </div>
         `;
@@ -2690,5 +3124,98 @@
         </div>
     </div>
 </div>
+
+                                <script>
+                                function togglePassword(id, btn) {
+                                    const el = document.getElementById(id);
+                                    if (!el) return;
+                                    const hidden = el.type === "password";
+                                    el.type = hidden ? "text" : "password";
+                                    const icon = btn.querySelector("i");
+                                    icon.className = hidden ? "ph ph-eye-slash text-lg" : "ph ph-eye text-lg";
+                                }
+                                document.addEventListener("DOMContentLoaded", function() {
+                                    const h = window.location.hash.replace("#", "");
+                                    if (h === "password") setTimeout(function() {
+                                        const e = document.getElementById("current-password-input");
+                                        if (e) e.focus();
+                                    }, 300);
+                                    const op = window.openPane;
+                                    if (op) window.openPane = function(id, ps) {
+                                        op(id, ps);
+                                        if (id === "pane-password") setTimeout(function() {
+                                            const e = document.getElementById("current-password-input");
+                                            if (e) e.focus();
+                                        }, 150);
+                                    };
+                                });
+                                document.addEventListener("DOMContentLoaded", function() {
+                                    const np = document.getElementById("new-password-input");
+                                    const cp = document.getElementById("confirm-password-input");
+                                    const ind = document.getElementById("confirm-match-indicator");
+                                    if (!np || !cp || !ind) return;
+                                    function chk() {
+                                        const a = np.value, b = cp.value;
+                                        if (b.length === 0) { ind.classList.add("hidden"); return; }
+                                        ind.classList.remove("hidden");
+                                        var ic = ind.querySelector("i"), tx = ind.querySelector("span");
+                                        if (a === b) {
+                                            ic.className = "ph-fill ph-check-circle text-green-400 text-sm";
+                                            tx.textContent = "Passwords match"; tx.className = "text-green-400";
+                                        } else {
+                                            ic.className = "ph-fill ph-x-circle text-red-400 text-sm";
+                                            tx.textContent = "Passwords do not match"; tx.className = "text-red-400";
+                                        }
+                                    }
+                                    np.addEventListener("input", chk);
+                                    cp.addEventListener("input", chk);
+                                });
+                                </script>
+<script>
+function togglePassword(id, btn) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const hidden = el.type === 'password';
+    el.type = hidden ? 'text' : 'password';
+    const icon = btn.querySelector('i');
+    icon.className = hidden ? 'ph ph-eye-slash text-lg' : 'ph ph-eye text-lg';
+}
+document.addEventListener('DOMContentLoaded', function() {
+    const h = window.location.hash.replace('#', '');
+    if (h === 'password') setTimeout(function() {
+        const e = document.getElementById('current-password-input');
+        if (e) e.focus();
+    }, 300);
+    const op = window.openPane;
+    if (op) window.openPane = function(id, ps) {
+        op(id, ps);
+        if (id === 'pane-password') setTimeout(function() {
+            const e = document.getElementById('current-password-input');
+            if (e) e.focus();
+        }, 150);
+    };
+});
+document.addEventListener('DOMContentLoaded', function() {
+    const np = document.getElementById('new-password-input');
+    const cp = document.getElementById('confirm-password-input');
+    const ind = document.getElementById('confirm-match-indicator');
+    if (!np || !cp || !ind) return;
+    function chk() {
+        const a = np.value, b = cp.value;
+        if (b.length === 0) { ind.classList.add('hidden'); return; }
+        ind.classList.remove('hidden');
+        const ic = ind.querySelector('i'), tx = ind.querySelector('span');
+        if (a === b) {
+            ic.className = 'ph-fill ph-check-circle text-green-400 text-sm';
+            tx.textContent = 'Passwords match'; tx.className = 'text-green-400';
+        } else {
+            ic.className = 'ph-fill ph-x-circle text-red-400 text-sm';
+            tx.textContent = 'Passwords do not match'; tx.className = 'text-red-400';
+        }
+    }
+    np.addEventListener('input', chk);
+    cp.addEventListener('input', chk);
+});
+</script>
 </body>
 </html>

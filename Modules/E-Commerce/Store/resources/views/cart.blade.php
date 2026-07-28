@@ -1,3 +1,35 @@
+@php
+    $storefrontCompany = request()->attributes->get('ecommerce_company');
+    if ($storefrontCompany) {
+        $isPreview = request()->boolean('preview') && \Illuminate\Support\Facades\Auth::guard('ecommerce_admin')->check();
+        $publishedLayout = $isPreview ? \Modules\Ecommerce\Models\StorefrontLayout::editableFor($storefrontCompany) : \Modules\Ecommerce\Models\StorefrontLayout::publishedFor($storefrontCompany);
+        $layout = empty($layout) ? $publishedLayout : $layout;
+        $storefrontName = $storefrontName ?? ($publishedLayout['brand_name'] ?? ($storefrontCompany->company_name ?: 'Nexora Store'));
+        $store = $store ?? $storefrontCompany->ecommerce_slug;
+        $storefrontVisitKey = 'storefront_visited_' . ($storefrontCompany?->ecommerce_slug ?: 'store');
+    $logoUrl = $logoUrl ?? (!empty($publishedLayout['logo_path']) ? (str_starts_with($publishedLayout['logo_path'], 'Modules/') ? Vite::asset($publishedLayout['logo_path']) : asset('storage/'.$publishedLayout['logo_path'])) : ($storefrontCompany->logoUrl() ?: asset('ecommerce/Nexora_Logo.png')));
+    } else {
+        $storefrontName = $storefrontName ?? 'Nexora Store';
+        $store = $store ?? 'techforge';
+        $storefrontVisitKey = 'storefront_visited_' . ($storefrontCompany?->ecommerce_slug ?: 'store');
+    $logoUrl = $logoUrl ?? asset('ecommerce/Nexora_Logo.png');
+        $layout = [];
+    }
+
+    $primaryHex = $layout['primary_color'] ?? '#ff6b00';
+    $primaryClean = ltrim($primaryHex, '#');
+    if (strlen($primaryClean) === 3) $primaryClean = $primaryClean[0].$primaryClean[0].$primaryClean[1].$primaryClean[1].$primaryClean[2].$primaryClean[2];
+    $primaryR = hexdec(substr($primaryClean, 0, 2));
+    $primaryG = hexdec(substr($primaryClean, 2, 2));
+    $primaryB = hexdec(substr($primaryClean, 4, 2));
+
+    $accentHex = $layout['accent_color'] ?? '#f59e0b';
+    $accentClean = ltrim($accentHex, '#');
+    if (strlen($accentClean) === 3) $accentClean = $accentClean[0].$accentClean[0].$accentClean[1].$accentClean[1].$accentClean[2].$accentClean[2];
+    $accentR = hexdec(substr($accentClean, 0, 2));
+    $accentG = hexdec(substr($accentClean, 2, 2));
+    $accentB = hexdec(substr($accentClean, 4, 2));
+@endphp
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="scroll-smooth">
 <head>
@@ -7,7 +39,7 @@
     
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
 
-    <title>{{ config('app.name', 'TechForge') }} | Cart & Returns</title>
+    <title>{{ $storefrontName }} | Cart & Returns</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -16,10 +48,18 @@
             theme: {
                 extend: {
                     colors: {
-                        primary: { DEFAULT: '#ff6b00', hover: '#e56000', glow: 'rgba(255, 107, 0, 0.5)' },
+                        primary: { DEFAULT: '{{ $primaryHex }}', hover: '{{ $primaryHex }}CC', glow: '{{ $primaryHex }}80' },
+                        accent: '{{ $accentHex }}',
                         dark: { bg: '#050505', surface: '#121212' }
                     },
-                    fontFamily: { sans: ['Inter', 'sans-serif'] }
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    dropShadow: {
+                        'glow': '0 0 15px {{ $primaryHex }}80',
+                    },
+                    boxShadow: {
+                        'glow': '0 0 20px {{ $primaryHex }}4D',
+                        'glow-lg': '0 0 30px {{ $primaryHex }}26',
+                    }
                 }
             }
         };
@@ -43,7 +83,7 @@
             left: -20%;
             width: 70vw;
             height: 70vw;
-            background: radial-gradient(circle, rgba(255, 107, 0, 0.35) 0%, rgba(255, 107, 0, 0) 65%);
+            background: radial-gradient(circle, rgba({{ $primaryR }}, {{ $primaryG }}, {{ $primaryB }}, 0.35) 0%, rgba({{ $primaryR }}, {{ $primaryG }}, {{ $primaryB }}, 0) 65%);
             z-index: -1;
             pointer-events: none;
             animation: floatPulse1 20s ease-in-out infinite;
@@ -55,7 +95,7 @@
             right: -20%;
             width: 80vw;
             height: 80vw;
-            background: radial-gradient(circle, rgba(153, 0, 0, 0.4) 0%, rgba(153, 0, 0, 0) 65%);
+            background: radial-gradient(circle, rgba({{ $accentR }}, {{ $accentG }}, {{ $accentB }}, 0.4) 0%, rgba({{ $accentR }}, {{ $accentG }}, {{ $accentB }}, 0) 65%);
             z-index: -1;
             pointer-events: none;
             animation: floatPulse2 25s ease-in-out infinite;
@@ -77,7 +117,7 @@
 
         /* Orange Gradient Text */
         .text-gradient {
-            background: linear-gradient(to right, #ffffff, #ffaa66);
+            background: linear-gradient(to right, #ffffff, {{ $accentHex }});
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
@@ -87,13 +127,9 @@
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: #050505; }
         ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #ff6b00; }
+        ::-webkit-scrollbar-thumb:hover { background: {{ $primaryHex }}; }
 
-        /* Preloader Animations */
-        @keyframes spinFastOnce { 0% { transform: rotate(0deg); } 100% { transform: rotate(720deg); } }
-        .animate-spin-fast { animation: spinFastOnce 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
-        @keyframes slideTextOut { 0% { max-width: 0; opacity: 0; padding-left: 0; } 100% { max-width: 400px; opacity: 1; padding-left: 1.5rem; } }
-        .animate-slide-text { animation: slideTextOut 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; animation-delay: 0.8s; overflow: hidden; white-space: nowrap; opacity: 0; max-width: 0; }
+        /* Preloader animation keyframes loaded from resources/css/preloader.css via @@vite() */
 
         .hide-scroll-bar::-webkit-scrollbar { display: none; }
         .hide-scroll-bar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -111,16 +147,22 @@
         .cart-item-exit { animation: fadeSlideOut 0.4s ease-in forwards; }
     </style>
 
+    @vite('Modules/E-Commerce/Store/resources/css/preloader.css')
     @vite('Modules/E-Commerce/Store/resources/css/liquidglass.css')
 </head>
 <body class="relative antialiased selection:bg-primary selection:text-white">
 
-    @vite('Modules/E-Commerce/Store/resources/js/Common/Preloader.js')
 
     <!-- Background Ambient Effects -->
     <div class="ambient-light-1"></div>
     <div class="ambient-light-2"></div>
     @vite('Modules/E-Commerce/Store/resources/js/Common/AmbientEffects.js')
+
+    <x-preloader
+        :logoUrl="$logoUrl"
+        :storefrontName="$storefrontName"
+        :visitKey="$storefrontVisitKey"
+    />
 
     <x-navbar />
 
@@ -158,7 +200,7 @@
                     <span class="text-[10px] text-gray-500 uppercase tracking-widest font-bold">₱{{ number_format($subtotal) }} / ₱{{ number_format($freeShippingThreshold) }}</span>
                 </div>
                 <div class="w-full h-2 bg-white/5 rounded-full overflow-hidden border border-white/5">
-                    <div class="h-full rounded-full transition-all duration-700 ease-out {{ $remaining <= 0 ? 'bg-gradient-to-r from-green-500 to-emerald-400 shadow-[0_0_12px_rgba(34,197,94,0.6)]' : 'bg-gradient-to-r from-primary to-orange-400 shadow-[0_0_12px_rgba(255,107,0,0.5)]' }}" style="width: {{ $shippingProgress }}%"></div>
+                    <div class="h-full rounded-full transition-all duration-700 ease-out {{ $remaining <= 0 ? 'bg-gradient-to-r from-green-500 to-emerald-400 shadow-[0_0_12px_rgba(34,197,94,0.6)]' : 'bg-gradient-to-r from-primary to-accent shadow-[0_0_12px_rgba(' . $primaryR . ',' . $primaryG . ',' . $primaryB . ',0.5)]' }}" style="width: {{ $shippingProgress }}%"></div>
                 </div>
             </div>
             @endif
@@ -177,10 +219,10 @@
                                 $productType = $item['product_type'] ?? 'generic';
                                 $detailUrl = match($productType) {
                                     'prebuilt' => url('/prebuilt-overview/' . $item['id']),
-                                    'laptop' => url('/laptop-overview/' . $item['id']),
+                                    'laptop' => url('/item-overview/' . $item['id']),
                                     'configurator' => url('/custompc-overview/' . $item['id']),
                                     'custom' => url('/custompc-overview/' . $item['id']),
-                                    default => null,
+                                    default => url('/item-overview/' . $item['id']),
                                 };
                             @endphp
 
@@ -193,7 +235,7 @@
                                 <!-- Product Image -->
                                 <div class="w-24 h-24 bg-[#0a0a0a] rounded-xl flex-shrink-0 border border-white/5 flex items-center justify-center overflow-hidden p-2 {{ $detailUrl ? 'group-hover/link:border-primary/40 transition-colors' : '' }}">
                                     @if(isset($item['image_url']) && !empty($item['image_url']))
-                                        <img src="{{ $item['image_url'] }}" alt="{{ $item['name'] }}" class="max-w-full max-h-full object-contain {{ $detailUrl ? 'group-hover/link:scale-110 transition-transform duration-300' : '' }}">
+                                        <img src="{{ $item['image_url'] }}" alt="{{ $item['name'] }}" loading="lazy" class="lazy-img max-w-full max-h-full object-contain {{ $detailUrl ? 'group-hover/link:scale-110 transition-transform duration-300' : '' }}">
                                     @else
                                         <i class="ph-light ph-desktop text-3xl text-gray-600"></i>
                                     @endif
@@ -254,7 +296,7 @@
                             
                             <div class="flex items-center gap-4">
                                 @guest('ecommerce')
-                                <a href="{{ route('ecommerce.login') }}" class="bg-gradient-to-r from-primary to-[#ff8c33] hover:from-[#ff8c33] hover:to-primary text-white px-6 py-2.5 rounded-xl text-sm font-bold transition-all shadow-[0_0_15px_rgba(255,107,0,0.3)]">
+                                <a href="{{ route('ecommerce.login') }}" class="bg-gradient-to-r from-primary to-accent hover:from-accent hover:to-primary text-white px-6 py-2.5 rounded-xl text-sm font-bold transition-all shadow-[0_0_15px_rgba({{ $primaryR }},{{$primaryG }},{{$primaryB }},0.3)]">
                                     Sign In
                                 </a>
                                 @endguest
@@ -289,10 +331,20 @@
                                     @endif
                                 </span>
                             </div>
+                            @if($tierBenefits && $tierDiscountPct > 0)
+                            <div class="flex justify-between text-gray-400">
+                                <span class="flex items-center gap-1.5">
+                                    <span>{{ $tierBenefits['label'] }} Discount ({{ $tierDiscountPct }}%)</span>
+                                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded" style="background: {{ $tierBenefits['color'] }}20; color: {{ $tierBenefits['color'] }};">{{ $tierBenefits['label'] }}</span>
+                                </span>
+                                <span class="text-green-400 font-medium" id="summary-discount">-₱{{ number_format($discount, 2) }}</span>
+                            </div>
+                            @else
                             <div class="flex justify-between text-gray-400">
                                 <span>Discount</span>
                                 <span class="text-white font-medium" id="summary-discount">₱{{ number_format($discount, 2) }}</span>
                             </div>
+                            @endif
                         </div>
 
                         <!-- Promo Code Input -->
@@ -318,7 +370,7 @@
                         </div>
                         
                         @if(count($cart) > 0)
-                            <a href="{{ \Illuminate\Support\Facades\Auth::guard('ecommerce')->check() ? route('ecommerce.checkout.index') : route('ecommerce.cart.checkout.redirect') }}" id="checkout-btn" class="w-full bg-gradient-to-r from-primary to-orange-400 hover:from-primary-hover hover:to-primary text-white py-4 rounded-xl font-bold transition-all shadow-[0_0_15px_rgba(255,107,0,0.3)] hover:shadow-[0_0_25px_rgba(255,107,0,0.5)] hover:-translate-y-1 flex items-center justify-center gap-2 text-lg group">
+                            <a href="{{ \Illuminate\Support\Facades\Auth::guard('ecommerce')->check() ? route('ecommerce.checkout.index') : route('ecommerce.cart.checkout.redirect') }}" id="checkout-btn" class="w-full bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-primary text-white py-4 rounded-xl font-bold transition-all shadow-[0_0_15px_rgba({{ $primaryR }},{{$primaryG }},{{$primaryB }},0.3)] hover:shadow-[0_0_25px_rgba({{ $primaryR }},{{$primaryG }},{{$primaryB }},0.5)] hover:-translate-y-1 flex items-center justify-center gap-2 text-lg group">
                                 Proceed to Checkout <i class="ph-bold ph-arrow-right group-hover:translate-x-1 transition-transform"></i>
                             </a>
                         @else
@@ -352,36 +404,7 @@
 
                 </div>
 
-            </div>
-
-            <!-- You May Also Like Section -->
-            @if(count($recommendations) > 0)
-            <section class="mt-20">
-                <div class="flex items-center justify-between mb-6">
-                    <div>
-                        <h2 class="text-2xl font-black text-white">You May Also Like</h2>
-                        <p class="text-sm text-gray-500 mt-1">Complete your setup with these popular picks.</p>
-                    </div>
-                </div>
-                <div class="flex gap-5 overflow-x-auto pb-6 -mx-6 px-6 scroll-px-6 snap-x snap-mandatory hide-scroll-bar scroll-smooth" style="mask-image: linear-gradient(to right, transparent, black 32px, black calc(100% - 32px), transparent); -webkit-mask-image: linear-gradient(to right, transparent, black 32px, black calc(100% - 32px), transparent);">
-                    @foreach($recommendations as $rec)
-                    <div class="w-[260px] shrink-0 snap-start liquid-glass rounded-2xl p-4 border border-white/10 hover:border-primary/40 transition-all group">
-                        <div class="aspect-square w-full rounded-xl bg-black/40 mb-4 flex items-center justify-center p-4 border border-white/5 overflow-hidden">
-                            <img src="{{ $rec->image_url }}" alt="{{ $rec->name }}" class="max-w-full max-h-full object-contain group-hover:scale-110 transition-transform duration-500">
-                        </div>
-                        <h4 class="text-sm font-bold text-white truncate mb-1" title="{{ $rec->name }}">{{ $rec->name }}</h4>
-                        <div class="flex items-center justify-between mt-2">
-                            <span class="text-lg font-black text-white">₱{{ number_format($rec->price) }}</span>
-                            <button onclick="window.addToCart('{{ $rec->id }}', '{{ addslashes($rec->name) }}', {{ $rec->price }}, '{{ $rec->image_url }}')" class="w-9 h-9 rounded-lg bg-white/5 border border-white/10 text-white flex items-center justify-center hover:bg-primary hover:border-primary hover:scale-110 transition-all">
-                                <i class="ph-bold ph-plus text-sm"></i>
-                            </button>
-                        </div>
-                    </div>
-                    @endforeach
-                </div>
-            </section>
-            @endif
-        </div>
+            </div>        </div>
     </main>
 
     <x-footer />
