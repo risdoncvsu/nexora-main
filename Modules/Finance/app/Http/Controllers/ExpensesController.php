@@ -108,16 +108,29 @@ class ExpensesController extends Controller
         $schema = Schema::connection('procurement');
         abort_unless($schema->hasTable('purchase_orders'), 404);
 
-        $values = ['status' => ucfirst($data['status'])];
+        $newStatus = strtolower($data['status']);
+        $values = ['status' => $newStatus];
         if ($schema->hasColumn('purchase_orders', 'updated_at')) {
             $values['updated_at'] = now();
         }
 
-        $changed = $this->purchaseOrders($schema)
-            ->where('id', $id)
-            ->whereRaw("LOWER(COALESCE(status, '')) = ?", ['pending'])
-            ->update($values);
-        abort_unless($changed === 1, 404);
+        $query = DB::connection('procurement')->table('purchase_orders')->where('id', $id);
+        $isRootAdmin = config('nexora.root_admin_module_testing') && auth()->user()?->role === 'root_admin';
+        if (! $isRootAdmin && session('employee_client_id') && $schema->hasColumn('purchase_orders', 'client_id')) {
+            $query->where('client_id', session('employee_client_id'));
+        }
+
+        $po = (clone $query)->first();
+        if (! $po) {
+            return response()->json(['success' => false, 'message' => 'Purchase order not found.'], 404);
+        }
+
+        $currentStatus = strtolower(trim((string) ($po->status ?? 'pending')));
+        if ($currentStatus !== 'pending') {
+            return response()->json(['success' => false, 'message' => "Cannot change status from '{$po->status}'."], 422);
+        }
+
+        $query->update($values);
 
         return response()->json(['success' => true]);
     }
