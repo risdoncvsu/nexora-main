@@ -140,6 +140,12 @@
     </style>
 </head>
 <body>
+    @php
+        $ecommerceHasAccessProfile = (bool) request()->attributes->get('ecommerce_has_access_profile', false);
+        $ecommercePermissions = (array) request()->attributes->get('ecommerce_permissions', []);
+        $canManageListings = ! $ecommerceHasAccessProfile || in_array('ecommerce.manage_product_listings', $ecommercePermissions, true);
+        $canViewOrders = ! $ecommerceHasAccessProfile || in_array('ecommerce.view_orders', $ecommercePermissions, true);
+    @endphp
     @if(!($hideLayout ?? false))
     <header class="shopify-header">
         <a class="header-logo" href="{{ route('ecommerce.admin.dashboard') }}">
@@ -184,17 +190,23 @@
                 <a class="sidebar-link {{ request()->routeIs('ecommerce.admin.dashboard') ? 'active' : '' }}" href="{{ route('ecommerce.admin.dashboard') }}">
                     <i class="ph ph-house"></i> Home
                 </a>
-                <a class="sidebar-link {{ request()->routeIs('ecommerce.admin.orders') ? 'active' : '' }}" href="{{ route('ecommerce.admin.orders') }}">
-                    <i class="ph ph-shopping-cart"></i> Orders
-                </a>
-                <a class="sidebar-link {{ request()->routeIs('ecommerce.admin.listings*') ? 'active' : '' }}" href="{{ route('ecommerce.admin.listings') }}">
-                    <i class="ph ph-tag"></i> Products
-                </a>
+                @if ($canViewOrders)
+                    <a class="sidebar-link {{ request()->routeIs('ecommerce.admin.orders') ? 'active' : '' }}" href="{{ route('ecommerce.admin.orders') }}">
+                        <i class="ph ph-shopping-cart"></i> Orders
+                    </a>
+                @endif
+                @if ($canManageListings)
+                    <a class="sidebar-link {{ request()->routeIs('ecommerce.admin.listings*') ? 'active' : '' }}" href="{{ route('ecommerce.admin.listings') }}">
+                        <i class="ph ph-tag"></i> Products
+                    </a>
+                @endif
 
-                <div class="sidebar-section-title">Sales Channels</div>
-                <a class="sidebar-link {{ request()->routeIs('ecommerce.admin.layout.*') ? 'active' : '' }}" href="{{ route('ecommerce.admin.layout.edit') }}">
-                    <i class="ph ph-storefront"></i> {{ auth('ecommerce_admin')->user()?->getCompany()?->company_name ?? 'Online Store' }}
-                </a>
+                @if ($canManageListings)
+                    <div class="sidebar-section-title">Sales Channels</div>
+                    <a class="sidebar-link {{ request()->routeIs('ecommerce.admin.layout.*') ? 'active' : '' }}" href="{{ route('ecommerce.admin.layout.edit') }}">
+                        <i class="ph ph-storefront"></i> {{ auth('ecommerce_admin')->user()?->getCompany()?->company_name ?? 'Online Store' }}
+                    </a>
+                @endif
             </nav>
 
             <nav style="margin-top: auto;">

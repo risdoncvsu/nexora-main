@@ -2,33 +2,24 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\RiskAssessment;
 use Illuminate\Http\Request;
 
 class RiskController extends Controller
 {
-    private function sessionKey(Request $request): string
-    {
-        return 'client_risks.'.((int) $request->user()?->company_id);
-    }
-
     public function index(Request $request)
     {
-        $search = $request->input('search');
-        $statusFilter = $request->input('status_filter');
-        $risks = collect($request->session()->get($this->sessionKey($request), []))
-            ->map(fn (array $risk): object => (object) $risk);
-
-        if ($search) {
-            $risks = $risks->filter(fn (object $risk): bool =>
-                stripos($risk->title, $search) !== false || stripos($risk->category, $search) !== false
-            );
-        }
-
-        if ($statusFilter) {
-            $risks = $risks->filter(fn (object $risk): bool =>
-                strtolower($risk->status) === strtolower($statusFilter)
-            );
-        }
+        $clientId = (int) $request->user()->company_id;
+        $search = trim((string) $request->input('search'));
+        $statusFilter = trim((string) $request->input('status_filter'));
+        $risks = RiskAssessment::query()->where('company_id', $clientId)
+            ->when($search, fn ($query) => $query->where(fn ($query) => $query->where('title', 'ilike', "%{$search}%")->orWhere('category', 'ilike', "%{$search}%")))
+            ->when($statusFilter, fn ($query) => $query->where('status', $statusFilter))
+            ->latest('updated_at')->get()
+            ->each(function (RiskAssessment $risk): void {
+                $risk->progress = match ($risk->status) { 'Mitigated' => 100, 'In Progress' => 50, default => 0 };
+                $risk->last_reviewed = ($risk->review_date ?? $risk->updated_at)?->format('Y-m-d');
+            });
 
         return view('risk', compact('risks', 'search', 'statusFilter'));
     }
@@ -41,35 +32,33 @@ class RiskController extends Controller
             'status' => ['required', 'in:Unmitigated,In Progress,Mitigated'],
         ]);
 
-        $key = $this->sessionKey($request);
-        $risks = $request->session()->get($key, []);
-        $next = count($risks) + 1;
-        $risks[] = $validated + [
-            'id' => 'RSK-'.str_pad((string) $next, 4, '0', STR_PAD_LEFT),
-            // This is a derived operational metric, not manual data entry.
-            'progress' => match ($validated['status']) {
-                'Mitigated' => 100,
-                'In Progress' => 50,
-                default => 0,
-            },
-            'last_reviewed' => now()->toDateString(),
-        ];
-        $request->session()->put($key, $risks);
+        RiskAssessment::create($validated + [
+            'company_id' => (int) $request->user()->company_id,
+            'level' => 'Medium',
+            'review_date' => now()->toDateString(),
+        ]);
 
         return redirect()->route('client.itsm.risk')->with('success', 'Risk successfully logged.');
     }
 
-    public function update(Request $request)
+    public function manage(Request $request, RiskAssessment $risk)
     {
-        return redirect()->route('client.itsm.risk')->with('success', 'Risk updated successfully.');
+        abort_unless((int) $risk->company_id === (int) $request->user()->company_id, 404);
+
+        return view('risk-manage', compact('risk'));
     }
 
-    public function manage(Request $request, $id)
+    public function update(Request $request, RiskAssessment $risk)
     {
-        $risk = collect($request->session()->get($this->sessionKey($request), []))
-            ->firstWhere('id', $id);
-        abort_unless($risk, 404);
+        abort_unless((int) $risk->company_id === (int) $request->user()->company_id, 404);
+        $validated = $request->validate([
+            'status' => ['required', 'in:Unmitigated,In Progress,Mitigated'],
+            'owner' => ['nullable', 'string', 'max:255'],
+            'mitigation_plan' => ['nullable', 'string', 'max:2000'],
+            'review_date' => ['nullable', 'date'],
+        ]);
+        $risk->update($validated);
 
-        return view('risk-manage', ['risk' => (object) $risk]);
+        return redirect()->route('client.itsm.risk')->with('success', 'Risk management details updated.');
     }
 }

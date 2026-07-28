@@ -117,6 +117,8 @@
             justify-content: space-between; 
             z-index: 100;
             width: 100%;
+            position: sticky;
+            top: 0;
         }
 
         /* LEFT LOGO */
@@ -206,6 +208,42 @@
             box-shadow: 0 12px 20px rgba(0,0,0,0.3);
         }
 
+        .demo-section {
+            scroll-margin-top: 152px;
+            background: #f8fafc;
+            padding: 72px 24px;
+        }
+
+        .demo-card {
+            width: min(760px, 100%);
+            margin: 0 auto;
+            padding: 36px;
+            border-radius: 24px;
+            background: #ffffff;
+            box-shadow: 0 20px 48px rgba(11, 30, 61, .14);
+        }
+
+        .demo-card h2 { color: #0B1E3D; font-size: clamp(1.75rem, 4vw, 2.4rem); }
+        .demo-card p { margin-top: 10px; color: #475569; line-height: 1.6; }
+        .demo-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 28px; }
+        .demo-field { display: grid; gap: 7px; color: #0B1E3D; font-size: 14px; font-weight: 700; }
+        .demo-field.full { grid-column: 1 / -1; }
+        .demo-field input, .demo-field textarea { width: 100%; border: 1px solid #cbd5e1; border-radius: 10px; padding: 12px 14px; font: inherit; color: #0f172a; }
+        .demo-field textarea { min-height: 120px; resize: vertical; }
+        .demo-submit { margin-top: 22px; border: 0; border-radius: 999px; padding: 13px 24px; background: #0B1E3D; color: #fff; font: 800 15px 'Inter', sans-serif; cursor: pointer; }
+        .demo-submit:hover { background: #1B365D; }
+        .form-alert { margin-top: 18px; border-radius: 10px; padding: 12px 14px; font-size: 14px; }
+        .form-alert.success { background: #dcfce7; color: #166534; }
+        .form-alert.error { background: #fee2e2; color: #991b1b; }
+
+        @media (max-width: 640px) {
+            .header { height: 88px; }
+            .nexora-logo { height: 58px; margin: 14px; }
+            .header-contact-btn { margin-right: 14px; padding: 10px 16px; font-size: 13px; }
+            .demo-grid { grid-template-columns: 1fr; }
+            .demo-card { padding: 26px 20px; }
+        }
+
     </style>
 </head>
 
@@ -229,7 +267,7 @@
                 <img src="{{ asset('images/Banner Transparent.png') }}" alt="Nexora Logo">
             </a>
             
-            <a href="{{ route('contact') }}" class="header-contact-btn">Contact Us</a>
+            <a href="#request-demo" class="header-contact-btn">Request a Demo</a>
         </header>
         
         <!-- Main Area (Image Container) -->
@@ -238,8 +276,44 @@
             <img src="{{ asset('images/contactus.png') }}" alt="Get Started With Our ERP" class="content-img">
             
             <!-- Request a Demo Button -->
-            <button class="demo-btn">Request a Demo</button>
+            <button type="button" class="demo-btn" data-demo-scroll>Request a Demo</button>
         </main>
+
+        <section id="request-demo" class="demo-section" aria-labelledby="demo-heading">
+            <div class="demo-card">
+                <h2 id="demo-heading">Request a Nexora ERP demo</h2>
+                <p>Tell us a little about your company and the Nexora team will follow up with a demo schedule.</p>
+
+                @if (session('success'))
+                    <div class="form-alert success" role="status">{{ session('success') }}</div>
+                @endif
+                @if ($errors->any())
+                    <div class="form-alert error" role="alert">{{ $errors->first() }}</div>
+                @endif
+
+                <form action="{{ route('contact.store') }}" method="POST">
+                    @csrf
+                    <div class="demo-grid">
+                        <label class="demo-field">Name
+                            <input name="name" value="{{ old('name') }}" required autocomplete="name">
+                        </label>
+                        <label class="demo-field">Work email
+                            <input type="email" name="email" value="{{ old('email') }}" required autocomplete="email">
+                        </label>
+                        <label class="demo-field">Company
+                            <input name="company_name" value="{{ old('company_name') }}" autocomplete="organization">
+                        </label>
+                        <label class="demo-field">Phone number
+                            <input name="phone" value="{{ old('phone') }}" autocomplete="tel">
+                        </label>
+                        <label class="demo-field full">What would you like to discuss?
+                            <textarea name="message" placeholder="Modules, team size, or a preferred demo time">{{ old('message') }}</textarea>
+                        </label>
+                    </div>
+                    <button class="demo-submit" type="submit">Send demo request</button>
+                </form>
+            </div>
+        </section>
     </div>
 
 <script>
@@ -275,6 +349,12 @@
             window.location.href = url;
         }, 400); 
     }
+
+    document.querySelectorAll('[data-demo-scroll]').forEach((button) => {
+        button.addEventListener('click', () => {
+            document.getElementById('request-demo')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    });
 
 </script>
 

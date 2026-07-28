@@ -139,7 +139,14 @@ class UserController extends Controller
                     $permissions = json_decode($permissions, true) ?: [];
                 }
 
-                $employee->access_permissions = array_values(array_map('strval', is_array($permissions) ? $permissions : []));
+                $permissions = array_values(array_map('strval', is_array($permissions) ? $permissions : []));
+                // Keep profiles created by the earlier Ecommerce storefront
+                // editor compatible with the current client-visible choices.
+                if (in_array('ecommerce.manage_storefront', $permissions, true)) {
+                    $permissions[] = 'ecommerce.manage_product_listings';
+                }
+
+                $employee->access_permissions = array_values(array_unique($permissions));
             });
         }
 

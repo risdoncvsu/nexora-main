@@ -26,6 +26,9 @@ class KnowledgeBaseController extends Controller
         ]);
 
         // save to database
+        // Older installations created `target_module` as NOT NULL. Persist a
+        // useful default instead of letting an optional UI field cause a 500.
+        $validated['target_module'] = $validated['target_module'] ?: 'General';
         Article::create($validated);
 
         // redirect back with success message
@@ -40,4 +43,3 @@ class KnowledgeBaseController extends Controller
 
 
 }
-

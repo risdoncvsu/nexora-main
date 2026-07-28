@@ -2,75 +2,51 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller;
+use App\Models\RiskAssessment;
+use App\Models\RiskIncident;
+use App\Models\RiskMitigationPlan;
 use Illuminate\Http\Request;
 
 class RiskAnalyticsController extends Controller
 {
-    /**
-     * Display the blank/empty risk analytics console view.
-     */
     public function index(Request $request)
     {
-        // 1. Capture the timeframe filter option (para gumana pa rin ang UI toggles)
+        $clientId = (int) $request->user()->company_id;
         $timeframe = $request->input('timeframe', '30_days');
-        
-        // 2. Lahat ng metrics ay zeroed out dahil walang data
-        $totalRisks = 0;
-        $mitigationIndex = 0.0;
-        $avgResolutionFormatted = 'N/A';
+        $from = match ($timeframe) { '6_months' => now()->subMonths(6), 'this_year' => now()->startOfYear(), default => now()->subDays(30) };
+        $risks = RiskAssessment::query()->where('company_id', $clientId)->where('created_at', '>=', $from)->get();
+        $plans = RiskMitigationPlan::query()->where('company_id', $clientId)->where('created_at', '>=', $from)->get();
+        $incidents = RiskIncident::query()->where('company_id', $clientId)->where('created_at', '>=', $from)->get();
+        $totalRisks = $risks->count();
+        $controlledHazards = $risks->where('status', 'Mitigated')->count();
+        $resolved = $incidents->where('status', 'Resolved')->whereNotNull('resolved_at');
+        $averageMinutes = $resolved->isEmpty() ? null : (int) round($resolved->avg(fn (RiskIncident $incident) => $incident->created_at->diffInMinutes($incident->resolved_at)));
+        $vectors = $risks->groupBy(fn (RiskAssessment $risk) => $risk->category ?: 'Uncategorised')->map(fn ($items, $name) => ['name' => $name, 'percentage' => $totalRisks ? (int) round($items->count() / $totalRisks * 100) : 0])->sortByDesc('percentage')->values();
 
-        $totalHazards = 0;
-        $controlledHazards = 0;
-        $unassignedRisks = 0; 
-
-        // 3. Empty status distributions counts
-        $statusDistribution = [
-            'unmitigated' => 0,
-            'in_progress' => 0,
-            'secured'     => 0,
-        ];
-
-        // 4. Walang makikitang department vulnerability vectors
-        $vulnerabilityVectors = [];
-
-        // Magpasa tayo ng flag para alam ng frontend na blangko ang console
-        $hasData = false;
-
-        return view('analytics', compact(
-            'timeframe',
-            'totalRisks',
-            'mitigationIndex',
-            'avgResolutionFormatted',
-            'controlledHazards',
-            'totalHazards',
-            'unassignedRisks',
-            'statusDistribution',
-            'vulnerabilityVectors',
-            'hasData'
-        ));
+        return view('analytics', [
+            'timeframe' => $timeframe,
+            'totalRisks' => $totalRisks,
+            'mitigationIndex' => $totalRisks ? (int) round($controlledHazards / $totalRisks * 100) : 0,
+            'avgResolutionFormatted' => $averageMinutes === null ? 'N/A' : $averageMinutes.' min',
+            'controlledHazards' => $controlledHazards,
+            'totalHazards' => $totalRisks,
+            'unassignedRisks' => $risks->filter(fn (RiskAssessment $risk) => empty($risk->owner))->count(),
+            'statusDistribution' => ['unmitigated' => $risks->where('status', 'Unmitigated')->count(), 'in_progress' => $risks->where('status', 'In Progress')->count(), 'secured' => $controlledHazards],
+            'vulnerabilityVectors' => $vectors,
+            'hasData' => $totalRisks > 0 || $plans->isNotEmpty() || $incidents->isNotEmpty(),
+        ]);
     }
 
-    /**
-     * CSV/XLS Download Stream for an empty system state
-     */
     public function export(Request $request)
     {
-        $headers = [
-            "Content-type"        => "text/csv",
-            "Content-Disposition" => "attachment; filename=nexora_empty_report.csv",
-            "Pragma"              => "no-cache",
-            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
-            "Expires"             => "0"
-        ];
+        $clientId = (int) $request->user()->company_id;
+        $risks = RiskAssessment::query()->where('company_id', $clientId)->orderBy('id')->get();
 
-        $callback = function() {
+        return response()->streamDownload(function () use ($risks): void {
             $file = fopen('php://output', 'w');
-            // Maglalabas lang ng header columns pero walang records sa ilalim
-            fputcsv($file, ['Risk ID', 'Title', 'Department', 'Status', 'Resolution Hours']);
+            fputcsv($file, ['Risk ID', 'Title', 'Category', 'Status', 'Owner', 'Review date']);
+            foreach ($risks as $risk) fputcsv($file, [$risk->id, $risk->title, $risk->category, $risk->status, $risk->owner, optional($risk->review_date)->format('Y-m-d')]);
             fclose($file);
-        };
-
-        return response()->stream($callback, 200, $headers);
+        }, 'nexora-risk-report.csv', ['Content-Type' => 'text/csv']);
     }
 }

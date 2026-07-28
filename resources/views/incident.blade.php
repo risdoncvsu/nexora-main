@@ -30,7 +30,7 @@
             <div class="relative z-10 mx-auto flex w-full max-w-[1760px] gap-6 items-stretch h-[calc(100vh-120px)]">
                 
                 <!-- Left Sidebar Navigation Panel -->
-                <aside class="w-64 shrink-0 rounded-[2rem] bg-white p-6 shadow-2xl text-slate-900 flex flex-col justify-between h-full">
+                <aside class="w-[22rem] shrink-0 rounded-[2rem] bg-white p-6 shadow-2xl text-slate-900 flex flex-col justify-between h-full">
                     <div class="flex flex-col gap-2 font-semibold text-sm text-slate-600">
                         <a href="{{ route('client.itsm.risk') }}" class="flex items-center gap-3 rounded-xl px-4 py-3 hover:bg-slate-50 hover:text-slate-900 transition">
                             <i data-lucide="file-text" class="h-4.5 w-4.5"></i> Risk Register
@@ -144,10 +144,10 @@
                                     <table class="w-full text-left border-collapse">
                                         <thead class="sticky top-0 bg-white z-10 shadow-[0_1px_0_0_rgba(226,232,240,1)]">
                                             <tr class="bg-slate-50 text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
-                                                <th class="px-6 py-3.5 text-center">Incident ID & Title</th>
+                                                <th class="px-6 py-3.5 text-left">Incident ID & Title</th>
                                                 <th class="px-6 py-3.5 text-center">Severity</th>
-                                                <th class="px-6 py-3.5 text-center">Date/Time</th>
-                                                <th class="px-6 py-3.5 text-center">Reporter</th>
+                                                <th class="px-6 py-3.5 text-left">Date/Time</th>
+                                                <th class="px-6 py-3.5 text-left">Reporter</th>
                                                 <th class="px-6 py-3.5 text-center">Status</th>
                                                 <th class="px-6 py-3.5 text-center">Action</th>
                                             </tr>

@@ -23,12 +23,12 @@ public function resolvedTickets()
 }
 
 
-public function knowledgeBase()
-{
-    $articles = Article::latest()->get();
-
-    return view('service.knowledgebase', compact('articles'));
-}
+    public function knowledgeBase()
+    {
+        return view('service.client-knowledge-base', [
+            'articles' => Article::query()->latest()->get(),
+        ]);
+    }
 
 
 

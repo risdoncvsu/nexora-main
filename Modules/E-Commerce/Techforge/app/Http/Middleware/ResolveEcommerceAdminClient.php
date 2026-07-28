@@ -34,11 +34,24 @@ class ResolveEcommerceAdminClient
         if ($profile) {
             $permissions = $profile->access_permissions ?? [];
             $permissions = is_array($permissions) ? $permissions : (json_decode((string) $permissions, true) ?: []);
+            $permissions = array_values(array_unique(array_map('strval', $permissions)));
+
+            // `manage_storefront` was used by an earlier implementation but
+            // was never exposed in the client ITSM access-control editor.
+            // Preserve existing access while moving every profile to the two
+            // supported E-commerce permissions.
+            if (in_array('ecommerce.manage_storefront', $permissions, true)) {
+                $permissions[] = 'ecommerce.manage_product_listings';
+                $permissions = array_values(array_unique($permissions));
+            }
+
+            $request->attributes->set('ecommerce_permissions', $permissions);
+            $request->attributes->set('ecommerce_has_access_profile', true);
+
             if ($request->routeIs('ecommerce.admin.dashboard')) {
                 abort_unless(
                     in_array('ecommerce.manage_product_listings', $permissions, true)
-                        || in_array('ecommerce.view_orders', $permissions, true)
-                        || in_array('ecommerce.manage_storefront', $permissions, true),
+                        || in_array('ecommerce.view_orders', $permissions, true),
                     403,
                     'You do not have permission to access E-commerce Admin.'
                 );
@@ -48,12 +61,16 @@ class ResolveEcommerceAdminClient
                     : 'ecommerce.manage_product_listings';
 
                 abort_unless(
-                    in_array($permission, $permissions, true)
-                        || ($permission === 'ecommerce.manage_product_listings' && in_array('ecommerce.manage_storefront', $permissions, true)),
+                    in_array($permission, $permissions, true),
                     403,
                     'You do not have permission to access this E-commerce admin function.'
                 );
             }
+        } else {
+            // Existing employees without a saved access profile retain their
+            // legacy access until a client administrator creates one.
+            $request->attributes->set('ecommerce_permissions', []);
+            $request->attributes->set('ecommerce_has_access_profile', false);
         }
 
         return $next($request);

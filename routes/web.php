@@ -22,6 +22,7 @@ use App\Http\Controllers\ApprovalController;
 use App\Http\Controllers\KnowledgeBaseController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\EmployeePortalController;
+use App\Http\Controllers\ContactController;
 
 Route::get('/login', function () {
     return view('auth.login');
@@ -29,6 +30,7 @@ Route::get('/login', function () {
 
 // Public company-contact page linked from the primary sign-in screen.
 Route::view('/contact', 'contact')->name('contact');
+Route::post('/contact', [ContactController::class, 'store'])->name('contact.store');
 
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
@@ -136,8 +138,8 @@ Route::middleware('auth')->group(function () {
         // Risk Management (Risk Register)
         Route::get('/risk', [RiskController::class, 'index'])->name('risk');
         Route::post('/risk/store', [RiskController::class, 'store'])->name('risk.store');
-        Route::post('/risk/update', [RiskController::class, 'update'])->name('risk.update');
-        Route::get('/risk/{id}/manage', [RiskController::class, 'manage'])->name('risk.manage');
+        Route::patch('/risk/{risk}', [RiskController::class, 'update'])->name('risk.update');
+        Route::get('/risk/{risk}/manage', [RiskController::class, 'manage'])->name('risk.manage');
         
         // Risk Management (Mitigation Plans)
         Route::get('/risk/mitigation', [RiskMitigationController::class, 'index'])->name('risk.mitigation');
@@ -201,15 +203,6 @@ Route::get('/service/knowledge-base', [ServiceController::class, 'knowledgeBase'
     ->name('service.knowledgebase');
 });
 
-
-Route::get('/client/itsm/service-desk/resolved-tickets', fn () => redirect()->route('client.itsm.service-desk'))
-    ->name('client.itsm.service-desk.resolvedtickets');
-
-Route::get('/client/itsm/service-desk/knowledge-base', [ServiceController::class, 'knowledgeBase'])
-    ->name('client.itsm.service-desk.knowledgebase');
-
-Route::post('/knowledge-base/store', [KnowledgeBaseController::class, 'store'])
-    ->name('knowledge-base.store');
 
 // This fallback lets the web audit middleware record authenticated 404s with
 // the same client scope as the request that caused them.
