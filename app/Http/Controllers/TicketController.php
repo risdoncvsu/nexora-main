@@ -11,8 +11,11 @@ use Illuminate\Support\Carbon;
 
 class TicketController extends Controller
 {
-    public function index(string $portal = 'client', string $ticketType = 'erp_module')
+    public function index(Request $request, string $portal = 'client', string $ticketType = 'erp_module')
     {
+        // The root-admin route sets this as a route default. Read it from the
+        // request as well so the correct portal is retained after route caching.
+        $portal = $request->route('portal', $portal);
         $query = ServiceTicket::query()->latest();
 
         if ($portal === 'admin') {
@@ -27,7 +30,7 @@ class TicketController extends Controller
             }
         }
 
-        return view('service.service', [
+        return view($portal === 'admin' ? 'service.admin-service-desk' : 'service.service', [
             'portal' => $portal,
             'active' => 'service-desk',
             'ticketType' => $portal === 'admin' ? 'nexora_support' : $ticketType,

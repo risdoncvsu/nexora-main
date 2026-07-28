@@ -23,9 +23,9 @@
         <main class="relative flex-1 p-4 sm:p-6">
             <img src="{{ asset('images/nexora-icon.png') }}" alt="" class="pointer-events-none absolute left-1/2 top-1/2 w-[64rem] -translate-x-1/2 -translate-y-1/2 opacity-10 blur-sm">
             <div class="relative z-10 mx-auto max-w-[1760px] space-y-6">
-                <section class="rounded-[1.875rem] bg-white/90 px-5 py-6 text-slate-950 sm:px-8 sm:py-7">
+                <section>
                     <p class="text-xs font-bold uppercase tracking-wider text-[#346DCB]">Root administration</p>
-                    <h1 class="mt-1 text-3xl font-bold sm:text-4xl">Audit Troubleshooting</h1>
+                    <h1 class="mt-1 text-3xl font-bold sm:text-4xl">Audit Trail</h1>
                     <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-600">Select a client to inspect its full activity trail. The global feed below intentionally contains errors only, so routine activity from every company does not overwhelm troubleshooting.</p>
                 </section>
 
