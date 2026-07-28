@@ -10,10 +10,12 @@ class RolesAndPermissionController extends Controller
 {
 
 
-public function index()
+public function index(Request $request)
 {
     $roles = Role::withCount('users')->get();
-    return view('users.rolesandpermission', compact('roles'));
+    $portal = $request->routeIs('admin.*') ? 'admin' : 'client';
+
+    return view('users.rolesandpermission', compact('roles', 'portal') + ['active' => 'roles']);
 }
 
 

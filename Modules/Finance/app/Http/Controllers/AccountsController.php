@@ -9,8 +9,9 @@ class AccountsController extends Controller
 {
     public function index()
     {
-        $accounts = Account::query()->orderBy('account_id')->get()->map(fn (Account $account) => [
-            'id' => $account->account_id, 'name' => $account->name, 'number' => $account->account_id,
+        $key = (new Account())->getKeyName();
+        $accounts = Account::query()->orderBy($key)->get()->map(fn (Account $account) => [
+            'id' => $account->getKey(), 'name' => $account->name, 'number' => $account->getKey(),
             'type' => $account->account_type, 'detail' => $account->detail_type, 'balance' => (float) $account->balance,
             'date' => optional($account->created_at)->format('M d, Y'), 'inactive' => false,
         ]);
@@ -21,7 +22,7 @@ class AccountsController extends Controller
     {
         $data = $request->validate(['name' => 'required|string|max:255', 'type' => 'required|string|max:100', 'detail' => 'nullable|string|max:255', 'balance' => 'required|numeric']);
         $account = Account::create(['name' => $data['name'], 'account_type' => $data['type'], 'detail_type' => $data['detail'] ?? null, 'balance' => $data['balance']]);
-        return response()->json(['success' => true, 'account' => ['id' => $account->account_id, 'name' => $account->name, 'number' => $account->account_id, 'type' => $account->account_type, 'detail' => $account->detail_type, 'balance' => (float) $account->balance, 'date' => optional($account->created_at)->format('M d, Y'), 'inactive' => false]]);
+        return response()->json(['success' => true, 'account' => ['id' => $account->getKey(), 'name' => $account->name, 'number' => $account->getKey(), 'type' => $account->account_type, 'detail' => $account->detail_type, 'balance' => (float) $account->balance, 'date' => optional($account->created_at)->format('M d, Y'), 'inactive' => false]]);
     }
 
     public function update(Request $request, Account $account)

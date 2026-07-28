@@ -215,8 +215,8 @@
     <div id="splash">
         <div class="circle"></div>
         <div class="brand">
-            <img src="logo/Nexora_Logo_Transparent.png" class="logo" alt="Logo">
-            <img src="logo/Banner Name White.png" class="banner" alt="Banner">
+            <img src="{{ asset('images/Nexora_Logo_Transparent.png') }}" class="logo" alt="Nexora logo">
+            <img src="{{ asset('images/Banner Name White.png') }}" class="banner" alt="Nexora">
         </div>
     </div>
 
@@ -225,17 +225,17 @@
         
         <!-- Top Navigation -->
         <header class="header">
-            <a href="signIn.html" class="nexora-logo" id="headerLogoBtn">
-                <img src="logo/Banner Transparent.png" alt="Nexora Logo">
+            <a href="{{ route('login') }}" class="nexora-logo">
+                <img src="{{ asset('images/Banner Transparent.png') }}" alt="Nexora Logo">
             </a>
             
-            <a href="#" class="header-contact-btn">Contact Us</a>
+            <a href="{{ route('contact') }}" class="header-contact-btn">Contact Us</a>
         </header>
         
         <!-- Main Area (Image Container) -->
         <main class="page-container">
             <!-- Full Content Image -->
-            <img src="bg/contactus.png" alt="Get Started With Our ERP" class="content-img">
+            <img src="{{ asset('images/contactus.png') }}" alt="Get Started With Our ERP" class="content-img">
             
             <!-- Request a Demo Button -->
             <button class="demo-btn">Request a Demo</button>
@@ -276,16 +276,6 @@
         }, 400); 
     }
 
-    // Attach the new smooth exit to your links
-    // (Note: This checks if the buttons exist first, so it works safely on both pages)
-    
-    const signInBtn = document.getElementById("signInBtn");
-    const contactBtn = document.getElementById("contactBtn");
-    const headerLogoBtn = document.getElementById("headerLogoBtn");
-
-    if (signInBtn) signInBtn.addEventListener("click", (e) => smoothExit(e, "signIn.html"));
-    if (contactBtn) contactBtn.addEventListener("click", (e) => smoothExit(e, "contactus.html"));
-    if (headerLogoBtn) headerLogoBtn.addEventListener("click", (e) => smoothExit(e, "signIn.html"));
 </script>
 
 </body>

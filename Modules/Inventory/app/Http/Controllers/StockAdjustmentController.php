@@ -111,7 +111,10 @@ class StockAdjustmentController extends Controller
         }
 
         $validated['status'] = 'pending';
-        $validated['requested_by'] = auth()->id();
+        // Inventory actors are HR employees, not records in this module's
+        // standalone users table.  Using auth()->id() left this null for a
+        // normal employee session and caused database/relationship failures.
+        $validated['requested_by'] = (int) session('employee_id');
         StockAdjustment::create($validated);
 
         return back()->with('success', 'Adjustment request submitted for approval.');
@@ -192,7 +195,7 @@ class StockAdjustmentController extends Controller
 
         $adjustment->update([
             'status' => 'approved',
-            'approved_by' => auth()->id(),
+            'approved_by' => (int) session('employee_id'),
             'approved_at' => now(),
         ]);
 

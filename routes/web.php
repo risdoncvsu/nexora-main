@@ -27,6 +27,9 @@ Route::get('/login', function () {
     return view('auth.login');
 })->name('login');
 
+// Public company-contact page linked from the primary sign-in screen.
+Route::view('/contact', 'contact')->name('contact');
+
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::get('/forgot-password', [PasswordResetController::class, 'create'])->name('password.request');

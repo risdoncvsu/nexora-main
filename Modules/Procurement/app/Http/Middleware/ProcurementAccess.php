@@ -2,6 +2,7 @@
 
 namespace Modules\Procurement\Http\Middleware;
 
+use App\Support\EmployeePermissionGate;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -21,6 +22,30 @@ class ProcurementAccess
                 'username' => 'Sign in with an approved Procurement employee account to access Procurement.',
             ]);
         }
+
+        if ($request->routeIs('procurement.dashboard', 'procurement.live-stats')) {
+            EmployeePermissionGate::abortUnlessAllowed(
+                'You do not have permission to access Procurement.',
+                'procurement.approve_purchase_orders',
+                'procurement.manage_suppliers',
+                'procurement.manage_requisitions',
+                'procurement.log_deliveries'
+            );
+
+            return $next($request);
+        }
+
+        $permission = match (true) {
+            $request->routeIs('procurement.suppliers.*') => 'procurement.manage_suppliers',
+            $request->routeIs('procurement.requisitions.*') => 'procurement.manage_requisitions',
+            $request->routeIs('procurement.deliveries.*') => 'procurement.log_deliveries',
+            default => 'procurement.approve_purchase_orders',
+        };
+
+        EmployeePermissionGate::abortUnlessAllowed(
+            'You do not have permission to access this Procurement function.',
+            $permission
+        );
 
         return $next($request);
     }

@@ -305,7 +305,7 @@
                     
                     <div class="links">
                         <p>Forgot Password? <a href="{{ route('password.request') }}">Reset</a></p>
-                        <p>Not registered yet? <a href="/contact" id="contactBtn">Contact Us</a></p>
+                        <p>Not registered yet? <a href="{{ route('contact') }}" id="contactBtn">Contact Us</a></p>
                     </div>
                 </div>
             </div>

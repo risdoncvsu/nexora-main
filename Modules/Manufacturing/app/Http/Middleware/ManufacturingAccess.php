@@ -2,6 +2,7 @@
 
 namespace Modules\Manufacturing\Http\Middleware;
 
+use App\Support\EmployeePermissionGate;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -28,6 +29,22 @@ class ManufacturingAccess
             return redirect()->away($request->getSchemeAndHttpHost().'/login')->withErrors([
                 'username' => 'Sign in with your approved HR employee account to access Manufacturing.',
             ]);
+        }
+
+        if ($request->isMethod('get')) {
+            EmployeePermissionGate::abortUnlessAllowed(
+                'You do not have permission to view Manufacturing reports.',
+                'manufacturing.view_reports'
+            );
+        } else {
+            $permission = $request->routeIs('manufacturing.update-qc', 'manufacturing.add-qc-note')
+                ? 'manufacturing.record_quality_checks'
+                : 'manufacturing.manage_work_orders';
+
+            EmployeePermissionGate::abortUnlessAllowed(
+                'You do not have permission to update Manufacturing records.',
+                $permission
+            );
         }
 
         return $next($request);

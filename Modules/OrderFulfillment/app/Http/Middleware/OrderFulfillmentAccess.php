@@ -2,6 +2,7 @@
 
 namespace Modules\OrderFulfillment\Http\Middleware;
 
+use App\Support\EmployeePermissionGate;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -20,11 +21,17 @@ class OrderFulfillmentAccess
             ]);
         }
 
-        // HR department and position values are free-form onboarding data,
-        // not an authoritative module-permission source. Applying a keyword
-        // gate here made every Order Fulfillment route fail for otherwise
-        // active, client-scoped employees. Tenant isolation is enforced by
-        // the Order Fulfillment models' client_id scope.
+        $permission = match (true) {
+            $request->routeIs('order-fulfillment.packing*') => 'order_fulfillment.manage_packing',
+            $request->routeIs('order-fulfillment.shipping*') => 'order_fulfillment.view_shipping',
+            $request->routeIs('order-fulfillment.return*') || $request->routeIs('order-fulfillment.returns*') => 'order_fulfillment.manage_returns',
+            default => 'order_fulfillment.manage_orders',
+        };
+
+        EmployeePermissionGate::abortUnlessAllowed(
+            'You do not have permission to access this Order Fulfillment function.',
+            $permission
+        );
 
         return $next($request);
     }

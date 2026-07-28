@@ -32,31 +32,52 @@
             'permissions' => [
                 'inventory.manage_catalog' => 'Manage item catalog',
                 'inventory.receive_stock' => 'Receive stock',
-                'inventory.adjust_stock' => 'Adjust stock',
+                'inventory.view_stock_movements' => 'View stock movements',
+                'inventory.view_adjustments' => 'View adjustments',
+                'inventory.manage_warehouses' => 'Manage warehouses',
             ],
         ],
         'procurement' => [
             'label' => 'Procurement',
-            'permissions' => ['procurement.approve_purchase_orders' => 'Approve purchase orders'],
+            'permissions' => [
+                'procurement.approve_purchase_orders' => 'Approve purchase orders',
+                'procurement.manage_suppliers' => 'Manage suppliers',
+                'procurement.manage_requisitions' => 'Manage requisitions',
+                'procurement.log_deliveries' => 'Log deliveries',
+            ],
         ],
         'order_fulfillment' => [
             'label' => 'Order Fulfillment',
-            'permissions' => ['order_fulfillment.update_orders' => 'Update order fulfillment'],
+            'permissions' => [
+                'order_fulfillment.manage_orders' => 'Manage orders',
+                'order_fulfillment.manage_packing' => 'Manage packing',
+                'order_fulfillment.view_shipping' => 'View shipping',
+                'order_fulfillment.manage_returns' => 'Manage returns',
+            ],
         ],
         'manufacturing' => [
             'label' => 'Manufacturing',
             'permissions' => [
                 'manufacturing.manage_work_orders' => 'Manage work orders',
                 'manufacturing.record_quality_checks' => 'Record quality checks',
+                'manufacturing.view_reports' => 'View reports',
             ],
         ],
         'finance' => [
             'label' => 'Finance',
-            'permissions' => ['finance.manage_invoices' => 'Manage invoices'],
+            'permissions' => [
+                'finance.manage_invoices' => 'Manage invoices',
+                'finance.view_expenses' => 'View expenses',
+                'finance.view_sales' => 'View sales',
+                'finance.view_cash_flow' => 'View cash flow',
+            ],
         ],
         'ecommerce' => [
             'label' => 'E-commerce',
-            'permissions' => ['ecommerce.manage_storefront' => 'Manage storefront'],
+            'permissions' => [
+                'ecommerce.manage_product_listings' => 'Manage product listings',
+                'ecommerce.view_orders' => 'View orders',
+            ],
         ],
         'bi' => [
             'label' => 'Business Intelligence',
@@ -68,6 +89,7 @@
             ['label' => 'Registration', 'route' => route('admin.itsm.registration'), 'key' => 'registration'],
             ['label' => 'Client Management', 'route' => route('admin.itsm.clients'), 'key' => 'clients'],
             ['label' => 'Service Desk', 'route' => route('admin.itsm.service-desk'), 'key' => 'service-desk'],
+            ['label' => 'Audit Trail', 'route' => route('admin.itsm.audit-trail'), 'key' => 'audit-trail'],
         ]
         : [
             ['label' => 'Employee Management', 'route' => route('client.itsm.employees'), 'key' => 'employees'],
@@ -102,13 +124,13 @@
                     <nav class="flex flex-wrap gap-x-6 gap-y-3 text-base sm:text-xl xl:block xl:space-y-6">
                         <a href="{{ $portal === 'admin' ? route('admin.itsm.clients') : route('client.itsm.employees') }}" class="block {{ $active === 'employees' || $active === 'clients' ? 'font-extrabold' : 'font-medium hover:text-[#346DCB]' }}">All {{ $portal === 'admin' ? ucfirst($entityLabelPlural) : 'Employees' }}</a>
                         @if ($portal === 'admin')
-                            <a href="{{ route('admin.itsm.pending-approvals') }}" class="block font-medium hover:text-[#346DCB]">Pending Approvals</a>
+                            <a href="{{ route('admin.itsm.pending-approvals') }}" class="block {{ $active === 'pending-approvals' ? 'font-extrabold text-[#346DCB]' : 'font-medium hover:text-[#346DCB]' }}">Pending Approvals</a>
                         @else
                             <a href="{{ route('client.itsm.employees') }}" class="block font-medium hover:text-[#346DCB]">HR Sync Queue</a>
                             <a href="{{ route('client.itsm.pending-approvals') }}" class="block {{ $active === 'pending-approvals' ? 'font-extrabold text-[#346DCB]' : 'font-medium hover:text-[#346DCB]' }}">Pending Approvals</a>
                         @endif
                         @if ($portal === 'admin')
-                            <a href="{{ route('admin.itsm.roles') }}" class="block font-medium hover:text-[#346DCB]">Roles & Permissions</a>
+                            <a href="{{ route('admin.itsm.roles') }}" class="block {{ $active === 'roles' ? 'font-extrabold text-[#346DCB]' : 'font-medium hover:text-[#346DCB]' }}">Roles & Permissions</a>
                         @endif
 
                     </nav>
@@ -448,20 +470,27 @@
             'human resource': 'hr',
             'inventory management': 'inventory',
             'inventory': 'inventory',
+            'inventory and warehouse': 'inventory',
+            'inventory & warehouse': 'inventory',
             'procurement management': 'procurement',
             'procurement': 'procurement',
             'order management': 'order_fulfillment',
             'order fulfillment': 'order_fulfillment',
             'order fulfillment & operations': 'order_fulfillment',
+            'order fulfillment and operations': 'order_fulfillment',
             'production management': 'manufacturing',
             'manufacturing': 'manufacturing',
             'production': 'manufacturing',
+            'manufacturing and production': 'manufacturing',
+            'manufacturing and productions': 'manufacturing',
             'finance': 'finance',
             'finance and accounting': 'finance',
             'finance & accounting': 'finance',
             'e-commerce': 'ecommerce',
             'ecommerce': 'ecommerce',
             'e-commerce and crm': 'ecommerce',
+            'e-commerce & crm': 'ecommerce',
+            'electronic commerce': 'ecommerce',
             'business intelligence': 'bi',
             'business intelligence and analytics': 'bi',
             'bi': 'bi',

@@ -2,6 +2,7 @@
 
 namespace Modules\Inventory\Http\Middleware;
 
+use App\Support\EmployeePermissionGate;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -27,6 +28,20 @@ class InventoryAccess
             return redirect()->route('login')->withErrors([
                 'username' => 'Your account does not have Inventory access.',
             ]);
+        }
+
+        $permission = match (true) {
+            $request->routeIs('inventory.stock-movement') => 'inventory.view_stock_movements',
+            $request->routeIs('inventory.stock-adjustments*') => 'inventory.view_adjustments',
+            $request->routeIs('inventory.warehouse*') => 'inventory.manage_warehouses',
+            default => null,
+        };
+
+        if ($permission) {
+            $permissions = $permission === 'inventory.view_adjustments'
+                ? ['inventory.view_adjustments', 'inventory.adjust_stock']
+                : [$permission];
+            EmployeePermissionGate::abortUnlessAllowed('You do not have permission to access this Inventory function.', ...$permissions);
         }
 
         return $next($request);

@@ -2,6 +2,7 @@
 
 namespace Modules\BusinessIntelligence\Http\Middleware;
 
+use App\Support\EmployeePermissionGate;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -22,6 +23,11 @@ class BusinessIntelligenceAccess
                 'username' => 'Sign in with your approved HR employee account to access Business Intelligence.',
             ]);
         }
+
+        EmployeePermissionGate::abortUnlessAllowed(
+            'You do not have permission to view Business Intelligence analytics.',
+            'bi.view_analytics'
+        );
 
         return $next($request);
     }
