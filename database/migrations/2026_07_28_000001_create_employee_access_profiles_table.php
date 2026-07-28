@@ -19,7 +19,7 @@ return new class extends Migration
             // deliberately remains an indexed scalar rather than a foreign key.
             $table->unsignedBigInteger('employee_id');
             $table->string('access_role', 40)->default('department_employee');
-            $table->json('module_access')->nullable();
+            $table->json('access_permissions')->nullable();
             $table->timestamps();
 
             $table->unique(['company_id', 'employee_id']);

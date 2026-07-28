@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Company;
+use App\Models\EmployeeAccessProfile;
 use App\Services\HrEmployeeProfileProvisioner;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
@@ -11,6 +12,26 @@ use Illuminate\Http\RedirectResponse;
 
 class UserController extends Controller
 {
+    private const ACCESS_ROLES = [
+        'department_employee',
+        'department_manager',
+        'auditor',
+    ];
+
+    private const ACCESS_PERMISSIONS = [
+        'hr.manage_employees',
+        'hr.approve_leave',
+        'inventory.manage_catalog',
+        'inventory.receive_stock',
+        'inventory.adjust_stock',
+        'procurement.approve_purchase_orders',
+        'order_fulfillment.update_orders',
+        'manufacturing.manage_work_orders',
+        'manufacturing.record_quality_checks',
+        'finance.manage_invoices',
+        'ecommerce.manage_storefront',
+        'bi.view_analytics',
+    ];
     public function __construct(
         private readonly HrEmployeeProfileProvisioner $hrEmployeeProfileProvisioner,
     )
@@ -38,6 +59,20 @@ class UserController extends Controller
         $company = $this->clientCompany();
         $employees = $company ? $this->hrEmployeeProfileProvisioner->employeesForCompany($company) : collect();
 
+        if ($company && $employees->isNotEmpty()) {
+            $profiles = EmployeeAccessProfile::query()
+                ->where('company_id', $company->id)
+                ->whereIn('employee_id', $employees->pluck('id'))
+                ->get()
+                ->keyBy('employee_id');
+
+            $employees->each(function (object $employee) use ($profiles): void {
+                $profile = $profiles->get($employee->id);
+                $employee->access_role = $profile?->access_role ?? $this->suggestAccessRole($employee);
+                $employee->access_permissions = $profile?->access_permissions ?? [];
+            });
+        }
+
         return view('users.index', [
             'users' => $employees,
             'portal' => 'client',
@@ -46,6 +81,8 @@ class UserController extends Controller
             'entityLabel' => 'employee',
             'entityLabelPlural' => 'employees',
             'primaryIdLabel' => 'Employee ID',
+            'accessRoles' => self::ACCESS_ROLES,
+            'accessPermissions' => self::ACCESS_PERMISSIONS,
         ]);
     }
 
@@ -79,6 +116,9 @@ class UserController extends Controller
             'email' => ['nullable', 'email', 'max:255'],
             'department' => ['nullable', 'string', 'max:255'],
             'status' => ['required', 'in:Active,Inactive,Pending,Suspended'],
+            'access_role' => ['nullable', 'in:department_employee,department_manager,auditor'],
+            'access_permissions' => ['nullable', 'array'],
+            'access_permissions.*' => ['in:' . implode(',', self::ACCESS_PERMISSIONS)],
         ]);
 
         $currentEmployee = $this->hrEmployeeProfileProvisioner->findEmployeeForCompany($company, $employee);
@@ -91,6 +131,14 @@ class UserController extends Controller
         }
 
         $this->hrEmployeeProfileProvisioner->updateEmployeeForCompany($company, $employee, $validated);
+
+        EmployeeAccessProfile::query()->updateOrCreate(
+            ['company_id' => $company->id, 'employee_id' => $employee],
+            [
+                'access_role' => $validated['access_role'] ?? $this->suggestAccessRole($currentEmployee),
+                'access_permissions' => array_values(array_unique($validated['access_permissions'] ?? [])),
+            ],
+        );
 
         return redirect()
             ->route('client.itsm.employees')
@@ -139,6 +187,15 @@ class UserController extends Controller
         }
 
         return Company::find($user->company_id);
+    }
+
+    private function suggestAccessRole(object $employee): string
+    {
+        $position = strtolower((string) ($employee->position ?? ''));
+
+        return str_contains($position, 'manager') || str_contains($position, 'supervisor')
+            ? 'department_manager'
+            : 'department_employee';
     }
 
 

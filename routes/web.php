@@ -21,7 +21,6 @@ use App\Http\Controllers\ApprovalController;
 use App\Http\Controllers\KnowledgeBaseController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\EmployeePortalController;
-use App\Http\Controllers\ClientAccessController;
 
 Route::get('/login', function () {
     return view('auth.login');
@@ -80,8 +79,6 @@ Route::middleware('auth')->group(function () {
 
         Route::get('/employees', [UserController::class, 'employees'])->name('employees');
         Route::patch('/employees/{employee}', [UserController::class, 'updateEmployee'])->name('employees.update');
-        Route::get('/access-control', [ClientAccessController::class, 'index'])->name('access-control.index');
-        Route::put('/access-control/{employee}', [ClientAccessController::class, 'update'])->name('access-control.update');
         Route::get('/pending-approvals', [UserController::class, 'pendingApprovals'])->name('pending-approvals');
         Route::post('/pending-approvals/{employee}/approve', [UserController::class, 'approveHrManager'])->name('pending-approvals.approve');
 

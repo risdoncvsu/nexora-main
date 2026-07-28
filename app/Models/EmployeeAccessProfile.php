@@ -10,13 +10,13 @@ class EmployeeAccessProfile extends Model
         'company_id',
         'employee_id',
         'access_role',
-        'module_access',
+        'access_permissions',
     ];
 
     protected function casts(): array
     {
         return [
-            'module_access' => 'array',
+            'access_permissions' => 'array',
         ];
     }
 }

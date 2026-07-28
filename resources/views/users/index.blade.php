@@ -5,6 +5,33 @@
     $entityLabel = $entityLabel ?? ($portal === 'admin' ? 'client' : 'employee');
     $entityLabelPlural = $entityLabelPlural ?? ($portal === 'admin' ? 'clients' : 'employees');
     $primaryIdLabel = $primaryIdLabel ?? ($portal === 'admin' ? 'Client ID' : 'Employee ID');
+    $accessRoleLabels = [
+        'department_employee' => 'Department Employee',
+        'department_manager' => 'Department Manager',
+        'auditor' => 'Auditor / Viewer',
+    ];
+    $permissionGroups = [
+        'Human Resources' => [
+            'hr.manage_employees' => 'Manage employees',
+            'hr.approve_leave' => 'Approve leave requests',
+        ],
+        'Inventory' => [
+            'inventory.manage_catalog' => 'Manage item catalog',
+            'inventory.receive_stock' => 'Receive stock',
+            'inventory.adjust_stock' => 'Adjust stock',
+        ],
+        'Operations' => [
+            'procurement.approve_purchase_orders' => 'Approve purchase orders',
+            'order_fulfillment.update_orders' => 'Update order fulfillment',
+            'manufacturing.manage_work_orders' => 'Manage work orders',
+            'manufacturing.record_quality_checks' => 'Record quality checks',
+        ],
+        'Business' => [
+            'finance.manage_invoices' => 'Manage invoices',
+            'ecommerce.manage_storefront' => 'Manage storefront',
+            'bi.view_analytics' => 'View analytics',
+        ],
+    ];
     $navItems = $portal === 'admin'
         ? [
             ['label' => 'Registration', 'route' => route('admin.itsm.registration'), 'key' => 'registration'],
@@ -13,7 +40,6 @@
         ]
         : [
             ['label' => 'Employee Management', 'route' => route('client.itsm.employees'), 'key' => 'employees'],
-            ['label' => 'Access Control', 'route' => route('client.itsm.access-control.index'), 'key' => 'access-control'],
             ['label' => 'Service Desk', 'route' => route('client.itsm.service-desk'), 'key' => 'service-desk'],
             ['label' => 'Compliance Tracking', 'route' => route('client.itsm.compliance'), 'key' => 'compliance'],
             ['label' => 'Risk Management', 'route' => route('client.itsm.risk'), 'key' => 'risk'],
@@ -48,7 +74,6 @@
                         @else
                             <a href="{{ route('client.itsm.employees') }}" class="block font-medium hover:text-[#346DCB]">HR Sync Queue</a>
                             <a href="{{ route('client.itsm.pending-approvals') }}" class="block {{ $active === 'pending-approvals' ? 'font-extrabold text-[#346DCB]' : 'font-medium hover:text-[#346DCB]' }}">Pending Approvals</a>
-                            <a href="{{ route('client.itsm.access-control.index') }}" class="block font-medium hover:text-[#346DCB]">Access Control</a>
                         @endif
                         <a href="{{ route('users.roles') }}" class="block font-medium hover:text-[#346DCB]">Roles & Permissions</a>
 
@@ -129,6 +154,9 @@
                                         <th class="sortable cursor-pointer whitespace-nowrap px-2 py-4">{{ $portal === 'admin' ? 'Primary Contact' : 'Full Name' }}</th>
                                         <th class="sortable cursor-pointer whitespace-nowrap px-2 py-4">{{ $portal === 'admin' ? 'Admin Login' : 'Email' }}</th>
                                         <th class="sortable cursor-pointer whitespace-nowrap px-2 py-4">{{ $portal === 'admin' ? 'Industry' : 'Department' }}</th>
+                                        @if ($portal === 'client')
+                                            <th class="sortable cursor-pointer whitespace-nowrap px-2 py-4">ERP Role</th>
+                                        @endif
                                         <th class="sortable cursor-pointer whitespace-nowrap px-2 py-4">Status</th>
                                         <th class="px-2 py-4 text-center">{{ $active === 'pending-approvals' ? 'Action' : '' }}</th>
                                     </tr>
@@ -148,12 +176,17 @@
                                             data-name="{{ $portal === 'client' ? e($user->name ?? '') : '' }}"
                                             data-email="{{ $portal === 'client' ? e($user->email ?? '') : '' }}"
                                             data-department="{{ $portal === 'client' ? e($user->department ?? '') : '' }}"
+                                            data-access-role="{{ $portal === 'client' ? e($user->access_role ?? 'department_employee') : '' }}"
+                                            data-access-permissions="{{ $portal === 'client' ? e(json_encode($user->access_permissions ?? [])) : '[]' }}"
                                         >
                                             <td class="px-2 py-4">{{ $portal === 'admin' ? 'CL-' . str_pad((string) $user->id, 5, '0', STR_PAD_LEFT) : 'EMP-' . str_pad((string) $user->id, 5, '0', STR_PAD_LEFT) }}</td>
                                             <td class="px-2 py-4">{{ $portal === 'admin' ? $user->company_name : ($user->username ?? 'employee') }}</td>
                                             <td class="px-2 py-4">{{ $portal === 'admin' ? $user->admin_name : ($user->name ?? $user->full_name ?? 'Employee') }}</td>
                                             <td class="px-2 py-4">{{ $portal === 'admin' ? ($user->adminUser?->username ?? 'Not generated') : ($user->email ?? 'employee@company.com') }}</td>
                                             <td class="px-2 py-4">{{ $portal === 'admin' ? ($user->industry ?? 'ERP Client') : ($user->department ?? 'General') }}</td>
+                                            @if ($portal === 'client')
+                                                <td class="px-2 py-4">{{ $accessRoleLabels[$user->access_role ?? 'department_employee'] ?? 'Department Employee' }}</td>
+                                            @endif
                                             <td class="px-2 py-4">{{ $user->status ?? 'Active' }}</td>
                                             <td class="px-2 py-4 text-center">
                                                 @if ($active === 'pending-approvals')
@@ -168,7 +201,7 @@
                                         </tr>
                                     @empty
                                         <tr>
-                                            <td colspan="7" class="px-2 py-12 text-center text-slate-500">No {{ $entityLabelPlural }} found.</td>
+                                            <td colspan="{{ $portal === 'client' ? 8 : 7 }}" class="px-2 py-12 text-center text-slate-500">No {{ $entityLabelPlural }} found.</td>
                                         </tr>
                                     @endforelse
                                 </tbody>
@@ -180,7 +213,7 @@
         </main>
 
         <div id="editModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 px-6">
-            <div class="w-full max-w-2xl rounded-2xl bg-white p-8 text-slate-950 shadow-2xl">
+            <div class="w-full max-w-4xl rounded-2xl bg-white p-8 text-slate-950 shadow-2xl">
                 <div class="mb-6 flex items-center justify-between">
                     <h2 class="text-2xl font-bold">Edit {{ ucfirst($entityLabel) }}</h2>
                     <button type="button" id="closeEditModal" class="text-2xl font-bold text-slate-500 hover:text-slate-950">&times;</button>
@@ -245,6 +278,35 @@
                             <span class="mb-2 block text-sm font-semibold">Department</span>
                             <input type="text" name="department" id="edit_department" class="h-11 w-full rounded border border-slate-300 px-3">
                         </label>
+
+                        <label class="block">
+                            <span class="mb-2 block text-sm font-semibold">ERP access role</span>
+                            <select name="access_role" id="edit_access_role" class="h-11 w-full rounded border border-slate-300 px-3">
+                                @foreach ($accessRoleLabels as $value => $label)
+                                    <option value="{{ $value }}">{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </label>
+
+                        <fieldset class="rounded-xl border border-slate-200 p-4 md:col-span-2">
+                            <legend class="px-2 text-sm font-semibold">Operational permissions</legend>
+                            <p class="mb-4 text-xs text-slate-500">These control actions inside ERP modules; they do not change the employee's HR title or department.</p>
+                            <div class="grid gap-4 md:grid-cols-2">
+                                @foreach ($permissionGroups as $group => $permissions)
+                                    <div>
+                                        <p class="mb-2 text-xs font-bold uppercase tracking-wide text-[#346DCB]">{{ $group }}</p>
+                                        <div class="space-y-2">
+                                            @foreach ($permissions as $value => $label)
+                                                <label class="flex items-center gap-2 text-sm text-slate-700">
+                                                    <input type="checkbox" name="access_permissions[]" value="{{ $value }}" data-access-permission class="h-4 w-4 rounded border-slate-300 accent-[#346DCB]">
+                                                    {{ $label }}
+                                                </label>
+                                            @endforeach
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </fieldset>
                     @endif
 
                     <label class="block">
@@ -355,6 +417,12 @@
                 setField('edit_name', row.dataset.name);
                 setField('edit_email', row.dataset.email);
                 setField('edit_department', row.dataset.department);
+                setField('edit_access_role', row.dataset.accessRole || 'department_employee');
+                let permissions = [];
+                try { permissions = JSON.parse(row.dataset.accessPermissions || '[]'); } catch (_) { permissions = []; }
+                document.querySelectorAll('[data-access-permission]').forEach((checkbox) => {
+                    checkbox.checked = permissions.includes(checkbox.value);
+                });
             }
 
             setField('edit_status', row.dataset.status || 'Active');
