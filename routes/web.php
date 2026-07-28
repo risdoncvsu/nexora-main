@@ -10,6 +10,7 @@ use App\Http\Controllers\IncidentController;
 use App\Http\Controllers\RiskAnalyticsController;
 use App\Http\Controllers\ComplianceController;
 use App\Http\Controllers\AuditController; 
+use App\Http\Controllers\AuditTrailController;
 use App\Http\Controllers\PermitController;
 use App\Http\Controllers\RiskAssController;
 use App\Http\Controllers\DocumentController; // Imported DocumentController
@@ -76,6 +77,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/service-desk/sla-review', [TicketController::class, 'slaReview'])->name('service-desk.sla-review');
         Route::get('/pending-approvals', [UserController::class, 'pending'])->name('pending-approvals');
         Route::get('/roles-permissions', [RolesAndPermissionController::class, 'index'])->name('roles');
+        Route::get('/audit-trail', [AuditTrailController::class, 'index'])->name('audit-trail');
+        Route::get('/audit-trail/export', [AuditTrailController::class, 'export'])->name('audit-trail.export');
     });
 
     // ==========================================
@@ -90,6 +93,8 @@ Route::middleware('auth')->group(function () {
         Route::patch('/employees/{employee}', [UserController::class, 'updateEmployee'])->name('employees.update');
         Route::get('/pending-approvals', [UserController::class, 'pendingApprovals'])->name('pending-approvals');
         Route::post('/pending-approvals/{employee}/approve', [UserController::class, 'approveHrManager'])->name('pending-approvals.approve');
+        Route::get('/audit-trail', [AuditTrailController::class, 'index'])->name('audit-trail');
+        Route::get('/audit-trail/export', [AuditTrailController::class, 'export'])->name('audit-trail.export');
 
         Route::get('/service-desk', [TicketController::class, 'index'])->name('service-desk');
         Route::post('/service-desk', [TicketController::class, 'store'])->name('service-desk.store');

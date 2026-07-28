@@ -16,6 +16,7 @@
                 ['label' => 'Registration', 'route' => route('admin.itsm.registration'), 'key' => 'registration'],
                 ['label' => 'Client Management', 'route' => route('admin.itsm.clients'), 'key' => 'clients'],
                 ['label' => 'Service Desk', 'route' => route('admin.itsm.service-desk'), 'key' => 'service-desk'],
+                ['label' => 'Audit Trail', 'route' => route('admin.itsm.audit-trail'), 'key' => 'audit-trail'],
             ]"
         />
 
