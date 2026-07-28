@@ -30,6 +30,34 @@
 
 @section('content')
 <div class="inv-page">
+@if(($pendingApprovalsCount ?? 0) > 0 || ($pendingDeliveriesCount ?? 0) > 0)
+    <div style="background: rgba(19, 43, 82, 0.85); border: 1px solid rgba(245, 158, 11, 0.4); border-radius: 12px; padding: 12px 20px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; gap: 16px;">
+        <div style="display: flex; align-items: center; gap: 14px;">
+            <div style="width: 36px; height: 36px; border-radius: 50%; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); display: flex; align-items: center; justify-content: center; color: #f59e0b; flex-shrink: 0;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                </svg>
+            </div>
+            <div>
+                <h4 style="font-size: 14px; font-weight: 700; color: #ffffff; margin: 0; line-height: 1.2;">
+                    {{ ($pendingApprovalsCount ?? 0) + ($pendingDeliveriesCount ?? 0) }} pending approvals
+                </h4>
+                <p style="font-size: 12px; color: #9bb0d1; margin: 2px 0 0 0;">
+                    Waiting for review across Adjustments, Transfers, and Receiving
+                </p>
+            </div>
+        </div>
+        @if(($pendingDeliveriesCount ?? 0) > 0)
+            <a href="{{ route('inventory.stock-receiving') }}" style="background: rgba(245, 158, 11, 0.2); border: 1px solid rgba(245, 158, 11, 0.4); color: #fbbf24; border-radius: 20px; padding: 6px 14px; font-size: 12px; font-weight: 600; text-decoration: none; transition: all 0.15s ease;" onmouseover="this.style.background='rgba(245,158,11,0.3)'" onmouseout="this.style.background='rgba(245,158,11,0.2)'">
+                {{ $pendingDeliveriesCount }} receivings
+            </a>
+        @elseif(($pendingApprovalsCount ?? 0) > 0)
+            <a href="{{ route('inventory.requests') }}" style="background: rgba(245, 158, 11, 0.2); border: 1px solid rgba(245, 158, 11, 0.4); color: #fbbf24; border-radius: 20px; padding: 6px 14px; font-size: 12px; font-weight: 600; text-decoration: none; transition: all 0.15s ease;" onmouseover="this.style.background='rgba(245,158,11,0.3)'" onmouseout="this.style.background='rgba(245,158,11,0.2)'">
+                {{ $pendingApprovalsCount }} requests
+            </a>
+        @endif
+    </div>
+@endif
 <div class="responsive-grid-dashboard">
     <!-- Row 1: 3 stat cards + Critical Alerts -->
     <div class="kpi-tile" style="--accent:#4a9ee8;align-self:start;">

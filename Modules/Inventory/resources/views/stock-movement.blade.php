@@ -40,7 +40,7 @@
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>
                 </span>
             </div>
-            <p class="kpi-value" style="color:{{ $totals['net'] >= 0 ? '#4ade80' : '#f87171' }};">{{ number_format(abs($totals['net'])) }}</p>
+            <p class="kpi-value" style="color:{{ $totals['net'] >= 0 ? '#4ade80' : '#f87171' }};">{{ $totals['net'] > 0 ? '+' : '' }}{{ number_format($totals['net'] < 0 ? abs($totals['net']) : $totals['net']) }}</p>
         </div>
     </div>
 

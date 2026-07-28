@@ -72,9 +72,20 @@ class DashboardController extends Controller
             'date' => $movement->created_at?->format('M d, Y h:i A'),
         ]);
 
+        $pendingApprovalsCount = (int) DB::connection('inventory')->table('requisitions')
+            ->where('status', 'pending')
+            ->when(! (config('nexora.root_admin_module_testing') && auth()->user()?->role === 'root_admin') && session('employee_client_id'), fn ($q) => $q->where('client_id', (int) session('employee_client_id')))
+            ->count();
+
+        $pendingDeliveriesCount = (int) DB::connection('procurement')->table('deliveries')
+            ->whereIn('status', ['pending', 'intransit'])
+            ->when(! (config('nexora.root_admin_module_testing') && auth()->user()?->role === 'root_admin') && session('employee_client_id'), fn ($q) => $q->where('client_id', (int) session('employee_client_id')))
+            ->count();
+
         return view('inventory::index', compact(
             'totalItems', 'totalStockUnits', 'lowStockAlerts', 'criticalAlerts',
-            'trendData', 'warehouseDistribution', 'recentMovements'
+            'trendData', 'warehouseDistribution', 'recentMovements',
+            'pendingApprovalsCount', 'pendingDeliveriesCount'
         ))->with('activePage', 'dashboard');
     }
 
