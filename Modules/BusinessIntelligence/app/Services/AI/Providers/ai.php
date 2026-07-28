@@ -30,7 +30,7 @@ return [
             'api_key' => env('DO_INFERENCE_API_KEY'),
             'model' => env('DO_INFERENCE_MODEL'),
             'base_url' => env('DO_INFERENCE_BASE_URL', 'https://inference.do-ai.run/v1'),
-            'timeout' => (int) env('DO_INFERENCE_TIMEOUT', 60),
+            'timeout' => (int) env('DO_INFERENCE_TIMEOUT', 25),
         ],
 
         // DigitalOcean Agent Platform endpoint. Keep this separate from

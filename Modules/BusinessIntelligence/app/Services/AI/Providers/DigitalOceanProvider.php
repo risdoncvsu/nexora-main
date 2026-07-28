@@ -25,7 +25,8 @@ class DigitalOceanProvider implements AIProviderInterface
         $this->apiKey = (string) config('ai.providers.digitalocean.api_key');
         $this->model = (string) config('ai.providers.digitalocean.model');
         $this->baseUrl = rtrim((string) config('ai.providers.digitalocean.base_url'), '/');
-        $this->timeout = (int) config('ai.providers.digitalocean.timeout', 60);
+        // Keep interactive model calls below App Platform's proxy deadline.
+        $this->timeout = (int) config('ai.providers.digitalocean.timeout', 25);
     }
 
     public function generate(
@@ -49,13 +50,18 @@ class DigitalOceanProvider implements AIProviderInterface
                     ['role' => 'user', 'content' => $userPrompt],
                 ],
                 'temperature' => $thinkingLevel === 'low' ? 0.3 : ($thinkingLevel === 'medium' ? 0.5 : 0.7),
+                // The chat panel needs concise replies; bounding output also
+                // keeps latency predictable for the web request.
+                'max_tokens' => 800,
             ];
 
             if ($jsonMode) {
                 $body['response_format'] = ['type' => 'json_object'];
             }
 
-            $response = Http::retry(2, 300, throw: false)
+            // Do not retry an interactive request: two slow calls cause App
+            // Platform's proxy to terminate the page request with a 504.
+            $response = Http::connectTimeout(5)
                 ->timeout($this->timeout)
                 ->acceptJson()
                 ->withToken($this->apiKey)
