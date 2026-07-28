@@ -66,6 +66,20 @@ class EcommerceAdminController extends Controller
         return redirect()->route('ecommerce.admin.listings')->with('success', 'Storefront listing removed.');
     }
 
+    public function suggestedListings(): \Illuminate\Http\JsonResponse
+    {
+        $company = $this->company();
+
+        return response()->json(StorefrontListing::query()->where('status', 'active')
+            ->latest()->limit(10)->get()->map(fn (StorefrontListing $listing): array => [
+                'id' => $listing->id,
+                'name' => $listing->name,
+                'price' => $listing->price,
+                'image_url' => $listing->image_url ? asset('storage/'.$listing->image_url) : null,
+                'url' => route('ecommerce.listings.show', ['store' => $company->ecommerce_slug, 'listing' => $listing]),
+            ]));
+    }
+
     public function orders() { return view('ecommerce::admin.orders', ['orders' => Order::latest()->paginate(20)]); }
 
     public function updateOrderStatus(Request $request, string $id): \Illuminate\Http\JsonResponse

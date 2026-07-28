@@ -72,6 +72,7 @@ Route::middleware([\Modules\Ecommerce\Http\Middleware\RequireEcommerceAuth::clas
     ->group(function (): void {
         Route::get('/messages', [\Modules\Ecommerce\Http\Controllers\ChatController::class, 'customerMessages'])->name('messages');
         Route::post('/send', [\Modules\Ecommerce\Http\Controllers\ChatController::class, 'customerSend'])->name('send');
+        Route::get('/poll', [\Modules\Ecommerce\Http\Controllers\ChatController::class, 'customerPoll'])->name('poll');
     });
 
 Route::middleware([\Modules\Ecommerce\Http\Middleware\RequireEcommerceAuth::class])->group(function () {
@@ -285,6 +286,13 @@ Route::prefix('ecommerce-admin')->name('ecommerce.admin.')->group(function (): v
     Route::post('/login', [\Modules\Ecommerce\Http\Controllers\EcommerceAdminController::class, 'authenticate'])->name('login.post');
 
     Route::middleware('ecommerce.admin')->group(function (): void {
+        Route::get('/crm/api/suggested-listings', [\Modules\Ecommerce\Http\Controllers\EcommerceAdminController::class, 'suggestedListings'])->name('suggested-listings');
+        Route::prefix('/crm/api/chat')->name('chat.')->group(function (): void {
+            Route::get('/conversations', [\Modules\Ecommerce\Http\Controllers\ChatController::class, 'adminConversations'])->name('conversations');
+            Route::get('/{userId}', [\Modules\Ecommerce\Http\Controllers\ChatController::class, 'adminMessages'])->name('messages');
+            Route::post('/{userId}', [\Modules\Ecommerce\Http\Controllers\ChatController::class, 'adminSend'])->name('send');
+            Route::get('/{userId}/poll', [\Modules\Ecommerce\Http\Controllers\ChatController::class, 'adminPoll'])->name('poll');
+        });
         Route::get('/', [\Modules\Ecommerce\Http\Controllers\EcommerceAdminController::class, 'dashboard'])->name('dashboard');
         Route::get('/listings', [\Modules\Ecommerce\Http\Controllers\EcommerceAdminController::class, 'listings'])->name('listings');
         Route::get('/listings/create', [\Modules\Ecommerce\Http\Controllers\EcommerceAdminController::class, 'createListing'])->name('listings.create');
