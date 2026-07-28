@@ -254,6 +254,7 @@ $outstanding = $invoiceTotal - $validated['paid_amount'];
     {
         $invoice->update([
             'status' => 'Rejected',
+            'payment_status' => 'Rejected',
         ]);
 
         return response()->json([

@@ -70,6 +70,10 @@ class DashboardController extends Controller
             ];
         })->values();
 
+        $assets = (float) \Modules\Finance\Models\Account::query()->where('account_type', 'Asset')->sum('balance');
+        $liabilities = (float) \Modules\Finance\Models\Account::query()->where('account_type', 'Liability')->sum('balance');
+        $equity = $assets - $liabilities;
+
         return view('finance::dashboard', [
             'financeDashboard' => [
                 'paid' => $paid,
@@ -80,6 +84,9 @@ class DashboardController extends Controller
                 'invoice_values' => $invoiceValues->values(),
                 'paid_values' => $paidValues->values(),
                 'recent_activity' => $recentActivity,
+                'assets' => $assets,
+                'liabilities' => $liabilities,
+                'equity' => $equity,
             ],
         ]);
     }

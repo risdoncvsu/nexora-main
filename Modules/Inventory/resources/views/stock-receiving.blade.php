@@ -9,10 +9,10 @@
     .shipment-row:hover { background: #f1f5f9; }
 
     .modal-items-list { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px; max-height:200px; overflow-y:auto; }
-    .modal-items-list li { display:flex; align-items:center; gap:8px; padding:8px 10px; background:#f8fafc; border-radius:8px; font-size:13px; }
-    .modal-item-name { font-weight:600; color:#0f172a; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .modal-item-meta { color:#94a3b8; font-size:11px; flex-shrink:0; }
-    .modal-item-qty { background:#e2e8f0; color:#475569; font-weight:700; font-size:12px; padding:2px 10px; border-radius:9999px; flex-shrink:0; }
+    .modal-items-list li { display:flex; align-items:center; gap:8px; padding:8px 10px; background:rgba(255,255,255,0.05); border-radius:8px; font-size:13px; }
+    .modal-item-name { font-weight:600; color:#ffffff; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .modal-item-meta { color:rgba(255,255,255,0.6); font-size:11px; flex-shrink:0; }
+    .modal-item-qty { background:rgba(27,111,200,0.20); color:#90c8ff; font-weight:700; font-size:12px; padding:2px 10px; border-radius:9999px; flex-shrink:0; }
 
     .expand-arrow { transition: transform 0.2s ease; display: inline-flex; align-items: center; color: #94a3b8; }
     .expand-arrow.open { transform: rotate(90deg); color: #0b1e3d; }
@@ -25,13 +25,6 @@
     .items-mini-table th { text-align:left; padding:6px 10px; color:#64748b; font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:0.5px; border-bottom:1px solid #e2e8f0; }
     .items-mini-table td { padding:6px 10px; color:#334155; border-bottom:1px solid #eef2f7; }
     .items-mini-table tr:last-child td { border-bottom:none; }
-
-    .modal-items-list { margin: 0; padding: 0; list-style: none; font-size: 13px; }
-    .modal-items-list li { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.08); }
-    .modal-items-list li:last-child { border-bottom: none; }
-    .modal-item-name { color: #fff; font-weight: 500; }
-    .modal-item-meta { color: rgba(255,255,255,0.45); font-size: 12px; }
-    .modal-item-qty { background: rgba(27,111,200,0.20); padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 12px; color: #90c8ff; }
 </style>
 @endpush
 

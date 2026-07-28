@@ -184,7 +184,6 @@
                             <th style="text-align:center;">CATEGORY</th>
                             <th style="text-align:center;">AVAILABLE</th>
                             <th style="text-align:center;">UNIT COST</th>
-                            <th style="text-align:center;">STATUS</th>
                             <th style="text-align:center;">ACTIONS</th>
                         </tr>
                     </thead>
@@ -201,13 +200,7 @@
                             <td style="text-align:center;padding:12px 4px;font-size:13px;color:#5B7A9D;">{{ $item['category'] }}</td>
                             <td style="text-align:center;padding:12px 4px;font-size:13px;color:#132B52;font-weight:600;">{{ $item['total_available'] }}</td>
                             <td style="text-align:center;padding:12px 4px;font-size:13px;color:#132B52;">&#8369;{{ number_format($item['unit_cost'] ?? 0, 2) }}</td>
-                            <td style="text-align:center;padding:12px 8px;">
-                                @php
-                                    $badgeColors = ['In Stock' => ['bg'=>'#F0FFF5','text'=>'#0CAE57','border'=>'rgba(12,174,87,0.5)'], 'Low Stock' => ['bg'=>'#F0FFF5','text'=>'#D97706','border'=>'rgba(217,119,6,0.5)'], 'Out of Stock' => ['bg'=>'#F0FFF5','text'=>'#DC2626','border'=>'rgba(220,38,38,0.5)']];
-                                    $bc = $badgeColors[$item['status']] ?? ['bg'=>'#e2e8f0','text'=>'#64748b','border'=>'#cbd5e1'];
-                                @endphp
-                                <span style="background:{{ $bc['bg'] }};color:{{ $bc['text'] }};border:1px solid {{ $bc['border'] }};font-size:11px;font-weight:600;padding:4px 12px;border-radius:20px;">{{ $item['status'] }}</span>
-                            </td>
+
                             <td style="text-align:center;padding:12px 4px;">
                                 <a href="{{ route('inventory.requests', ['item' => $item['id']]) }}" class="inv-btn inv-btn-outline inv-btn-icon inv-btn-sm" title="Request stock" aria-label="Request stock for {{ $item['name'] }}" onclick="event.stopPropagation();">
                                     <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
@@ -218,7 +211,7 @@
                             </td>
                         </tr>
                         <tr class="expand-row" id="expand-{{ $loop->index }}">
-                            <td colspan="8" class="expand-cell">
+                            <td colspan="7" class="expand-cell">
                                 <div class="expand-inner">
                                     <table class="expand-table">
                                         <thead>
@@ -257,7 +250,7 @@
                             </td>
                         </tr>
                         @empty
-                        <tr><td colspan="8" style="text-align:center;padding:32px;color:#94a3b8;font-size:13px;">No items found.</td></tr>
+                        <tr><td colspan="7" style="text-align:center;padding:32px;color:#94a3b8;font-size:13px;">No items found.</td></tr>
                         @endforelse
                     </tbody>
                 </table>

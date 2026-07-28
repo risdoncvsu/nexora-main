@@ -123,7 +123,12 @@
                                 @elseif ($movement->type === 'outbound')
                                     <span class="mv-qty" style="color:#DC2626;">
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M19 12l-7 7-7-7"/></svg>
-                                        {{ number_format($movement->quantity) }}
+                                        {{ number_format(abs($movement->quantity)) }}
+                                    </span>
+                                @elseif ($movement->type === 'reservation')
+                                    <span class="mv-qty" style="color:#7C3AED;">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
+                                        {{ number_format(abs($movement->quantity)) }}
                                     </span>
                                 @elseif ($movement->type === 'adjustment')
                                     @if ($movement->quantity >= 0)
@@ -140,7 +145,7 @@
                                 @else
                                     <span class="mv-qty" style="color:#2563EB;">
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8l4 4-4 4"/><path d="M7 16l-4-4 4-4"/></svg>
-                                        {{ number_format($movement->quantity) }}
+                                        {{ number_format(abs($movement->quantity)) }}
                                     </span>
                                 @endif
                             </td>
@@ -152,7 +157,13 @@
                                 @endif
                             </td>
                             <td class="cell-muted">{{ $movement->reference ?? '-' }}</td>
-                            <td>{{ trim(($movement->performer?->first_name ?? '') . ' ' . ($movement->performer?->last_name ?? '')) ?: 'System' }}</td>
+                            <td>
+                                @if ($movement->type === 'reservation')
+                                    Ecommerce
+                                @else
+                                    {{ trim(($movement->performer?->first_name ?? '') . ' ' . ($movement->performer?->last_name ?? '')) ?: 'System' }}
+                                @endif
+                            </td>
                             <td class="col-r cell-muted">{{ $movement->created_at?->format('M d, Y h:i A') ?? '—' }}</td>
                         </tr>
                     @empty

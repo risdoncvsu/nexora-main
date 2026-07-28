@@ -83,8 +83,8 @@ class ExpensesController extends Controller
                     'months' => $monthly->pluck('month')->values()->all(),
                     'selectedRange' => match ($range) { 'week' => 'LAST WEEK', 'month' => 'LAST MONTH', 'year' => 'LAST YEAR', default => 'LAST 6 MONTHS' },
                     'categories' => [
-                        ['key' => 'procurement', 'label' => 'Procurement', 'color' => '#4ca6ff', 'capacity' => $overallExpenses, 'value' => $procurementTotal],
-                        ['key' => 'liability', 'label' => 'Liabilities', 'color' => '#ef4444', 'capacity' => $overallExpenses, 'value' => $liabilityTotal],
+                        ['key' => 'procurement', 'label' => 'Procurement', 'color' => '#4ca6ff', 'capacity' => $overallExpenses, 'value' => $procurementTotal, 'trend' => $monthly->pluck('total')->map(fn($v) => (float)$v)->values()->all()],
+                        ['key' => 'liability', 'label' => 'Liabilities', 'color' => '#ef4444', 'capacity' => $overallExpenses, 'value' => $liabilityTotal, 'trend' => array_fill(0, max(1, count($monthly)), $liabilityTotal)],
                     ],
                 ],
                 'materialRequests' => $materialRequests,
@@ -106,7 +106,7 @@ class ExpensesController extends Controller
     {
         $data = $request->validate(['status' => ['required', 'in:approved,rejected']]);
         $schema = Schema::connection('procurement');
-        abort_unless($schema->hasTable('purchase_orders') && $schema->hasColumn('purchase_orders', 'client_id'), 404);
+        abort_unless($schema->hasTable('purchase_orders'), 404);
 
         $values = ['status' => ucfirst($data['status'])];
         if ($schema->hasColumn('purchase_orders', 'updated_at')) {

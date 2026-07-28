@@ -14,7 +14,7 @@
     tr.trow { border-bottom: 1px solid rgba(255,255,255,0.06); cursor: default; }
     tr.trow:last-child { border-bottom: none; }
     tr.trow:hover { background: rgba(255,255,255,0.04); }
-    .alert-restock-link { display:inline-flex; margin-top:10px; font-size:11px; font-weight:700; color:#1b6fc8; text-decoration:none; }
+    .alert-restock-link { display:inline-flex; align-items:center; margin-top:10px; font-size:11px; font-weight:700; color:#1b6fc8; text-decoration:none; }
     .alert-restock-link:hover { text-decoration:underline; }
 
     /* Fade-in transition when landing on dashboard after login */
@@ -90,7 +90,10 @@
                     <span style="font-size:11px;color:#0b1e3d;">threshold {{ number_format($threshold) }}</span>
                 </div>
                 @if(!empty($alert['item_id']))
-                    <a href="{{ route('inventory.requests', ['item' => $alert['item_id']]) }}" class="alert-restock-link">Request stock</a>
+                    <a href="{{ route('inventory.requests', ['item' => $alert['item_id']]) }}" class="alert-restock-link">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        Request stock
+                    </a>
                 @endif
             </div>
         @empty

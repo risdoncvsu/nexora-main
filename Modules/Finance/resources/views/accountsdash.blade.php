@@ -243,7 +243,7 @@ tailwind.config = { theme: { extend: { colors: { navy: {900:'#0b1e3b',800:'#132b
 
 let accounts = @json($accounts);
 
-const ACCOUNT_TYPES = ["Asset","Liability","Equity"];
+const ACCOUNT_TYPES = ["Asset","Liability"];
 
 let state = {
   search: "", filterType: "All", sortField: "name", sortDir: "asc",

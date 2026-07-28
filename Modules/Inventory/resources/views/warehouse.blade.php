@@ -94,7 +94,11 @@
                         <span style="font-size:12px;color:#94a3b8;">{{ data_get($warehouse, 'used_units') }}/{{ data_get($warehouse, 'capacity_units') }} Units</span>
                     </div>
                     <div class="capacity-track">
-                        <div class="capacity-bar" style="width:{{ data_get($warehouse, 'capacity_percentage') }}%;"></div>
+                        @php
+                            $capVal = (float) data_get($warehouse, 'capacity_percentage', 0);
+                            $capColor = $capVal >= 90 ? '#ef4444' : ($capVal >= 75 ? '#f59e0b' : '#22c55e');
+                        @endphp
+                        <div class="capacity-bar" style="width:{{ $capVal }}%;background:{{ $capColor }};"></div>
                     </div>
                     <div style="display:flex;align-items:center;justify-content:flex-end;margin-top:12px;">
                         <label class="wh-toggle" title="{{ $warehouse->status === 'active' ? 'Deactivate' : 'Activate' }} warehouse">

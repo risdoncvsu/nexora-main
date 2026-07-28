@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
@@ -603,7 +603,7 @@ function renderActivitiesCounters(){
   document.getElementById("activitiesCounters").innerHTML = activitiesCountData.map(item => `
     <div class="flex items-center justify-between bg-navy-700/40 rounded-lg px-4 py-3">
       <span class="text-muted">${item.label}</span>
-      <span class="text-xl font-bold">${item.count}</span>
+      <span class="text-xl font-bold">${typeof item.count === 'number' ? fmtPeso(item.count) : item.count}</span>
     </div>`).join("");
 }
 
@@ -667,6 +667,11 @@ requestAnimationFrame(() => {
   setInvoicesData(unpaid, overdue, overduePct, paid, paid, paidPct);
   setRevenueData(paid, 0, 'Paid invoice revenue', financeDashboard.week_labels || [], financeDashboard.paid_values || []);
   setInvoiceTrendData(financeDashboard.week_labels || [], financeDashboard.invoice_values || [], financeDashboard.paid_values || []);
+  setActivitiesCountData([
+    { label: "Assets", count: Number(financeDashboard.assets || 0) },
+    { label: "Liabilities", count: Number(financeDashboard.liabilities || 0) },
+    { label: "Equity", count: Number(financeDashboard.equity || 0) },
+  ]);
   setActivityData(financeDashboard.recent_activity || []);
   renderCashFlow();
   renderExpenses();

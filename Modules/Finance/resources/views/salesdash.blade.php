@@ -313,6 +313,8 @@ function renderRevenueStreams(){
     </div>`;
 }
 
+document.getElementById("salesRangeLabel").textContent = salesData.range;
+
 salesData.trend.months = getSalesLabelsForRange(salesData.range);
 salesData.trend.series = [{
   label: 'Sales',
@@ -322,6 +324,7 @@ salesData.trend.series = [{
 
 requestAnimationFrame(() => {
   renderSalesSummary();
+  setTotalSalesSidebar(salesData.summary.total);
   renderSalesChart();
   renderTopProducts();
   renderRevenueStreams();

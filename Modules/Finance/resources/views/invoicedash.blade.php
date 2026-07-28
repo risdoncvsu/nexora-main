@@ -243,9 +243,9 @@
 ========================== -->
 
 <div id="editInvoiceModal"
-     class="fixed inset-0 bg-black/60 hidden items-center justify-center z-50">
+     class="fixed inset-0 bg-black/60 hidden items-center justify-center p-4 z-50">
 
-    <div class="bg-navy-800 w-full max-w-xl rounded-xl shadow-2xl border border-navy-600">
+    <div class="bg-navy-800 w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-xl shadow-2xl border border-navy-600">
 
         <!-- Header -->
         <div class="flex items-center justify-between px-6 py-4 border-b border-navy-600">
