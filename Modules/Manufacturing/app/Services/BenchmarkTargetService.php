@@ -15,7 +15,10 @@ class BenchmarkTargetService
     public function targetsFor(?string $range): array
     {
         $key = self::RANGE_MAP[$range] ?? 'MR';
-        return config("nexora.benchmarkTargets.$key", []);
+        // Benchmark definitions belong to the Manufacturing module.  Reading
+        // them from the root Nexora config returned an empty set, which meant
+        // submitted QC values could not be evaluated consistently.
+        return config("manufacturing.benchmarkTargets.$key", []);
     }
 
     // ── Pass / Warn / Fail verdict ───────────────────────────────────────────

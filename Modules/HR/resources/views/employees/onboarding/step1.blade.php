@@ -519,7 +519,7 @@ emailInput.addEventListener('input', function () {
 const firstNameInput = document.querySelector('input[name="first_name"]');
 const lastNameInput = document.querySelector('input[name="last_name"]');
 const companyEmailPreview = document.getElementById('company_email_preview');
-const existingCompanyEmails = @json(\App\Models\Employee::pluck('company_email')->filter()->values());
+const existingCompanyEmails = @json(\Modules\HR\Models\Employee::pluck('company_email')->filter()->values());
 
 function buildCompanyEmail(firstName, lastName) {
     const first = (firstName || '').replace(/\s+/g, '').toLowerCase();

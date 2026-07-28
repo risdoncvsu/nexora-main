@@ -8,6 +8,29 @@ function closeModal(id) {
     document.body.style.overflow = '';
 }
 
+// The Manufacturing header uses a lightweight profile card rather than a
+// modal backdrop. Keep its visibility state and accessibility state together.
+function toggleProfileDropdown() {
+    const dropdown = document.getElementById('profileDropdown');
+    const trigger = document.getElementById('profileTrigger');
+    if (!dropdown) return;
+
+    const isOpen = !dropdown.classList.contains('pointer-events-none');
+    dropdown.classList.toggle('opacity-0', isOpen);
+    dropdown.classList.toggle('-translate-y-2', isOpen);
+    dropdown.classList.toggle('pointer-events-none', isOpen);
+    trigger?.setAttribute('aria-expanded', String(!isOpen));
+}
+
+document.addEventListener('click', event => {
+    const dropdown = document.getElementById('profileDropdown');
+    const trigger = document.getElementById('profileTrigger');
+    if (!dropdown || dropdown.classList.contains('pointer-events-none')) return;
+    if (!dropdown.contains(event.target) && !trigger?.contains(event.target)) {
+        toggleProfileDropdown();
+    }
+});
+
 function handleBackdropClick(event, id) {
     if (event.target === event.currentTarget) closeModal(id);
 }

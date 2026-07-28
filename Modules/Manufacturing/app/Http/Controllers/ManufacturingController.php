@@ -187,24 +187,11 @@ class ManufacturingController extends Controller
                 }
 
                 // Build replacement requirements from the actual components
-                // behind failed QC checks. The rework screen then controls
-                // stock consumption through the Inventory bridge.
-                $order->loadMissing('parts');
-                collect($flagged)
-                    ->filter(fn (array $result) => $result['verdict'] === 'Fail')
-                    ->map(fn (array $result) => explode('_', $result['checkId'])[0])
-                    ->filter()
-                    ->unique()
-                    ->each(function (string $category) use ($rework, $order): void {
-                        $buildPart = $order->parts->firstWhere('category', $category);
-
-                        if ($buildPart) {
-                            $rework->requiredParts()->create([
-                                'name' => $buildPart->name,
-                                'status' => 'Sourcing',
-                            ]);
-                        }
-                    });
+                // behind failed QC checks. A check uses codes such as CPU_* or
+                // Storage_*, while BOM categories may say "Processor" or
+                // "NVMe SSD"; matching is therefore normalised below rather
+                // than relying on an exact label match.
+                $this->ensureReplacementParts($rework, $order, $flagged);
             }
 
             if ($flagged) {
@@ -281,7 +268,37 @@ class ManufacturingController extends Controller
         if ($request->has('status'))     $rw->status   = $request->input('status');
         if ($request->has('priority'))   $rw->priority = $request->input('priority');
         if ($request->has('notes'))      $rw->notes    = $request->input('notes');
-        if ($request->input('escalate')) $rw->escalated_to_inventory = true;
+        if ($request->boolean('escalate')) {
+            $rw->loadMissing('requiredParts');
+
+            // Older rework rows may have been created before replacement
+            // requirements were persisted. Recover them from their failed QC
+            // checks so they can still be sent to Inventory.
+            if ($rw->requiredParts->isEmpty() && $workOrder) {
+                $rw->loadMissing('failedChecks');
+                $this->ensureReplacementParts($rw, $workOrder, $rw->failedChecks);
+                $rw->load('requiredParts');
+            }
+
+            if ($rw->requiredParts->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This rework order has no failed physical components to send to Inventory.',
+                ], 422);
+            }
+
+            if (! $this->sendReworkDefectsToInventory($rw, $workOrder)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Inventory could not receive the defect report. Please verify the Inventory database connection and try again.',
+                ], 503);
+            }
+
+            $rw->escalated_to_inventory = true;
+            if ($rw->status === 'In Rework') {
+                $rw->status = 'Waiting for Part';
+            }
+        }
         $rw->save();
 
         if ($rw->status === 'Ready for QC') {
@@ -567,6 +584,80 @@ class ManufacturingController extends Controller
             'id'      => $order->id,
             'dueDate' => $dueDate->toDateString(),
         ]);
+    }
+
+    /**
+     * Match a failed benchmark category to a physical work-order component.
+     * BOMs use human-readable category names, whereas QC uses short codes.
+     */
+    private function workOrderPartForBenchmarkCategory(WorkOrder $order, string $benchmarkCategory): mixed
+    {
+        $aliases = [
+            'cpu' => ['cpu', 'processor'],
+            'gpu' => ['gpu', 'graphics', 'video'],
+            'ram' => ['ram', 'memory'],
+            'storage' => ['storage', 'ssd', 'hdd', 'nvme', 'drive', 'disk'],
+            'system' => ['system', 'case', 'cable', 'power', 'psu', 'motherboard'],
+        ];
+
+        $terms = $aliases[strtolower($benchmarkCategory)] ?? [strtolower($benchmarkCategory)];
+
+        return $order->parts->first(function ($part) use ($terms): bool {
+            $haystack = strtolower(trim(($part->category ?? '') . ' ' . ($part->name ?? '')));
+
+            return collect($terms)->contains(fn (string $term) => str_contains($haystack, $term));
+        });
+    }
+
+    /** Persist replacement requirements for failed physical QC checks. */
+    private function ensureReplacementParts(ReworkOrder $rework, WorkOrder $order, iterable $failedChecks): void
+    {
+        $order->loadMissing('parts');
+
+        collect($failedChecks)
+            ->filter(function ($result): bool {
+                $verdict = is_array($result) ? ($result['verdict'] ?? '') : ($result->verdict ?? '');
+
+                return $verdict === 'Fail';
+            })
+            ->map(function ($result): string {
+                $checkId = is_array($result) ? ($result['checkId'] ?? '') : ($result->check_id ?? '');
+
+                return explode('_', (string) $checkId)[0];
+            })
+            ->filter()
+            ->unique()
+            ->each(function (string $category) use ($rework, $order): void {
+                $buildPart = $this->workOrderPartForBenchmarkCategory($order, $category);
+                if (! $buildPart) {
+                    return;
+                }
+
+                $buildPart->update(['status' => 'Missing']);
+                $rework->requiredParts()->firstOrCreate(
+                    ['name' => $buildPart->name],
+                    ['status' => 'Sourcing']
+                );
+            });
+    }
+
+    /**
+     * Publish every physical replacement requirement to Inventory as an open
+     * defect. Inventory's replacement request picker reads these records.
+     */
+    private function sendReworkDefectsToInventory(ReworkOrder $rework, ?WorkOrder $workOrder): bool
+    {
+        $clientId = (int) ($workOrder?->client_id ?: session('employee_client_id')) ?: null;
+        $createdBy = (string) session('employee_name', 'Manufacturing');
+        $bridge = new InventoryBridgeService();
+
+        foreach ($rework->requiredParts as $part) {
+            if (! $bridge->logDefect($rework->wo_id, $part->name, 1, $clientId, $createdBy)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**

@@ -29,7 +29,10 @@ class EmployeePortalController extends Controller
             // HR owns these workflows. ITSM is now the employee landing page,
             // so it exposes links while leaving the HR routes and access rules
             // unchanged.
-            'showHrSelfService' => session('employee_role') !== 'admin',
+            // HR managers are employees too.  Their role is `admin` only
+            // within the HR module and must not hide their own attendance and
+            // leave links from the shared employee portal.
+            'showHrSelfService' => true,
             'attendanceUrl' => route('hr.employee.attendance'),
             'leaveUrl' => route('hr.employee.leave'),
             'tickets' => $tickets,

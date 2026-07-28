@@ -92,23 +92,29 @@ class InventoryBridgeService
      * defects table. Grabbing a replacement is a separate, explicit action
      * (see grabReplacementFromStock), triggered per part from the rework screen.
      */
-    public function logDefect(string $woId, string $partName, int $qty, ?int $clientId, string $createdBy): void
+    public function logDefect(string $woId, string $partName, int $qty, ?int $clientId, string $createdBy): bool
     {
         try {
-            $this->inv()->table('defects')->insert([
-                'client_id'   => $clientId,
-                'part_name'   => $partName,
+            // Inventory exposes replacement candidates only when their defect
+            // status is Open.  updateOrInsert makes an escalation idempotent.
+            $this->inv()->table('defects')->updateOrInsert([
+                'client_id' => $clientId,
+                'part_name' => $partName,
+                'source' => 'manufacturing',
+                'source_id' => $woId,
+            ], [
                 'quantity'    => $qty,
                 'description' => "Returned from Manufacturing QC for work order {$woId}.",
-                'status'      => 'Pending',
-                'source'      => 'manufacturing',
-                'source_id'   => $woId,
+                'status'      => 'Open',
                 'created_by'  => $createdBy,
-                'created_at'  => now(),
                 'updated_at'  => now(),
+                'created_at'  => now(),
             ]);
+
+            return true;
         } catch (\Throwable $e) {
             report($e);
+            return false;
         }
     }
 
