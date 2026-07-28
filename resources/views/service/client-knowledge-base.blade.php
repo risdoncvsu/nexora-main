@@ -24,11 +24,11 @@
         <main class="relative flex-1 p-4 sm:p-6">
             <img src="{{ asset('images/nexora-icon.png') }}" alt="" class="pointer-events-none absolute left-1/2 top-1/2 w-[64rem] -translate-x-1/2 -translate-y-1/2 opacity-10 blur-sm">
             <section class="relative z-10 mx-auto grid min-h-[calc(100vh-10rem)] max-w-[1760px] grid-cols-1 gap-6 xl:grid-cols-[22rem_minmax(0,1fr)]">
-                <aside class="rounded-[1.875rem] bg-white p-5 text-slate-950 shadow-xl sm:p-8">
+                <aside class="self-start rounded-[1.875rem] bg-white p-5 text-slate-950 shadow-xl sm:p-8">
                     <nav class="flex flex-wrap gap-x-6 gap-y-3 text-base sm:text-xl xl:block xl:space-y-6">
                         <a href="{{ route('client.itsm.service-desk') }}" class="block font-medium text-slate-700 transition hover:text-[#346DCB]">Module Ticket Dashboard</a>
                         <a href="{{ route('client.itsm.service-desk.support') }}" class="block font-medium text-slate-700 transition hover:text-[#346DCB]">Account Recovery</a>
-                        <a href="{{ route('client.itsm.service-desk.knowledgebase') }}" class="block font-extrabold text-[#346DCB]">Knowledge Base</a>
+                        <a href="{{ route('client.itsm.service-desk.knowledgebase') }}" class="block font-extrabold text-slate-950">Knowledge Base</a>
                     </nav>
                 </aside>
 

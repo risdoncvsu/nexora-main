@@ -44,9 +44,9 @@ class TicketController extends Controller
         ]);
     }
 
-    public function supportIndex()
+    public function supportIndex(Request $request)
     {
-        return $this->index('client', 'client_password_reset');
+        return $this->index($request, 'client', 'client_password_reset');
     }
 
     public function assignedIndex()

@@ -52,17 +52,17 @@
             <img src="{{ asset('images/nexora-icon.png') }}" alt="" class="pointer-events-none absolute left-1/2 top-1/2 w-[64rem] -translate-x-1/2 -translate-y-1/2 opacity-10 blur-sm">
 
             <section class="relative z-10 grid gap-6 lg:grid-cols-[22rem_1fr]">
-                <aside class="rounded-[1.875rem] bg-white p-8 text-slate-950">
+                <aside class="self-start rounded-[1.875rem] bg-white p-8 text-slate-950">
                     <nav class="space-y-6 text-xl">
                         @if ($portal === 'admin')
-                            <a href="{{ route('admin.itsm.service-desk') }}" class="block font-extrabold">Nexora Support Queue</a>
-                            <a href="{{ route('admin.itsm.service-desk.assigned') }}" class="block font-medium hover:text-[#346DCB]">Assigned Requests</a>
-                            <a href="{{ route('admin.itsm.service-desk.knowledge-base') }}" class="block font-medium hover:text-[#346DCB]">Knowledge Base</a>
-                            <a href="{{ route('admin.itsm.service-desk.sla-review') }}" class="block font-medium hover:text-[#346DCB]">SLA Review</a>
+                            <a href="{{ route('admin.itsm.service-desk') }}" class="block font-extrabold text-slate-950">Nexora Support Queue</a>
+                            <a href="{{ route('admin.itsm.service-desk.assigned') }}" class="block font-medium text-slate-700 hover:text-[#346DCB]">Assigned Requests</a>
+                            <a href="{{ route('admin.itsm.service-desk.knowledge-base') }}" class="block font-medium text-slate-700 hover:text-[#346DCB]">Knowledge Base</a>
+                            <a href="{{ route('admin.itsm.service-desk.sla-review') }}" class="block font-medium text-slate-700 hover:text-[#346DCB]">SLA Review</a>
                         @else
-                            <a href="{{ route('client.itsm.service-desk') }}" class="block {{ $ticketType === 'erp_module' ? 'font-extrabold' : 'font-medium hover:text-[#346DCB]' }}">Module Ticket Dashboard</a>
-                            <a href="{{ route('client.itsm.service-desk.support') }}" class="block {{ $ticketType === 'client_password_reset' ? 'font-extrabold' : 'font-medium hover:text-[#346DCB]' }}">Account Recovery</a>
-                            <a href="{{ route('client.itsm.service-desk.knowledgebase') }}" class="block font-medium hover:text-[#346DCB]">Knowledge Base</a>
+                            <a href="{{ route('client.itsm.service-desk') }}" class="block {{ $ticketType === 'erp_module' ? 'font-extrabold text-slate-950' : 'font-medium text-slate-700 hover:text-[#346DCB]' }}">Module Ticket Dashboard</a>
+                            <a href="{{ route('client.itsm.service-desk.support') }}" class="block {{ $ticketType === 'client_password_reset' ? 'font-extrabold text-slate-950' : 'font-medium text-slate-700 hover:text-[#346DCB]' }}">Account Recovery</a>
+                            <a href="{{ route('client.itsm.service-desk.knowledgebase') }}" class="block font-medium text-slate-700 hover:text-[#346DCB]">Knowledge Base</a>
                         @endif
                     </nav>
                 </aside>

@@ -42,7 +42,7 @@
                                     <span class="rounded-full px-2.5 py-1 text-xs font-bold {{ $company->error_count > 0 ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700' }}">{{ $company->error_count }} {{ Str::plural('error', $company->error_count) }}</span>
                                 </div>
                                 <dl class="mt-5 grid grid-cols-2 gap-3 border-t border-slate-200 pt-4 text-sm"><div><dt class="text-xs font-medium text-slate-500">Recorded activity</dt><dd class="mt-1 font-bold text-slate-900">{{ number_format($company->activity_count) }}</dd></div><div><dt class="text-xs font-medium text-slate-500">Latest activity</dt><dd class="mt-1 font-semibold text-slate-700">{{ $company->last_activity?->format('M j, H:i T') ?: 'No records yet' }}</dd></div></dl>
-                                <p class="mt-5 text-sm font-bold text-[#346DCB]">Open full audit trail →</p>
+                                <p class="mt-5 text-sm font-bold text-[#346DCB]">Open full trail →</p>
                             </a>
                         @empty
                             <p class="col-span-full py-10 text-center text-sm text-slate-500">No client companies are available yet.</p>
