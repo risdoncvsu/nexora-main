@@ -17,7 +17,7 @@
             ['label' => 'Audit Trail', 'route' => route('admin.itsm.audit-trail'), 'key' => 'audit-trail'],
         ]
         : [
-            ['label' => 'Employee Management', 'route' => route('client.itsm.employees'), 'key' => 'employees'],
+            ['label' => 'User Management', 'route' => route('client.itsm.employees'), 'key' => 'employees'],
             ['label' => 'Service Desk', 'route' => route('client.itsm.service-desk'), 'key' => 'service-desk'],
             ['label' => 'Compliance Tracking', 'route' => route('client.itsm.compliance'), 'key' => 'compliance'],
             ['label' => 'Risk Management', 'route' => route('client.itsm.risk'), 'key' => 'risk'],
@@ -191,7 +191,7 @@
                                                     @endif
                                                     @if ($updateMode !== 'password_reset')
                                                         <button type="button" class="edit-ticket rounded-md border border-slate-300 px-3 py-1 font-semibold hover:bg-slate-100">
-                                                            {{ $updateMode === 'status_only' ? 'Resolve' : 'Edit' }}
+                                                            {{ $updateMode === 'status_only' ? 'Manage status' : 'Edit' }}
                                                         </button>
                                                     @endif
                                                 </td>
@@ -326,11 +326,11 @@
             ticketForm.action = row ? updateTemplate.replace('__ID__', row.dataset.id) : storeRoute;
             ticketMethod.value = row ? 'PATCH' : 'POST';
             ticketModalTitle.textContent = row
-                ? (updateMode === 'status_only' ? 'Resolve Module Ticket' : 'Edit Ticket')
+                ? (updateMode === 'status_only' ? 'Manage Module Ticket' : 'Edit Ticket')
                 : 'Ask Nexora Support';
             if (ticketSubmitButton) {
                 ticketSubmitButton.textContent = row
-                    ? (updateMode === 'status_only' ? 'Update status' : 'Save changes')
+                    ? (updateMode === 'status_only' ? 'Save status' : 'Save changes')
                     : 'Submit ticket';
             }
             setTicketField('ticket_requester', row?.dataset.requester);

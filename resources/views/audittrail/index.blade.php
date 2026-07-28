@@ -11,7 +11,7 @@
             ['label' => 'Audit Trail', 'route' => route($indexRoute), 'key' => 'audit-trail'],
         ]
         : [
-            ['label' => 'Employee Management', 'route' => route('client.itsm.employees'), 'key' => 'employees'],
+            ['label' => 'User Management', 'route' => route('client.itsm.employees'), 'key' => 'employees'],
             ['label' => 'Service Desk', 'route' => route('client.itsm.service-desk'), 'key' => 'service-desk'],
             ['label' => 'Compliance Tracking', 'route' => route('client.itsm.compliance'), 'key' => 'compliance'],
             ['label' => 'Risk Management', 'route' => route('client.itsm.risk'), 'key' => 'risk'],

@@ -111,6 +111,7 @@ Route::middleware('auth')->group(function () {
         // without keeping a second, error-prone Resolved Tickets screen in the client UI.
         Route::get('/service-desk/resolved-tickets', fn () => redirect()->route('client.itsm.service-desk'))->name('service-desk.resolvedtickets');
         Route::get('/service-desk/knowledge-base', [ServiceController::class, 'knowledgeBase'])->name('service-desk.knowledgebase');
+        Route::post('/service-desk/knowledge-base', [KnowledgeBaseController::class, 'storeClient'])->name('service-desk.knowledgebase.store');
         
         // ==========================================
         // COMPLIANCE MODULE ROUTES

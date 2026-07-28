@@ -25,8 +25,10 @@ public function resolvedTickets()
 
     public function knowledgeBase()
     {
+        $companyId = (int) Auth::user()->company_id;
+
         return view('service.client-knowledge-base', [
-            'articles' => Article::query()->latest()->get(),
+            'articles' => Article::query()->where('company_id', $companyId)->latest()->get(),
         ]);
     }
 

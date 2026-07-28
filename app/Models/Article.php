@@ -16,6 +16,7 @@ class Article extends Model
         'target_module',
         'author_name',
         'content',
+        'company_id',
         'view_count',
         'status',
     ];

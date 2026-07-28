@@ -14,7 +14,7 @@
             :home-route="route('client.itsm.employees')"
             active="compliance"
             :nav-items="[
-                ['label' => 'Employee Management', 'route' => route('client.itsm.employees'), 'key' => 'employees'],
+                ['label' => 'User Management', 'route' => route('client.itsm.employees'), 'key' => 'employees'],
                 ['label' => 'Service Desk', 'route' => route('client.itsm.service-desk'), 'key' => 'service-desk'],
                 ['label' => 'Compliance Tracking', 'route' => route('client.itsm.compliance'), 'key' => 'compliance'],
                 ['label' => 'Risk Management', 'route' => route('client.itsm.risk'), 'key' => 'risk'],
@@ -175,8 +175,8 @@
                                                     </td>
                                                     <td class="px-6 py-4 border-b border-slate-100">
                                                         @if (!empty($doc['file_path']))
-                                                            <a href="{{ $doc['file_url'] }}" target="_blank" rel="noopener" class="inline-block px-1 text-slate-400 hover:text-slate-600" title="View file"><i data-lucide="eye" class="h-4 w-4"></i></a>
-                                                            <a href="{{ $doc['file_url'] }}?download=1" class="inline-block px-1 text-slate-400 hover:text-slate-600" title="Download file"><i data-lucide="download" class="h-4 w-4"></i></a>
+                                                            <a href="{{ $doc['file_url'] }}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-1 text-[11px] font-semibold text-slate-700 transition hover:border-[#346DCB] hover:bg-blue-50 hover:text-[#346DCB]" title="Open uploaded document"><i data-lucide="eye" class="h-3.5 w-3.5"></i><span>View</span></a>
+                                                            <a href="{{ $doc['file_url'] }}?download=1" class="ml-1 inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-1 text-[11px] font-semibold text-slate-700 transition hover:border-[#346DCB] hover:bg-blue-50 hover:text-[#346DCB]" title="Download uploaded document"><i data-lucide="download" class="h-3.5 w-3.5"></i><span>Download</span></a>
                                                         @else
                                                             <span class="text-[10px] text-slate-400">No file</span>
                                                         @endif

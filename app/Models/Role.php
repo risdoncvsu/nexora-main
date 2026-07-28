@@ -12,8 +12,24 @@ class Role extends Model
     protected $fillable = [
         'role_name',
         'description',
-        'department', // if you have this column
+        'department',
+        'permissions',
+        'is_active',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'permissions' => 'array',
+            'is_active' => 'boolean',
+        ];
+    }
+
+    /** Keep the role view's conventional `name` property compatible with role_name. */
+    public function getNameAttribute(): ?string
+    {
+        return $this->role_name;
+    }
 
     // Example relationship if roles have users
     public function users()

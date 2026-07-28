@@ -22,7 +22,7 @@ public function index(Request $request)
 
     public function bulkDelete(Request $request)
     {
-        $ids = $request->input('ids', []);
+        $ids = $request->input('role_ids', []);
 
         if (!empty($ids)) {
             Role::whereIn('id', $ids)->delete();
@@ -37,8 +37,14 @@ public function index(Request $request)
         $validated = $request->validate([
             'role_name' => 'required|string|max:255',
             'description' => 'nullable|string',
+            'department' => 'required|string|max:255',
+            'permissions' => 'nullable|array',
+            'permissions.*' => 'string|max:100',
+            'is_active' => 'nullable|boolean',
         ]);
 
+        $validated['permissions'] = array_values($validated['permissions'] ?? []);
+        $validated['is_active'] = $request->boolean('is_active');
         Role::create($validated);
 
         return redirect()->route('admin.itsm.roles')->with('success', 'Role created successfully.');
@@ -49,8 +55,14 @@ public function index(Request $request)
         $validated = $request->validate([
             'role_name' => 'required|string|max:255',
             'description' => 'nullable|string',
+            'department' => 'required|string|max:255',
+            'permissions' => 'nullable|array',
+            'permissions.*' => 'string|max:100',
+            'is_active' => 'nullable|boolean',
         ]);
 
+        $validated['permissions'] = array_values($validated['permissions'] ?? []);
+        $validated['is_active'] = $request->boolean('is_active');
         $role->update($validated);
 
         return redirect()->route('admin.itsm.roles')->with('success', 'Role updated successfully.');

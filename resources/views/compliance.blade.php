@@ -15,7 +15,7 @@
             :home-route="route('client.itsm.employees')"
             active="compliance"
             :nav-items="[
-                ['label' => 'Employee Management', 'route' => route('client.itsm.employees'), 'key' => 'employees'],
+                ['label' => 'User Management', 'route' => route('client.itsm.employees'), 'key' => 'employees'],
                 ['label' => 'Service Desk', 'route' => route('client.itsm.service-desk'), 'key' => 'service-desk'],
                 ['label' => 'Compliance Tracking', 'route' => route('client.itsm.compliance'), 'key' => 'compliance'],
                 ['label' => 'Risk Management', 'route' => route('client.itsm.risk'), 'key' => 'risk'],
@@ -200,7 +200,7 @@
                 <button type="button" onclick="closeRequirementView()" class="text-xl text-slate-500 hover:text-slate-900">&times;</button>
             </div>
             <dl class="mt-5 grid grid-cols-2 gap-4 text-sm"><div><dt class="text-slate-500">Status</dt><dd id="requirementViewStatus" class="font-semibold"></dd></div><div><dt class="text-slate-500">Progress</dt><dd id="requirementViewProgress" class="font-semibold"></dd></div></dl>
-            <a id="requirementViewFile" target="_blank" rel="noopener" class="mt-6 hidden rounded-full bg-[#1A73E8] px-5 py-2 text-center text-sm font-bold text-white hover:bg-blue-700">Open attached course</a>
+            <a id="requirementViewFile" target="_blank" rel="noopener" class="mt-6 hidden w-full items-center justify-center gap-2 rounded-xl bg-[#1A73E8] px-5 py-3 text-center text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-[#1A73E8] focus:ring-offset-2"><i data-lucide="external-link" class="h-4 w-4"></i><span>Open attached course</span></a>
         </div>
     </div>
    
@@ -244,7 +244,7 @@
             document.getElementById('requirementViewStatus').textContent = item.status || 'Not set';
             document.getElementById('requirementViewProgress').textContent = item.progress || '0%';
             const file = document.getElementById('requirementViewFile');
-            if (item.file_url) { file.href = item.file_url; file.classList.remove('hidden'); } else { file.classList.add('hidden'); }
+            if (item.file_url) { file.href = item.file_url; file.classList.remove('hidden'); file.classList.add('inline-flex'); } else { file.classList.add('hidden'); file.classList.remove('inline-flex'); }
             document.getElementById('requirementViewModal').classList.remove('hidden');
             document.getElementById('requirementViewModal').classList.add('flex');
         }

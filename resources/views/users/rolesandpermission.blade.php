@@ -10,7 +10,7 @@
             ['label' => 'Audit Trail', 'route' => route('admin.itsm.audit-trail'), 'key' => 'audit-trail'],
         ]
         : [
-            ['label' => 'Employee Management', 'route' => route('client.itsm.employees'), 'key' => 'employees'],
+            ['label' => 'User Management', 'route' => route('client.itsm.employees'), 'key' => 'employees'],
             ['label' => 'Service Desk', 'route' => route('client.itsm.service-desk'), 'key' => 'service-desk'],
             ['label' => 'Compliance Tracking', 'route' => route('client.itsm.compliance'), 'key' => 'compliance'],
             ['label' => 'Risk Management', 'route' => route('client.itsm.risk'), 'key' => 'risk'],
@@ -532,7 +532,7 @@
                 <div style="display: flex; flex-direction: column; gap: 16px;">
                     <div class="form-group">
                         <label for="create_name">Role Name</label>
-                        <input type="text" name="name" id="create_name" class="form-control" required placeholder="e.g. Finance Officer">
+                        <input type="text" name="role_name" id="create_name" class="form-control" required placeholder="e.g. Finance Officer">
                     </div>
                     <div class="form-group">
                         <label for="create_description">Description</label>
@@ -586,7 +586,7 @@
                 <div style="display: flex; flex-direction: column; gap: 16px;">
                     <div class="form-group">
                         <label for="edit_name">Role Name</label>
-                        <input type="text" name="name" id="edit_name" class="form-control" required>
+                        <input type="text" name="role_name" id="edit_name" class="form-control" required>
                     </div>
                     <div class="form-group">
                         <label for="edit_description">Description</label>
