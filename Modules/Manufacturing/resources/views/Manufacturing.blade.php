@@ -7,11 +7,13 @@
     <title>Nexora – Manufacturing</title>
     <link rel="icon" type="image/png" href="{{ asset('manufacturing/images/Nexora_Logo_Transparent.png') }}">
     <link rel="stylesheet" href="{{ asset('manufacturing/css/styles.css') }}">
+    <link rel="stylesheet" href="{{ asset('manufacturing/css/dark-mode.css') }}">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="{{ asset('manufacturing/js/shared.js') }}"></script>
     <script src="{{ asset('manufacturing/js/table-sort.js') }}"></script>
     <script>
         tailwind.config = {
+            darkMode: ['selector', '[data-theme="dark"]'],
             theme: {
                 extend: {
                     colors: {
@@ -77,10 +79,10 @@
         $tempData['rangeStyles']  = $rangeStyles;
     @endphp
 </head>
-<body class="font-body text-white flex flex-col h-full">
+<body class="font-body text-white flex flex-col h-full bg-white dark:bg-[#0F1923] transition-colors duration-150">
 
     {{-- Top Navbar --}}
-    <header class="w-full bg-nexora-deep-navy shadow-md shadow-nexora-deep-navy flex items-center px-6 py-3 flex-shrink-0">
+    <header class="w-full bg-nexora-deep-navy dark:bg-[#0B141F] shadow-md shadow-nexora-deep-navy flex items-center px-6 py-3 flex-shrink-0">
         {{-- Logo --}}
         <div class="flex items-center gap-1">
             <img src="{{ asset('manufacturing/images/Banner Transparent.png') }}" alt="Application Logo" class="w-56">
@@ -126,7 +128,7 @@
     <div class="flex flex-1 overflow-hidden gap-1 max-h-[98%] max-w-[99%] m-4">
     @if($curPage != 'dashboard' && $curPage != 'reports')
         {{-- Sidebar --}}
-        <aside class="w-44 bg-nexora-off-white border-[1px] border-nexora-corporate flex flex-col flex-shrink-0 rounded-lg max-w-full min-h-full mx-auto ml-1">
+        <aside class="w-44 bg-nexora-off-white dark:bg-[#1A2332] border-[1px] border-nexora-corporate dark:border-[#334155] flex flex-col flex-shrink-0 rounded-lg max-w-full min-h-full mx-auto ml-1">
             <nav class="flex-1 flex flex-col pt-[40%] px-3 space-y-0.5 text-sm">
                 {{-- Quality Check Sub Tabs --}}
                 @if($curPage === 'qc')

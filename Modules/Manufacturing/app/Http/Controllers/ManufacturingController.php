@@ -355,8 +355,37 @@ class ManufacturingController extends Controller
             return response()->json(['success' => false, 'message' => 'Rework order not found.'], 404);
         }
 
+        $order = WorkOrder::with('parts')->find($rw->wo_id);
+        if ($order) {
+            $this->assertCanOperateWorkOrder($order);
+        }
+
+        // A manually-added replacement must correspond to a QC issue. This
+        // preserves the updated module's workflow while preventing arbitrary
+        // inventory items from being pulled into a rework order.
+        $partName = trim((string) ($part['name'] ?? ''));
+        $session = $order ? QcSession::where('wo_id', $order->id)->first() : null;
+        $flaggedCategories = $session
+            ? $session->results()->whereIn('verdict', ['Warn', 'Fail'])->get()
+                ->map(fn ($result) => explode('_', (string) $result->check_id, 2)[0])
+                ->filter()
+                ->unique()
+            : collect();
+
+        $allowedNames = $flaggedCategories
+            ->map(fn (string $category) => $order ? $this->workOrderPartForBenchmarkCategory($order, $category)?->name : null)
+            ->filter()
+            ->unique();
+
+        if ($partName === '' || ! $allowedNames->contains($partName)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only components flagged by the QC benchmark can be added as replacement parts.',
+            ], 422);
+        }
+
         $rw->requiredParts()->create([
-            'name'   => (string) ($part['name']   ?? ''),
+            'name'   => $partName,
             'status' => (string) ($part['status'] ?? 'Sourcing'),
             'eta'    => $part['eta'] ?? null,
         ]);
@@ -474,10 +503,16 @@ class ManufacturingController extends Controller
                     ->orWhereRaw("LOWER(COALESCE(position, '')) LIKE ?", ['%production%'])
                     ->orWhereRaw("LOWER(COALESCE(position, '')) LIKE ?", ['%manufacturing%']);
             })
+            ->where(function ($query): void {
+                $query->whereRaw("LOWER(COALESCE(position, '')) NOT LIKE ?", ['%manager%'])
+                    ->whereRaw("LOWER(COALESCE(position, '')) NOT LIKE ?", ['%supervisor%'])
+                    ->whereRaw("LOWER(COALESCE(position, '')) NOT LIKE ?", ['%quality%'])
+                    ->whereRaw("LOWER(COALESCE(department, '')) NOT LIKE ?", ['%quality%']);
+            })
             ->first();
 
         if (! $worker) {
-            return response()->json(['success' => false, 'message' => 'Select an active Production Management employee.'], 422);
+            return response()->json(['success' => false, 'message' => 'Select an active production staff member, not a manager, supervisor, or QC role.'], 422);
         }
 
         $name = trim(implode(' ', array_filter([$worker->first_name, $worker->middle_name, $worker->last_name, $worker->suffix])));

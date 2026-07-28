@@ -154,7 +154,34 @@ function updateBenchmarkCounts() {
 }
 
 // ── Save ────────────────────────────────────────────────────────────────
+function confirmSendToFulfillment() {
+    openConfirmModal(
+        'This saves the QC results and releases the build to Order Fulfillment for packing.',
+        () => saveBenchmarkResults(),
+        { title: 'Send to Order Fulfillment?', confirmLabel: 'Send' }
+    );
+}
+
 async function saveBenchmarkResults() {
+    const missing = [];
+    benchmarkData.checks.forEach(check => {
+        if (check.unit === 'pass') return;
+        const row = bmRows[check.id];
+        const input = document.getElementById(`val-${check.id}`);
+        if (!row || row.value === null || row.value === undefined || row.value === '') {
+            missing.push(check.id);
+            input?.parentElement.classList.add('border-nexora-danger');
+        } else {
+            input?.parentElement.classList.remove('border-nexora-danger');
+        }
+    });
+
+    if (missing.length) {
+        alert(`Please enter a result for all ${missing.length} remaining check(s) before saving.`);
+        document.getElementById(`val-${missing[0]}`)?.focus();
+        return;
+    }
+
     const results = Object.entries(bmRows).map(([checkId, data]) => ({
         checkId,
         value:   data.value,

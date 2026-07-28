@@ -1,3 +1,29 @@
+// Apply the saved theme before the page paints, avoiding a light-mode flash.
+if (localStorage.getItem('manufacturing-theme') === 'dark') {
+    document.documentElement.setAttribute('data-theme', 'dark');
+}
+
+function syncDarkModeToggleUI() {
+    const knob = document.getElementById('dark-mode-toggle-knob');
+    const track = document.getElementById('dark-mode-toggle-track');
+    if (!knob || !track) return;
+
+    const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+    knob.classList.toggle('translate-x-1', !dark);
+    knob.classList.toggle('translate-x-4', dark);
+    track.classList.toggle('bg-nexora-corporate', dark);
+    track.classList.toggle('bg-nexora-slate-200', !dark);
+}
+
+function toggleDarkMode() {
+    const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+    document.documentElement.toggleAttribute('data-theme', !dark);
+    localStorage.setItem('manufacturing-theme', dark ? 'light' : 'dark');
+    syncDarkModeToggleUI();
+}
+
+document.addEventListener('DOMContentLoaded', syncDarkModeToggleUI);
+
 function openModal(id) {
     document.getElementById(id).classList.remove('hidden');
     document.body.style.overflow = 'hidden';

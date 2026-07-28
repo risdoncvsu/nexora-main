@@ -36,6 +36,7 @@ class BomController extends Controller
             'sku' => ['required', 'string', 'max:100'],
             'name' => ['required', 'string', 'max:160'],
             'description' => ['nullable', 'string'],
+            'bom_type' => ['nullable', 'in:prebuilt,packaging'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.inventory_item_id' => ['required', 'integer'],
             'items.*.quantity_required' => ['required', 'integer', 'min:1'],
@@ -49,6 +50,19 @@ class BomController extends Controller
 
         if ($inventoryItems->count() !== $itemIds->count()) {
             return back()->withErrors(['items' => 'Every BOM component must belong to this client inventory.'])->withInput();
+        }
+
+        $componentIsPackaging = function (Item $item): bool {
+            $category = strtolower((string) optional($item->category)->name);
+            return str_contains($category, 'packag') || str_contains($category, 'packing');
+        };
+        $requestedType = $validated['bom_type'] ?? 'prebuilt';
+        $matchesRequestedType = $requestedType === 'packaging'
+            ? $inventoryItems->every($componentIsPackaging)
+            : $inventoryItems->every(fn (Item $item): bool => ! $componentIsPackaging($item));
+
+        if (! $matchesRequestedType) {
+            return back()->withErrors(['items' => 'Use only packaging materials for a packaging BoM, and non-packaging inventory for a prebuilt BoM.'])->withInput();
         }
 
         DB::connection('manufacturing')->transaction(function () use ($validated, $inventoryItems): void {
@@ -70,7 +84,11 @@ class BomController extends Controller
             }
         });
 
-        return redirect()->route('manufacturing.boms.index')->with('success', 'Bill of Materials created. It is now available to E-commerce.');
+        return redirect()->route('manufacturing.dashboard', [
+            'page' => 'orders',
+            'sub' => 'boms',
+            'bomType' => $requestedType,
+        ])->with('success', 'Bill of Materials created. It is now available to E-commerce.');
     }
 
     public function destroy(ProductBom $bom): RedirectResponse
@@ -78,6 +96,9 @@ class BomController extends Controller
         $bom->items()->delete();
         $bom->delete();
 
-        return redirect()->route('manufacturing.boms.index')->with('success', 'Bill of Materials removed.');
+        return redirect()->route('manufacturing.dashboard', [
+            'page' => 'orders',
+            'sub' => 'boms',
+        ])->with('success', 'Bill of Materials removed.');
     }
 }

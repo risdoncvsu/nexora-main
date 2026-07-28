@@ -1,0 +1,15 @@
+/* Attribute-driven dark mode for Manufacturing. */
+[data-theme="dark"] { color-scheme: dark; }
+[data-theme="dark"] [class*="bg-nexora-off-white"],
+[data-theme="dark"] [class*="bg-white"] { background-color: #1A2332 !important; }
+[data-theme="dark"] [class*="bg-nexora-slate-200"] { background-color: #243447 !important; }
+[data-theme="dark"] [class*="text-nexora-deep-navy"] { color: #E2E8F0 !important; }
+[data-theme="dark"] [class*="text-nexora-navy-mid"],
+[data-theme="dark"] [class*="text-nexora-slate-500"] { color: #94A3B8 !important; }
+[data-theme="dark"] [class*="border-nexora-corporate"],
+[data-theme="dark"] [class*="border-nexora-slate-200"] { border-color: #334155 !important; }
+[data-theme="dark"] [class*="border-nexora-deep-navy"] { border-color: #1A2332 !important; }
+[data-theme="dark"] input,
+[data-theme="dark"] select,
+[data-theme="dark"] textarea { background-color: #1F3149 !important; color: #E2E8F0 !important; }
+[data-theme="dark"] .modal-backdrop > .absolute.inset-0 { background-color: rgba(2, 8, 16, .6) !important; }

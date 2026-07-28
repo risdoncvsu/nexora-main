@@ -1,11 +1,13 @@
 @php
     // Single source of truth for Bills of Materials (prebuilts). Loaded here so the
     // Work Orders → BoM tab is self-contained within the dashboard shell.
-    $boms           = \Modules\Manufacturing\Models\ProductBom::with('items')->latest()->get();
+    $bomType = request()->get('bomType', 'prebuilt');
+    if (! in_array($bomType, ['prebuilt', 'packaging'], true)) $bomType = 'prebuilt';
+    $allBoms = \Modules\Manufacturing\Models\ProductBom::with('items')->latest()->get();
     // Read the live, client-scoped Inventory catalogue.  The available count
     // makes it clear that BOM components are references to physical Inventory
     // items, not a separate Manufacturing-only product list.
-    $inventoryItems = \Modules\Inventory\Models\Item::with('category')
+    $allInventoryItems = \Modules\Inventory\Models\Item::with('category')
         ->leftJoin('stock_levels as stock_levels', 'stock_levels.item_id', '=', 'items.id')
         ->select([
             'items.id', 'items.sku', 'items.name', 'items.category_id',
@@ -22,6 +24,24 @@
 
     // Prebuilt as plain PHP so the JSON is emitted with {!! !!} — avoids Blade's
     // @json directive choking on the multi-line closure. Consumed by bom.js.
+    $allInventoryItems = \Modules\Inventory\Models\Item::with('category')
+        ->leftJoin('stock_levels as stock_levels', 'stock_levels.item_id', '=', 'items.id')
+        ->select([
+            'items.id', 'items.sku', 'items.name', 'items.category_id',
+            \Illuminate\Support\Facades\DB::raw('COALESCE(SUM(stock_levels.stock - COALESCE(stock_levels.reserved_quantity, 0)), 0) as available_quantity'),
+        ])
+        ->groupBy('items.id', 'items.sku', 'items.name', 'items.category_id')
+        ->orderBy('items.name')
+        ->get();
+    $isPackaging = fn ($item) => str_contains(strtolower((string) optional($item->category)->name), 'packag')
+        || str_contains(strtolower((string) optional($item->category)->name), 'packing');
+    $packagingItemIds = $allInventoryItems->filter($isPackaging)->pluck('id')->flip();
+    $boms = $allBoms->filter(fn ($bom) => $bomType === 'packaging'
+        ? $bom->items->contains(fn ($item) => $packagingItemIds->has($item->inventory_item_id))
+        : ! $bom->items->contains(fn ($item) => $packagingItemIds->has($item->inventory_item_id)))
+        ->values();
+    $inventoryItems = $allInventoryItems->filter(fn ($item) => $bomType === 'packaging' ? $isPackaging($item) : ! $isPackaging($item))->values();
+
     $bomInventoryData = $inventoryItems->map(fn ($item) => [
         'id'       => $item->id,
         'sku'      => $item->sku,
@@ -36,21 +56,28 @@
     {{-- LEFT: Create BoM (prebuilt) --}}
     <section class="w-[32%] flex-shrink-0 bg-nexora-off-white border border-nexora-corporate rounded-xl
                     p-5 overflow-y-auto [&::-webkit-scrollbar]:hidden">
-        <h2 class="font-heading font-medium text-lg text-nexora-navy-mid">New Prebuilt BoM</h2>
+        <div class="mb-2 flex items-center justify-between gap-2">
+            <h2 class="font-heading font-medium text-lg text-nexora-navy-mid">New {{ $bomType === 'packaging' ? 'Packaging' : 'Prebuilt' }} BoM</h2>
+            <div class="flex rounded-full border border-nexora-corporate/50 bg-nexora-slate-200 p-1 text-[10px] font-semibold">
+                <a href="?page=orders&sub=boms&bomType=prebuilt" class="rounded-full px-2 py-1 {{ $bomType === 'prebuilt' ? 'bg-nexora-corporate text-white' : 'text-nexora-navy-mid' }}">Prebuilt</a>
+                <a href="?page=orders&sub=boms&bomType=packaging" class="rounded-full px-2 py-1 {{ $bomType === 'packaging' ? 'bg-nexora-corporate text-white' : 'text-nexora-navy-mid' }}">Packaging</a>
+            </div>
+        </div>
         <p class="text-xs text-nexora-navy-mid mt-1 mb-4 leading-relaxed">
-            A product can be listed in E-commerce only after an active BoM exists here.
+            {{ $bomType === 'packaging' ? 'Define packaging material requirements for shipments and orders.' : 'A product can be listed in E-commerce only after an active BoM exists here.' }}
         </p>
 
         <form method="post" action="{{ route('manufacturing.boms.store') }}" class="flex flex-col gap-3">
             @csrf
+            <input type="hidden" name="bom_type" value="{{ $bomType }}">
             <div>
-                <label class="text-[10px] font-semibold text-nexora-slate-500 uppercase tracking-wider">Product SKU</label>
+                <label class="text-[10px] font-semibold text-nexora-slate-500 uppercase tracking-wider">{{ $bomType === 'packaging' ? 'Packaging SKU' : 'Product SKU' }}</label>
                 <input name="sku" value="{{ old('sku') }}" required
                        class="mt-1.5 w-full border border-nexora-corporate/40 rounded-lg px-3 py-2 text-xs
                               text-nexora-deep-navy bg-nexora-slate-200 focus:outline-none focus:border-nexora-corporate">
             </div>
             <div>
-                <label class="text-[10px] font-semibold text-nexora-slate-500 uppercase tracking-wider">Product Name</label>
+                <label class="text-[10px] font-semibold text-nexora-slate-500 uppercase tracking-wider">{{ $bomType === 'packaging' ? 'Packaging Name' : 'Product Name' }}</label>
                 <input name="name" value="{{ old('name') }}" required
                        class="mt-1.5 w-full border border-nexora-corporate/40 rounded-lg px-3 py-2 text-xs
                               text-nexora-deep-navy bg-nexora-slate-200 focus:outline-none focus:border-nexora-corporate">
@@ -62,7 +89,7 @@
                                  text-nexora-deep-navy bg-nexora-slate-200 focus:outline-none focus:border-nexora-corporate resize-none">{{ old('description') }}</textarea>
             </div>
             <div>
-                <label class="text-[10px] font-semibold text-nexora-slate-500 uppercase tracking-wider">Inventory Components</label>
+                <label class="text-[10px] font-semibold text-nexora-slate-500 uppercase tracking-wider">{{ $bomType === 'packaging' ? 'Packaging Components' : 'Inventory Components' }}</label>
                 <div id="components" class="mt-1.5 flex flex-col gap-2"></div>
                 <button type="button" onclick="addBomComponent()"
                         class="mt-2 text-[10px] font-semibold px-2.5 py-1 rounded-full border border-nexora-corporate
@@ -83,7 +110,7 @@
     <section class="flex-1 bg-nexora-slate-200 border border-nexora-corporate/50 rounded-xl
                     p-5 overflow-y-auto [&::-webkit-scrollbar]:hidden">
         <div class="flex items-center justify-between mb-4">
-            <h1 class="font-heading font-medium text-xl text-nexora-navy-mid">Active BoMs</h1>
+            <h1 class="font-heading font-medium text-xl text-nexora-navy-mid">Active {{ $bomType === 'packaging' ? 'Packaging' : 'Prebuilt' }} BoMs</h1>
             <span class="px-2.5 py-1 rounded-full text-[10px] font-semibold bg-nexora-corporate/15 text-nexora-corporate">
                 {{ count($boms) }} total
             </span>
@@ -129,7 +156,7 @@
                     </div>
                 </article>
             @empty
-                <p class="text-xs text-nexora-navy-mid">No BoMs yet. Create one from inventory components.</p>
+                <p class="text-xs text-nexora-navy-mid">No {{ $bomType === 'packaging' ? 'packaging' : 'prebuilt' }} BoMs yet. Create one from matching inventory components.</p>
             @endforelse
         </div>
     </section>

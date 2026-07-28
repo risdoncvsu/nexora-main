@@ -88,6 +88,12 @@ class ManufacturingDataService
                 $query->whereRaw("LOWER(COALESCE(department, '')) LIKE ?", ['%production%'])
                     ->orWhereRaw("LOWER(COALESCE(position, '')) LIKE ?", ['%production%'])
                     ->orWhereRaw("LOWER(COALESCE(position, '')) LIKE ?", ['%manufacturing%']);
+            })
+            ->where(function ($query): void {
+                $query->whereRaw("LOWER(COALESCE(position, '')) NOT LIKE ?", ['%manager%'])
+                    ->whereRaw("LOWER(COALESCE(position, '')) NOT LIKE ?", ['%supervisor%'])
+                    ->whereRaw("LOWER(COALESCE(position, '')) NOT LIKE ?", ['%quality%'])
+                    ->whereRaw("LOWER(COALESCE(department, '')) NOT LIKE ?", ['%quality%']);
             });
 
         if (! (config('nexora.root_admin_module_testing') && auth()->user()?->role === 'root_admin')) {
