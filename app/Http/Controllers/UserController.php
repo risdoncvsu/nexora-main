@@ -61,6 +61,13 @@ class UserController extends Controller
 
         if ($company && $employees->isNotEmpty()) {
             $profiles = EmployeeAccessProfile::query()
+                ->select([
+                    'id',
+                    'company_id',
+                    'employee_id',
+                    'access_role',
+                    'access_permissions',
+                ])
                 ->where('company_id', $company->id)
                 ->whereIn('employee_id', $employees->pluck('id'))
                 ->get()

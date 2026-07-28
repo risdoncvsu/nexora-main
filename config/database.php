@@ -97,6 +97,12 @@ return [
             'prefix_indexes' => true,
             'search_path' => 'public',
             'sslmode' => env('DB_SSLMODE', 'prefer'),
+            // Neon uses PgBouncer on pooled endpoints. Emulated prepares
+            // prevent a stale server-side query plan after a migration adds
+            // or changes columns, such as employee access permissions.
+            'options' => extension_loaded('pdo_pgsql') ? array_filter([
+                PDO::ATTR_EMULATE_PREPARES => true,
+            ]) : [],
         ],
 
         'modules' => [
