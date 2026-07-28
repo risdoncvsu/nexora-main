@@ -3,9 +3,9 @@
 namespace Modules\Ecommerce\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Modules\Ecommerce\Models\Product;
 use Modules\Ecommerce\Models\Cart;
 use Modules\Ecommerce\Models\CartItem;
+use Modules\Ecommerce\CRM\Models\Customer as CrmCustomer;
 use Illuminate\Support\Facades\Auth;
 
 class CartController extends Controller
@@ -30,6 +30,7 @@ class CartController extends Controller
         $productType = $request->input('product_type', 'generic');
         $configuration = $request->input('configuration');
 
+        // Normalize configuration: if it's a JSON string, decode to array for consistency
         if (is_string($configuration)) {
             $decoded = json_decode($configuration, true);
             if (json_last_error() === JSON_ERROR_NONE) {
@@ -54,7 +55,7 @@ class CartController extends Controller
                     'quantity' => $quantity,
                     'price' => $price,
                     'image_url' => $imageUrl,
-                    'configuration' => $configuration
+                    'configuration' => $configuration,
                 ]);
             }
             
@@ -184,29 +185,22 @@ class CartController extends Controller
             return $item['price'] * $item['quantity'];
         });
 
+        // Tier-based item discount
+        $tierBenefits = null;
+        $tierDiscountAmount = 0;
+        $tierDiscountPct = 0;
+        if (Auth::guard('ecommerce')->check()) {
+            $tierBenefits = CrmCustomer::benefitsForUser(Auth::guard('ecommerce')->id());
+            $tierDiscountPct = $tierBenefits['item_discount_pct'];
+            $tierDiscountAmount = $tierDiscountPct > 0 ? round($subtotal * ($tierDiscountPct / 100), 2) : 0;
+        }
+
         $freeShippingThreshold = 100000;
         $shipping = ($subtotal >= $freeShippingThreshold || count($cart) === 0) ? 0 : 500;
-        $discount = 0; 
+        $discount = $tierDiscountAmount;
         $total = $subtotal + $shipping - $discount;
 
-        // Recommendations
-        $recommendations = collect();
-        $models = [
-            \Modules\Ecommerce\Models\AccessoryKeyboard::class,
-            \Modules\Ecommerce\Models\AccessoryHeadset::class,
-            \Modules\Ecommerce\Models\AccessoryMouse::class,
-            \Modules\Ecommerce\Models\AccessoryMousePad::class,
-            \Modules\Ecommerce\Models\AccessoryMonitor::class,
-        ];
-        foreach ($models as $model) {
-            try {
-                $items = $model::inRandomOrder()->limit(2)->get();
-                $recommendations = $recommendations->merge($items);
-            } catch (\Exception $e) {}
-        }
-        $recommendations = $recommendations->shuffle()->take(8);
-
-        return view('ecommerce::cart', compact('cart', 'subtotal', 'shipping', 'discount', 'total', 'freeShippingThreshold', 'recommendations'));
+        return view('ecommerce::cart', compact('cart', 'subtotal', 'shipping', 'discount', 'total', 'freeShippingThreshold', 'tierBenefits', 'tierDiscountAmount', 'tierDiscountPct'));
     }
 
     private function formatDbCartItems($cart)
@@ -224,3 +218,4 @@ class CartController extends Controller
         })->values()->toArray();
     }
 }
+

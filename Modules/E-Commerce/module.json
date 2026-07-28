@@ -1,0 +1,11 @@
+{
+    "name": "E-Commerce",
+    "alias": "ecommerce",
+    "description": "NEXORA E-Commerce Module",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\Ecommerce\\Providers\\EcommerceServiceProvider"
+    ],
+    "files": []
+}

@@ -1,3 +1,35 @@
+@php
+    $storefrontCompany = request()->attributes->get('ecommerce_company');
+    if ($storefrontCompany) {
+        $isPreview = request()->boolean('preview') && \Illuminate\Support\Facades\Auth::guard('ecommerce_admin')->check();
+        $publishedLayout = $isPreview ? \Modules\Ecommerce\Models\StorefrontLayout::editableFor($storefrontCompany) : \Modules\Ecommerce\Models\StorefrontLayout::publishedFor($storefrontCompany);
+        $layout = empty($layout) ? $publishedLayout : $layout;
+        $storefrontName = $storefrontName ?? ($publishedLayout['brand_name'] ?? ($storefrontCompany->company_name ?: 'Nexora Store'));
+        $store = $store ?? $storefrontCompany->ecommerce_slug;
+        $storefrontVisitKey = 'storefront_visited_' . ($storefrontCompany?->ecommerce_slug ?: 'store');
+    $logoUrl = $logoUrl ?? (!empty($publishedLayout['logo_path']) ? (str_starts_with($publishedLayout['logo_path'], 'Modules/') ? Vite::asset($publishedLayout['logo_path']) : asset('storage/'.$publishedLayout['logo_path'])) : ($storefrontCompany->logoUrl() ?: asset('ecommerce/Nexora_Logo.png')));
+    } else {
+        $storefrontName = $storefrontName ?? 'Nexora Store';
+        $store = $store ?? 'techforge';
+        $storefrontVisitKey = 'storefront_visited_' . ($storefrontCompany?->ecommerce_slug ?: 'store');
+    $logoUrl = $logoUrl ?? asset('ecommerce/Nexora_Logo.png');
+        $layout = [];
+    }
+
+    $primaryHex = $layout['primary_color'] ?? '#ff6b00';
+    $primaryClean = ltrim($primaryHex, '#');
+    if (strlen($primaryClean) === 3) $primaryClean = $primaryClean[0].$primaryClean[0].$primaryClean[1].$primaryClean[1].$primaryClean[2].$primaryClean[2];
+    $primaryR = hexdec(substr($primaryClean, 0, 2));
+    $primaryG = hexdec(substr($primaryClean, 2, 2));
+    $primaryB = hexdec(substr($primaryClean, 4, 2));
+
+    $accentHex = $layout['accent_color'] ?? '#f59e0b';
+    $accentClean = ltrim($accentHex, '#');
+    if (strlen($accentClean) === 3) $accentClean = $accentClean[0].$accentClean[0].$accentClean[1].$accentClean[1].$accentClean[2].$accentClean[2];
+    $accentR = hexdec(substr($accentClean, 0, 2));
+    $accentG = hexdec(substr($accentClean, 2, 2));
+    $accentB = hexdec(substr($accentClean, 4, 2));
+@endphp
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="scroll-smooth">
 <head>
@@ -6,7 +38,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
-    <title>{{ config('app.name', 'TechForge') }} | Secure Checkout</title>
+    <title>{{ $storefrontName }} | Secure Checkout</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -15,10 +47,18 @@
             theme: {
                 extend: {
                     colors: {
-                        primary: { DEFAULT: '#ff6b00', hover: '#e56000', glow: 'rgba(255, 107, 0, 0.5)' },
+                        primary: { DEFAULT: '{{ $primaryHex }}', hover: '{{ $primaryHex }}CC', glow: '{{ $primaryHex }}80' },
+                        accent: '{{ $accentHex }}',
                         dark: { bg: '#050505', surface: '#121212' }
                     },
-                    fontFamily: { sans: ['Inter', 'sans-serif'] }
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    dropShadow: {
+                        'glow': '0 0 15px {{ $primaryHex }}80',
+                    },
+                    boxShadow: {
+                        'glow': '0 0 20px {{ $primaryHex }}4D',
+                        'glow-lg': '0 0 30px {{ $primaryHex }}26',
+                    }
                 }
             }
         };
@@ -50,7 +90,7 @@
             left: -20%;
             width: 70vw;
             height: 70vw;
-            background: radial-gradient(circle, rgba(255, 107, 0, 0.35) 0%, rgba(255, 107, 0, 0) 65%);
+            background: radial-gradient(circle, rgba({{ $primaryR }}, {{ $primaryG }}, {{ $primaryB }}, 0.35) 0%, rgba({{ $primaryR }}, {{ $primaryG }}, {{ $primaryB }}, 0) 65%);
             z-index: -1;
             pointer-events: none;
             animation: floatPulse1 20s ease-in-out infinite;
@@ -62,7 +102,7 @@
             right: -20%;
             width: 80vw;
             height: 80vw;
-            background: radial-gradient(circle, rgba(153, 0, 0, 0.4) 0%, rgba(153, 0, 0, 0) 65%);
+            background: radial-gradient(circle, rgba({{ $accentR }}, {{ $accentG }}, {{ $accentB }}, 0.4) 0%, rgba({{ $accentR }}, {{ $accentG }}, {{ $accentB }}, 0) 65%);
             z-index: -1;
             pointer-events: none;
             animation: floatPulse2 25s ease-in-out infinite;
@@ -86,7 +126,7 @@
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: #05050A; }
         ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #ff6b00; }
+        ::-webkit-scrollbar-thumb:hover { background: {{ $primaryHex }}; }
         
         .form-input {
             width: 100%;
@@ -101,18 +141,18 @@
         }
         .form-input:focus {
             outline: none;
-            border-color: #ff6b00;
+            border-color: {{ $primaryHex }};
             background-color: rgba(255, 255, 255, 0.06);
-            box-shadow: 0 0 10px rgba(255, 107, 0, 0.2);
+            box-shadow: 0 0 10px rgba({{ $primaryR }}, {{ $primaryG }}, {{ $primaryB }}, 0.2);
         }
         
         /* Payment Radio Button styling */
         .payment-option input[type="radio"]:checked + div {
-            border-color: #ff6b00;
-            background-color: rgba(255, 107, 0, 0.05);
+            border-color: {{ $primaryHex }};
+            background-color: rgba({{ $primaryR }}, {{ $primaryG }}, {{ $primaryB }}, 0.05);
         }
         .payment-option input[type="radio"]:checked + div .radio-dot {
-            background-color: #ff6b00;
+            background-color: {{ $primaryHex }};
         }
         
         .section-title {
@@ -124,14 +164,14 @@
             letter-spacing: 0.1em;
             color: #fff;
             text-transform: uppercase;
-            margin-bottom: 1.5rem;
+            margin-bottom: 1rem;
         }
         .section-title::before {
             content: '';
             display: block;
             width: 4px;
             height: 16px;
-            background-color: #ff6b00;
+            background-color: {{ $primaryHex }};
         }
         .section-title::after {
             content: '';
@@ -166,15 +206,46 @@
             color: #fff;
         }
         .step-indicator.active .step-num {
-            background-color: #ff6b00;
+            background-color: {{ $primaryHex }};
             color: #000;
-            border-color: #ff6b00;
-            box-shadow: 0 0 15px rgba(255, 107, 0, 0.4);
+            border-color: {{ $primaryHex }};
+            box-shadow: 0 0 15px rgba({{ $primaryR }}, {{ $primaryG }}, {{ $primaryB }}, 0.4);
         }
         .step-indicator.completed .step-num {
             background-color: transparent;
-            color: #ff6b00;
-            border-color: #ff6b00;
+            color: {{ $primaryHex }};
+            border-color: {{ $primaryHex }};
+        }
+
+        /* ── Step Transition Animations ── */
+        .step-content {
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            opacity: 1;
+            transform: translateX(0);
+        }
+        .step-content.step-hidden {
+            display: none;
+        }
+        .step-content.step-leaving-forward {
+            opacity: 0;
+            transform: translateX(-24px);
+        }
+        .step-content.step-leaving-back {
+            opacity: 0;
+            transform: translateX(24px);
+        }
+        .step-content.step-entering-forward {
+            opacity: 0;
+            transform: translateX(24px);
+        }
+        .step-content.step-entering-back {
+            opacity: 0;
+            transform: translateX(-24px);
+        }
+
+        /* Progress bar connector animation */
+        .progress-connector {
+            transition: background-color 0.5s ease, box-shadow 0.5s ease;
         }
     </style>
 </head>
@@ -187,10 +258,8 @@
     <header class="py-6 mb-4">
         <div class="container mx-auto px-4 max-w-6xl">
             <a href="{{ url('/') }}" class="inline-flex items-center gap-3 group">
-                <div class="w-10 h-10 bg-gradient-to-br from-primary to-orange-400 rounded-xl flex items-center justify-center shadow-[0_0_15px_rgba(255,107,0,0.4)] group-hover:shadow-[0_0_25px_rgba(255,107,0,0.6)] transition-all">
-                    <img src="{{ Vite::asset('Modules/E-Commerce/Store/resources/img/Techforge_Logo.png') }}" alt="TechForge Logo" class="h-6 w-auto object-contain">
-                </div>
-                <span class="text-xl font-bold tracking-wide text-white tech-font group-hover:text-primary transition-colors">TECHFORGE</span>
+                <img src="{{ $logoUrl }}" alt="{{ $storefrontName }} Logo" class="h-9 w-auto group-hover:opacity-90 transition-opacity">
+                <span class="text-xl font-bold tracking-wide text-white tech-font group-hover:text-primary transition-colors">{{ strtoupper($storefrontName) }}</span>
             </a>
         </div>
     </header>
@@ -203,12 +272,16 @@
                 <span class="step-num">1</span>
                 <span>Shipping</span>
             </div>
-            <div class="flex-1 h-px bg-white/10"></div>
+            <div class="flex-1 h-px bg-white/10 relative">
+                <div id="progress-connect-1" class="absolute inset-0 bg-white/10 progress-connector"></div>
+            </div>
             <div id="step-indicator-2" class="step-indicator">
                 <span class="step-num">2</span>
                 <span>Payment</span>
             </div>
-            <div class="flex-1 h-px bg-white/10"></div>
+            <div class="flex-1 h-px bg-white/10 relative">
+                <div id="progress-connect-2" class="absolute inset-0 bg-white/10 progress-connector"></div>
+            </div>
             <div id="step-indicator-3" class="step-indicator">
                 <span class="step-num">3</span>
                 <span>Review</span>
@@ -222,67 +295,73 @@
                 <div class="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none"></div>
 
                 <!-- STEP 1: SHIPPING -->
-                <div id="step-1-content" class="space-y-8 relative z-10 animate-fade-in">
-                    
+                <div id="step-1-content" class="step-content space-y-6 relative z-10">
+
                     <!-- Dispatch Banner -->
                     <div class="bg-[#1a1a00] border border-[#ffaa00]/30 rounded-md p-4 flex items-center gap-3">
                         <i class="ph ph-clock text-[#ffaa00] text-xl"></i>
-                        <span class="text-sm text-gray-300">Order within <span class="text-[#ffaa00] font-bold code-font bg-[#ffaa00]/10 px-2 py-0.5 rounded">02:46:40</span> for same-day dispatch</span>
+                        <span class="text-sm text-gray-300">Select your delivery address and shipping method to continue</span>
                     </div>
-
-                    <!-- Contact Info -->
-                    <section>
-                        <div class="section-title">Contact Information</div>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                            <div>
-                                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 code-font">First Name</label>
-                                <input type="text" id="firstName" name="firstName" required class="form-input" value="{{ explode(' ', \Illuminate\Support\Facades\Auth::guard('ecommerce')->user()->name)[0] ?? '' }}">
-                            </div>
-                            <div>
-                                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Last Name</label>
-                                <input type="text" id="lastName" name="lastName" required class="form-input" value="{{ explode(' ', \Illuminate\Support\Facades\Auth::guard('ecommerce')->user()->name)[1] ?? '' }}">
-                            </div>
-                            <div class="sm:col-span-2">
-                                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Email Address</label>
-                                <input type="email" required class="form-input" value="{{ \Illuminate\Support\Facades\Auth::guard('ecommerce')->user()->email }}" readonly>
-                            </div>
-                            <div class="sm:col-span-2">
-                                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Phone Number</label>
-                                <input type="tel" id="phone" name="phone" required class="form-input" placeholder="+63 912 345 6789">
-                            </div>
-                        </div>
-                    </section>
 
                     <!-- Delivery Address -->
                     <section>
                         <div class="section-title">Delivery Address</div>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                            <div class="sm:col-span-2">
-                                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Street Address</label>
-                                <input type="text" id="address" name="address" required class="form-input">
-                            </div>
-                            <div class="sm:col-span-2">
-                                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Apartment / Suite</label>
-                                <input type="text" name="apartment" class="form-input" placeholder="Optional">
-                            </div>
-                            <div>
-                                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">City</label>
-                                <input type="text" id="city" name="city" required class="form-input">
-                            </div>
-                            <div>
-                                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">State / Province</label>
-                                <input type="text" id="province" name="province" required class="form-input">
-                            </div>
-                            <div>
-                                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Zip Code</label>
-                                <input type="text" id="zip" name="zip" required class="form-input">
-                            </div>
-                            <div>
-                                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Country</label>
-                                <input type="text" name="country" required class="form-input" value="Philippines" readonly>
-                            </div>
+                        <div class="space-y-3" id="address-selector">
+                            @foreach($addresses as $addr)
+                            <label class="payment-option block cursor-pointer">
+                                <input type="radio" name="addressId" value="{{ $addr->id }}" class="sr-only" {{ $loop->first ? 'checked' : '' }}>
+                                <div class="border border-white/10 rounded-lg p-4 transition-colors {{ $loop->first ? 'bg-white/5 border-primary/50' : 'bg-white/[0.02] hover:bg-white/5' }}">
+                                    <div class="flex items-start gap-3">
+                                        <div class="w-4 h-4 mt-0.5 rounded-full border border-gray-500 flex items-center justify-center shrink-0">
+                                            <div class="radio-dot w-2 h-2 rounded-full {{ $loop->first ? 'bg-primary' : 'bg-transparent' }} transition-colors"></div>
+                                        </div>
+                                        <div class="flex-1">
+                                            <div class="flex items-center gap-2 mb-1">
+                                                <span class="font-bold text-white text-sm">{{ $addr->full_name ?? \Illuminate\Support\Facades\Auth::guard('ecommerce')->user()->name }}</span>
+                                                @if($addr->is_default)
+                                                    <span class="text-[9px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded uppercase tracking-widest">Default</span>
+                                                @endif
+                                                @if($addr->label)
+                                                    <span class="text-[9px] font-bold text-gray-400 bg-white/5 px-2 py-0.5 rounded uppercase tracking-widest">{{ $addr->label }}</span>
+                                                @endif
+                                            </div>
+                                            <p class="text-xs text-gray-400 code-font leading-relaxed">
+                                                {{ trim(($addr->detailed_address ?? '') . ', ' . ($addr->barangay ?? ''), ', ') }}
+                                            </p>
+                                            <p class="text-xs text-gray-500 code-font mt-1">
+                                                {{ $addr->city }}, {{ $addr->province }} {{ $addr->postal_code }}
+                                            </p>
+                                            @if($addr->phone_number)
+                                                <p class="text-xs text-gray-500 code-font mt-1">
+                                                    <i class="ph ph-phone text-gray-600"></i> {{ $addr->phone_number }}
+                                                </p>
+                                            @endif
+                                        </div>
+                                    </div>
+                                </div>
+                            </label>
+                            @endforeach
                         </div>
                     </section>
+
+                    @php
+                        $shippingBenefit = $tierBenefits['benefits']['shipping_benefit'] ?? null;
+                        $shippingBenefitLabel = match($shippingBenefit) {
+                            'free_general' => 'Free shipping on all methods (Platinum)',
+                            'free_standard' => 'Free standard shipping (Gold)',
+                            '50%_off' => '50% off all shipping (Silver)',
+                            default => null,
+                        };
+                    @endphp
+                    @if($shippingBenefitLabel)
+                        <div class="border rounded-md p-3 flex items-center gap-3 mb-4"
+                             style="background: {{ $tierBenefits['color'] }}15; border-color: {{ $tierBenefits['color'] }}30;">
+                            <i class="ph-fill ph-star text-sm" style="color: {{ $tierBenefits['color'] }};"></i>
+                            <span class="text-xs font-medium" style="color: {{ $tierBenefits['color'] }};">
+                                <span class="font-bold">{{ $tierBenefits['label'] }}</span> — {{ $shippingBenefitLabel }}
+                            </span>
+                        </div>
+                    @endif
 
                     <!-- Shipping Method -->
                     <section>
@@ -329,60 +408,67 @@
                 </div>
 
                 <!-- STEP 2: PAYMENT -->
-                <div id="step-2-content" class="space-y-8 hidden relative z-10 animate-fade-in">
+                <div id="step-2-content" class="step-content step-hidden space-y-8 relative z-10">
                     
                     <section>
                         <div class="section-title">Payment Method</div>
                         <p class="text-sm text-gray-400 mb-4">All transactions are secure and encrypted.</p>
-                        <div class="space-y-3">
+                        <div class="space-y-3" id="payment-selector">
+                            @forelse($paymentMethods as $pm)
                             <label class="payment-option block cursor-pointer">
-                                <input type="radio" name="paymentMethod" value="credit_card" class="sr-only" checked>
-                                <div class="border border-white/10 rounded p-4 flex items-center justify-between transition-colors bg-white/5 hover:bg-white/10">
+                                <input type="radio" name="paymentMethod" value="{{ $pm->id }}" class="sr-only" {{ $loop->first ? 'checked' : '' }}>
+                                <div class="border border-white/10 rounded-lg p-4 flex items-center justify-between transition-colors {{ $loop->first ? 'bg-white/5 border-primary/50' : 'bg-white/[0.02] hover:bg-white/5' }}">
                                     <div class="flex items-center gap-4">
                                         <div class="w-4 h-4 rounded-full border border-gray-500 flex items-center justify-center">
-                                            <div class="radio-dot w-2 h-2 rounded-full bg-transparent transition-colors"></div>
+                                            <div class="radio-dot w-2 h-2 rounded-full {{ $loop->first ? 'bg-primary' : 'bg-transparent' }} transition-colors"></div>
                                         </div>
-                                        <span class="font-bold text-white text-sm">Credit / Debit Card</span>
+                                        <div>
+                                            <span class="font-bold text-white text-sm">{{ $pm->type }}</span>
+                                            @if($pm->provider)
+                                                <span class="text-gray-400 text-sm"> via {{ $pm->provider }}</span>
+                                            @endif
+                                            <div class="flex items-center gap-2 mt-1">
+                                                <span class="text-xs text-gray-500 code-font">{{ $pm->account_number_mask ?? '****' }}</span>
+                                                @if($pm->expiry_date)
+                                                    <span class="text-xs text-gray-600">|</span>
+                                                    <span class="text-xs text-gray-500 code-font">Exp {{ $pm->expiry_date }}</span>
+                                                @endif
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div class="flex gap-2 text-xl text-gray-400">
-                                        <i class="ph-fill ph-credit-card"></i>
+                                    <div class="flex items-center gap-3">
+                                        @if($pm->is_default)
+                                            <span class="text-[9px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded uppercase tracking-widest">Default</span>
+                                        @endif
+                                        <div class="text-xl text-gray-400">
+                                            @if(strtolower($pm->type) === 'credit card' || strtolower($pm->type) === 'debit card')
+                                                <i class="ph-fill ph-credit-card"></i>
+                                            @elseif(strtolower($pm->type) === 'gcash' || strtolower($pm->type) === 'maya')
+                                                <i class="ph-fill ph-wallet text-blue-500"></i>
+                                            @elseif(strtolower($pm->type) === 'paypal')
+                                                <i class="ph-fill ph-paypal-logo text-blue-400"></i>
+                                            @else
+                                                <i class="ph-fill ph-bank text-gray-400"></i>
+                                            @endif
+                                        </div>
                                     </div>
                                 </div>
                             </label>
+                            @empty
+                            <div class="text-center py-6">
+                                <i class="ph ph-credit-card text-3xl text-gray-600 mb-3 block"></i>
+                                <p class="text-sm text-gray-400 mb-3">No payment methods saved yet.</p>
+                                <a href="{{ route('ecommerce.account.profile') }}" class="text-xs text-primary hover:underline font-bold uppercase tracking-widest">Add a payment method</a>
+                            </div>
+                            @endforelse
+
+                            <!-- Cash on Delivery always available -->
                             <label class="payment-option block cursor-pointer">
-                                <input type="radio" name="paymentMethod" value="gcash" class="sr-only">
-                                <div class="border border-white/10 rounded p-4 flex items-center justify-between transition-colors bg-white/5 hover:bg-white/10">
+                                <input type="radio" name="paymentMethod" value="cod" class="sr-only" {{ $paymentMethods->isEmpty() ? 'checked' : '' }}>
+                                <div class="border border-white/10 rounded-lg p-4 flex items-center justify-between transition-colors {{ $paymentMethods->isEmpty() ? 'bg-white/5 border-primary/50' : 'bg-white/[0.02] hover:bg-white/5' }}">
                                     <div class="flex items-center gap-4">
                                         <div class="w-4 h-4 rounded-full border border-gray-500 flex items-center justify-center">
-                                            <div class="radio-dot w-2 h-2 rounded-full bg-transparent transition-colors"></div>
-                                        </div>
-                                        <span class="font-bold text-white text-sm">GCash / Maya</span>
-                                    </div>
-                                    <div class="flex gap-2 text-xl text-blue-500">
-                                        <i class="ph-fill ph-wallet"></i>
-                                    </div>
-                                </div>
-                            </label>
-                            <label class="payment-option block cursor-pointer">
-                                <input type="radio" name="paymentMethod" value="paypal" class="sr-only">
-                                <div class="border border-white/10 rounded p-4 flex items-center justify-between transition-colors bg-white/5 hover:bg-white/10">
-                                    <div class="flex items-center gap-4">
-                                        <div class="w-4 h-4 rounded-full border border-gray-500 flex items-center justify-center">
-                                            <div class="radio-dot w-2 h-2 rounded-full bg-transparent transition-colors"></div>
-                                        </div>
-                                        <span class="font-bold text-white text-sm">PayPal</span>
-                                    </div>
-                                    <div class="flex gap-2 text-xl text-blue-400">
-                                        <i class="ph-fill ph-paypal-logo"></i>
-                                    </div>
-                                </div>
-                            </label>
-                            <label class="payment-option block cursor-pointer">
-                                <input type="radio" name="paymentMethod" value="cod" class="sr-only">
-                                <div class="border border-white/10 rounded p-4 flex items-center justify-between transition-colors bg-white/5 hover:bg-white/10">
-                                    <div class="flex items-center gap-4">
-                                        <div class="w-4 h-4 rounded-full border border-gray-500 flex items-center justify-center">
-                                            <div class="radio-dot w-2 h-2 rounded-full bg-transparent transition-colors"></div>
+                                            <div class="radio-dot w-2 h-2 rounded-full {{ $paymentMethods->isEmpty() ? 'bg-primary' : 'bg-transparent' }} transition-colors"></div>
                                         </div>
                                         <span class="font-bold text-white text-sm">Cash on Delivery</span>
                                     </div>
@@ -405,7 +491,7 @@
                 </div>
 
                 <!-- STEP 3: REVIEW -->
-                <div id="step-3-content" class="space-y-8 hidden relative z-10 animate-fade-in">
+                <div id="step-3-content" class="step-content step-hidden space-y-8 relative z-10">
                     
                     <section>
                         <div class="section-title">Review Details</div>
@@ -438,7 +524,7 @@
                         </button>
                     </div>
                     
-                    <p class="text-xs text-gray-500 text-center mt-4">By placing your order, you agree to TechForge's privacy notice and conditions of use.</p>
+                    <p class="text-xs text-gray-500 text-center mt-4">By placing your order, you agree to our privacy notice and conditions of use.</p>
                 </div>
             </div>
 
@@ -456,7 +542,7 @@
                         <div class="flex gap-4 pb-4 border-b border-white/5 last:border-0 last:pb-0">
                             <div class="w-16 h-16 bg-[#000] border border-white/10 rounded flex items-center justify-center overflow-hidden p-1 shrink-0">
                                 @if(isset($item['image_url']) && !empty($item['image_url']))
-                                    <img src="{{ $item['image_url'] }}" alt="{{ $item['name'] }}" class="max-w-full max-h-full object-contain">
+                                    <img src="{{ $item['image_url'] }}" alt="{{ $item['name'] }}" loading="lazy" class="lazy-img max-w-full max-h-full object-contain">
                                 @else
                                     <i class="ph-light ph-desktop text-2xl text-gray-500"></i>
                                 @endif
@@ -490,6 +576,15 @@
                             <span>Subtotal</span>
                             <span class="text-white">₱{{ number_format($subtotal, 2) }}</span>
                         </div>
+                        @if($tierDiscountPct > 0)
+                        <div class="flex justify-between text-gray-400">
+                            <span class="flex items-center gap-1.5">
+                                {{ $tierBenefits['label'] }} Discount ({{ $tierDiscountPct }}%)
+                                <span class="text-[9px] font-bold px-1.5 py-0.5 rounded" style="background: {{ $tierBenefits['color'] }}20; color: {{ $tierBenefits['color'] }};">{{ $tierBenefits['label'] }}</span>
+                            </span>
+                            <span class="text-green-400">-₱{{ number_format($tierDiscountAmount, 2) }}</span>
+                        </div>
+                        @endif
                         <div class="flex justify-between text-gray-400">
                             <span>Shipping (<span id="shipping-label">Standard</span>)</span>
                             <span class="text-primary font-bold" id="display-shipping">₱{{ number_format($shipping, 2) }}</span>
@@ -546,6 +641,8 @@
         </div>
     </div>
 
+    @vite(['Modules/E-Commerce/Store/resources/js/Common/Preloader.js'])
+
     <script src="https://unpkg.com/@studio-freight/lenis@1.0.39/dist/lenis.min.js"></script>
     <script>
         // Smooth Scrolling with Lenis
@@ -568,79 +665,158 @@
 
         const subtotal = {{ $subtotal }};
         let currentStep = 1;
-        
+        let isTransitioning = false;
+
         function goToStep(step) {
-            // Basic validation before leaving step 1
+            // Prevent rapid clicks during animation
+            if (isTransitioning) return;
+            if (step === currentStep) return;
+
+            // Validation before leaving step 1
             if (step === 2 && currentStep === 1) {
-                const requiredFields = ['firstName', 'lastName', 'phone', 'address', 'city', 'province', 'zip'];
-                let isValid = true;
-                requiredFields.forEach(id => {
-                    const el = document.getElementById(id);
-                    if (!el.value) {
-                        el.classList.add('border-red-500');
-                        isValid = false;
-                    } else {
-                        el.classList.remove('border-red-500');
-                    }
-                });
-                
-                if (!isValid) {
-                    alert('Please fill in all required fields.');
+                const selectedAddress = document.querySelector('input[name="addressId"]:checked');
+                if (!selectedAddress) {
+                    alert('Please select a delivery address.');
                     return;
                 }
             }
             
             // Setup review data if going to step 3
             if (step === 3) {
-                const address = `${document.getElementById('address').value}, ${document.getElementById('city').value}, ${document.getElementById('province').value} ${document.getElementById('zip').value}`;
-                document.getElementById('review-address-text').textContent = address;
+                const selectedAddress = document.querySelector('input[name="addressId"]:checked');
+                if (selectedAddress) {
+                    const label = selectedAddress.closest('label');
+                    const nameEl = label.querySelector('.font-bold.text-white.text-sm');
+                    const pEls = label.querySelectorAll('.code-font');
+                    const name = nameEl ? nameEl.textContent.trim() : '';
+                    const lines = [];
+                    pEls.forEach(el => lines.push(el.textContent.trim()));
+                    document.getElementById('review-address-text').textContent = [name, ...lines].filter(Boolean).join(' — ');
+                }
                 
-                const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked').value;
-                const paymentNames = {
-                    'credit_card': '<i class="ph-fill ph-credit-card"></i> Credit / Debit Card',
-                    'gcash': '<i class="ph-fill ph-wallet text-blue-500"></i> GCash / Maya',
-                    'paypal': '<i class="ph-fill ph-paypal-logo text-blue-400"></i> PayPal',
-                    'cod': '<i class="ph-fill ph-money text-green-500"></i> Cash on Delivery'
-                };
-                document.getElementById('review-payment-text').innerHTML = paymentNames[paymentMethod];
+                const paymentInput = document.querySelector('input[name="paymentMethod"]:checked');
+                if (paymentInput) {
+                    const val = paymentInput.value;
+                    if (val === 'cod') {
+                        document.getElementById('review-payment-text').innerHTML = '<i class="ph-fill ph-money text-green-500"></i> Cash on Delivery';
+                    } else {
+                        const pmLabel = paymentInput.closest('label');
+                        const pmText = pmLabel ? pmLabel.querySelector('.font-bold.text-white.text-sm') : null;
+                        const pmType = pmText ? pmText.textContent.trim() : 'Saved Payment Method';
+                        document.getElementById('review-payment-text').innerHTML = '<i class="ph-fill ph-credit-card"></i> ' + pmType;
+                    }
+                }
             }
 
-            // Hide all steps
-            document.getElementById('step-1-content').classList.add('hidden');
-            document.getElementById('step-2-content').classList.add('hidden');
-            document.getElementById('step-3-content').classList.add('hidden');
+            isTransitioning = true;
+            const isForward = step > currentStep;
+            const currentEl = document.getElementById('step-' + currentStep + '-content');
+            const targetEl = document.getElementById('step-' + step + '-content');
+
+            // 1. Animate current step out
+            currentEl.classList.remove('step-hidden');
+            currentEl.classList.add(isForward ? 'step-leaving-forward' : 'step-leaving-back');
+
+            // 2. After exit animation, hide current and prepare target
+            setTimeout(function() {
+                currentEl.classList.add('step-hidden');
+                currentEl.classList.remove('step-leaving-forward', 'step-leaving-back');
+
+                // Update progress indicators mid-transition
+                updateIndicators(step);
+
+                // Remove all animation classes from target
+                targetEl.classList.remove('step-hidden', 'step-entering-forward', 'step-entering-back');
+
+                // Force browser layout to register the initial hidden state
+                void targetEl.offsetHeight;
+
+                // Add entering class for starting position
+                targetEl.classList.add(isForward ? 'step-entering-forward' : 'step-entering-back');
+
+                // 3. Force layout again, then animate in
+                void targetEl.offsetHeight;
+
+                // Remove entering class so it transitions to visible (opacity 1, translateX 0)
+                targetEl.classList.remove(isForward ? 'step-entering-forward' : 'step-entering-back');
+
+            }, 400);
+
+            // 4. Cleanup
+            setTimeout(function() {
+                currentStep = step;
+                isTransitioning = false;
+            }, 600);
             
-            // Update indicators
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function updateIndicators(step) {
+
+            // 5. Cleanup
+            setTimeout(function() {
+                currentStep = step;
+                isTransitioning = false;
+            }, 500);
+            
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function updateIndicators(step) {
             for (let i = 1; i <= 3; i++) {
-                const indicator = document.getElementById(`step-indicator-${i}`);
+                const indicator = document.getElementById('step-indicator-' + i);
+                indicator.classList.remove('active', 'completed');
                 if (i < step) {
-                    indicator.classList.remove('active');
                     indicator.classList.add('completed');
                     indicator.querySelector('.step-num').innerHTML = '<i class="ph-bold ph-check"></i>';
                 } else if (i === step) {
                     indicator.classList.add('active');
-                    indicator.classList.remove('completed');
                     indicator.querySelector('.step-num').innerHTML = i;
                 } else {
-                    indicator.classList.remove('active', 'completed');
                     indicator.querySelector('.step-num').innerHTML = i;
                 }
+                // Update progress connector
+                const connector = document.getElementById('progress-connect-' + i);
+                if (connector) {
+                    if (i < step) {
+                        connector.style.backgroundColor = '{{ $primaryHex }}';
+                        connector.style.boxShadow = '0 0 8px {{ $primaryHex }}80';
+                    } else {
+                        connector.style.backgroundColor = 'rgba(255,255,255,0.1)';
+                        connector.style.boxShadow = 'none';
+                    }
+                }
             }
-            
-            // Show new step
-            document.getElementById(`step-${step}-content`).classList.remove('hidden');
-            currentStep = step;
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        const tierShippingBenefit = '{{ $tierBenefits['benefits']['shipping_benefit'] ?? '' }}';
+
+        function applyTierShipping(shippingMethod, baseCost) {
+            if (tierShippingBenefit === 'free_general') return 0;
+            if (tierShippingBenefit === 'free_standard' && (shippingMethod === 'standard' || shippingMethod === 'pickup')) return 0;
+            if (tierShippingBenefit === '50%_off') return Math.round(baseCost * 0.5 * 100) / 100;
+            return baseCost;
         }
 
         function updateTotals() {
             const shippingMethod = document.querySelector('input[name="shippingMethod"]:checked').value;
-            const shippingCost = shippingMethod === 'express' ? 300 : 150;
+            const baseShippingCost = shippingMethod === 'express' ? 300 : 150;
+            const shippingCost = applyTierShipping(shippingMethod, baseShippingCost);
             const total = subtotal + shippingCost;
             
             document.getElementById('shipping-label').textContent = shippingMethod === 'express' ? 'Express' : 'Standard';
-            document.getElementById('display-shipping').textContent = shippingCost === 0 ? 'FREE' : '₱' + shippingCost.toLocaleString(undefined, {minimumFractionDigits: 2});
-            document.getElementById('display-total').textContent = '₱' + total.toLocaleString(undefined, {minimumFractionDigits: 2});
+
+            if (shippingCost === 0) {
+                document.getElementById('display-shipping').textContent = 'FREE';
+                document.getElementById('display-shipping').className = 'text-green-400 font-bold';
+            } else {
+                document.getElementById('display-shipping').textContent = '₱' + shippingCost.toLocaleString(undefined, {minimumFractionDigits: 2});
+                document.getElementById('display-shipping').className = 'text-primary font-bold';
+            }
+
+            const tierDiscount = {{ $tierDiscountAmount }};
+            const displayTotal = Math.max(0, subtotal - tierDiscount + shippingCost);
+            document.getElementById('display-total').textContent = '₱' + displayTotal.toLocaleString(undefined, {minimumFractionDigits: 2});
         }
 
         document.getElementById('checkout-form').addEventListener('submit', function(e) {
@@ -725,4 +901,4 @@
         });
     </script>
 </body>
-</html>
+</html>

@@ -9,16 +9,18 @@ use Modules\Ecommerce\Models\StorefrontListing;
 
 class StorefrontListingController extends Controller
 {
-    public function show(string $store, string $listing)
+    public function show(string $first, ?string $second = null)
     {
-        $listing = $this->activeListing($listing);
+        // $second is the listing ID when called from subdomain ({store}.domain.com/listings/{listing})
+        // $first is the listing ID when called from localhost fallback (no subdomain)
+        $listing = $this->activeListing($second ?? $first);
 
-        return view('ecommerce::listing-show', compact('listing'));
+        return view('ecommerce::item-overview', ['product' => $listing]);
     }
 
-    public function addToCart(string $store, string $listing): RedirectResponse
+    public function addToCart(string $first, ?string $second = null): RedirectResponse
     {
-        $listing = $this->activeListing($listing);
+        $listing = $this->activeListing($second ?? $first);
 
         if ($listing->available_quantity < 1) {
             return back()->with('error', 'This product is currently out of stock.');

@@ -7,7 +7,6 @@ use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
-    public $withinTransaction = false;
     protected $connection = 'ecommerce';
 
     /**
@@ -19,9 +18,14 @@ return new class extends Migration
         
         foreach ($tables as $table) {
             $tableName = $table->table_name;
-            // Since there is existing data containing invalid UUID representations, we drop the old values
-            // and forcefully convert the column to bigint to match the companies id.
-            DB::connection('ecommerce')->statement("ALTER TABLE \"$tableName\" ALTER COLUMN client_id TYPE bigint USING NULL");
+            Schema::connection('ecommerce')->table($tableName, function (Blueprint $t) use ($tableName) {
+                if (Schema::connection('ecommerce')->hasColumn($tableName, 'client_id')) {
+                    $t->dropColumn('client_id');
+                }
+            });
+            Schema::connection('ecommerce')->table($tableName, function (Blueprint $t) {
+                $t->unsignedBigInteger('client_id')->nullable()->index();
+            });
         }
     }
 
@@ -30,6 +34,11 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Intentionally non-destructive: production storefront data is never removed by rollback.
+        $tables = DB::connection('ecommerce')->select("SELECT table_name FROM information_schema.columns WHERE column_name = 'client_id' AND table_schema = 'public'");
+        
+        foreach ($tables as $table) {
+            $tableName = $table->table_name;
+            DB::connection('ecommerce')->statement("ALTER TABLE \"$tableName\" ALTER COLUMN client_id TYPE uuid USING NULL::uuid");
+        }
     }
 };

@@ -17,8 +17,6 @@ until php artisan migrate --database=hr --path=Modules/HR/database/migrations --
 done
 
 php artisan storage:link || true
-php artisan config:cache || true
-php artisan route:cache || true
 php artisan view:clear || true
 
 echo "Starting PHP built-in server"

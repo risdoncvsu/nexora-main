@@ -6,7 +6,6 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    public $withinTransaction = false;
     /**
      * The database connection that should be used by the migration.
      *
@@ -19,13 +18,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        $schema = Schema::connection('ecommerce');
-
-        if (! $schema->hasColumn('users', 'company_id') || $schema->hasColumn('users', 'client_id')) {
-            return;
-        }
-
-        $schema->table('users', function (Blueprint $table) {
+        Schema::table('users', function (Blueprint $table) {
             $table->renameColumn('company_id', 'client_id');
         });
     }
@@ -35,6 +28,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Intentionally non-destructive: production storefront data is never removed by rollback.
+        Schema::table('users', function (Blueprint $table) {
+            $table->renameColumn('client_id', 'company_id');
+        });
     }
 };

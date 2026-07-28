@@ -1,3 +1,37 @@
+@php
+    $storefrontCompany = request()->attributes->get('ecommerce_company');
+    if (!$storefrontCompany) {
+        $storefrontCompany = auth('ecommerce_admin')->user()?->getCompany() ?? auth('ecommerce')->user()?->company ?? \App\Models\Company::first();
+    }
+
+    $isPreview = request()->boolean('preview') || auth('ecommerce_admin')->check();
+    $publishedLayout = $storefrontCompany 
+        ? ($isPreview ? \Modules\Ecommerce\Models\StorefrontLayout::editableFor($storefrontCompany) : \Modules\Ecommerce\Models\StorefrontLayout::publishedFor($storefrontCompany))
+        : [];
+
+    $layout = empty($layout) ? $publishedLayout : $layout;
+
+    $storefrontName = $storefrontCompany?->company_name ?: ($layout['brand_name'] ?? 'Nexora Store');
+    $store = $storefrontCompany?->ecommerce_slug ?: 'store';
+    $logoUrl = !empty($layout['logo_path']) 
+        ? (str_starts_with($layout['logo_path'], 'Modules/') ? Vite::asset($layout['logo_path']) : asset('storage/'.$layout['logo_path'])) 
+        : ($storefrontCompany?->logoUrl() ?: asset('ecommerce/Nexora_Logo.png'));
+    $storefrontVisitKey = 'storefront_visited_' . ($storefrontCompany?->ecommerce_slug ?: 'store');
+
+    $primaryHex = $layout['primary_color'] ?? '#ff6b00';
+    $primaryClean = ltrim($primaryHex, '#');
+    if (strlen($primaryClean) === 3) $primaryClean = $primaryClean[0].$primaryClean[0].$primaryClean[1].$primaryClean[1].$primaryClean[2].$primaryClean[2];
+    $primaryR = hexdec(substr($primaryClean, 0, 2));
+    $primaryG = hexdec(substr($primaryClean, 2, 2));
+    $primaryB = hexdec(substr($primaryClean, 4, 2));
+
+    $accentHex = $layout['accent_color'] ?? '#f59e0b';
+    $accentClean = ltrim($accentHex, '#');
+    if (strlen($accentClean) === 3) $accentClean = $accentClean[0].$accentClean[0].$accentClean[1].$accentClean[1].$accentClean[2].$accentClean[2];
+    $accentR = hexdec(substr($accentClean, 0, 2));
+    $accentG = hexdec(substr($accentClean, 2, 2));
+    $accentB = hexdec(substr($accentClean, 4, 2));
+@endphp
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="scroll-smooth">
 <head>
@@ -7,7 +41,7 @@
     
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
 
-    <title>{{ config('app.name', 'TechForge') }} | Sign In</title>
+    <title>{{ $layout['brand_name'] ?? $storefrontName }} | Sign In</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -16,7 +50,8 @@
             theme: {
                 extend: {
                     colors: {
-                        primary: { DEFAULT: '#ff6b00', hover: '#e56000', glow: 'rgba(255, 107, 0, 0.5)' },
+                        primary: { DEFAULT: '{{ $primaryHex }}', hover: '{{ $primaryHex }}CC', glow: 'rgba({{ $primaryR }}, {{ $primaryG }}, {{ $primaryB }}, 0.5)' },
+                        accent: '{{ $accentHex }}',
                         dark: { bg: '#050505', surface: '#121212' }
                     },
                     fontFamily: { sans: ['Inter', 'sans-serif'] }
@@ -44,7 +79,7 @@
             left: -20%;
             width: 70vw;
             height: 70vw;
-            background: radial-gradient(circle, rgba(255, 107, 0, 0.35) 0%, rgba(255, 107, 0, 0) 65%);
+            background: radial-gradient(circle, rgba({{ $primaryR }}, {{ $primaryG }}, {{ $primaryB }}, 0.35) 0%, rgba({{ $primaryR }}, {{ $primaryG }}, {{ $primaryB }}, 0) 65%);
             z-index: -1;
             pointer-events: none;
             animation: floatPulse1 20s ease-in-out infinite;
@@ -56,7 +91,7 @@
             right: -20%;
             width: 80vw;
             height: 80vw;
-            background: radial-gradient(circle, rgba(153, 0, 0, 0.4) 0%, rgba(153, 0, 0, 0) 65%);
+            background: radial-gradient(circle, rgba({{ max(0, $primaryR - 100) }}, {{ max(0, $primaryG - 100) }}, {{ max(0, $primaryB - 100) }}, 0.4) 0%, rgba({{ max(0, $primaryR - 100) }}, {{ max(0, $primaryG - 100) }}, {{ max(0, $primaryB - 100) }}, 0) 65%);
             z-index: -1;
             pointer-events: none;
             animation: floatPulse2 25s ease-in-out infinite;
@@ -83,48 +118,19 @@
             background-clip: text;
         }
 
-        /* Preloader Animations */
-        @keyframes spinFastOnce {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(720deg); }
-        }
-        .animate-spin-fast {
-            animation: spinFastOnce 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
-        }
-        @keyframes slideTextOut {
-            0% { max-width: 0; opacity: 0; padding-left: 0; }
-            100% { max-width: 400px; opacity: 1; padding-left: 1.5rem; }
-        }
-        .animate-slide-text {
-            animation: slideTextOut 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
-            animation-delay: 0.8s;
-            overflow: hidden;
-            white-space: nowrap;
-            opacity: 0;
-            max-width: 0;
-        }
+        /* Preloader animation keyframes loaded from resources/css/preloader.css via @@vite() */
     </style>
 
+    @vite('Modules/E-Commerce/Store/resources/css/preloader.css')
     @vite('Modules/E-Commerce/Store/resources/css/liquidglass.css')
 </head>
 <body class="relative antialiased selection:bg-primary selection:text-white flex items-center justify-center">
 
-    <!-- Preloader -->
-    <script>
-        if (!sessionStorage.getItem('techforge_visited')) {
-            document.write(`
-                <div id="preloader" class="fixed inset-0 bg-[#050505] z-[100] flex items-center justify-center transition-opacity duration-1000 ease-in-out">
-                    <div class="relative flex items-center justify-center">
-                        <div class="absolute inset-0 bg-primary/20 blur-xl rounded-full animate-pulse"></div>
-                        <div class="flex items-center relative z-10">
-                            <img src="{{ Vite::asset('Modules/E-Commerce/Store/resources/img/Techforge_Logo.png') }}" alt="TechForge Logo" class="h-20 w-auto object-contain animate-spin-fast drop-shadow-[0_0_25px_rgba(255,107,0,0.6)]">
-                            <span class="text-4xl md:text-5xl font-black text-white tracking-widest animate-slide-text">TECHFORGE</span>
-                        </div>
-                    </div>
-                </div>
-            `);
-        }
-    </script>
+    <x-preloader
+        :logoUrl="$logoUrl"
+        :storefrontName="$storefrontName"
+        :visitKey="$storefrontVisitKey"
+    />
 
     <!-- Background Ambient Effects -->
     <div class="ambient-light-1"></div>
@@ -148,11 +154,11 @@
                     <!-- Login Form -->
                     <div id="login-container" class="transition-all duration-500 w-full transform translate-x-0 opacity-100">
                         <div class="flex flex-col items-center mb-8">
-                            <div class="bg-gradient-to-br from-primary to-orange-400 w-12 h-12 rounded-xl flex items-center justify-center shadow-[0_0_20px_rgba(255,107,0,0.4)] mb-4">
-                                <img src="{{ Vite::asset('Modules/E-Commerce/Store/resources/img/Techforge_Logo.png') }}" alt="TechForge Logo" class="h-7 w-auto object-contain">
+                            <div class="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center mb-5">
+                                <i class="ph-fill ph-lock-simple-open text-2xl text-white"></i>
                             </div>
                             <h2 class="text-2xl font-bold text-white mb-1">Welcome Back</h2>
-                            <p class="text-sm text-gray-400 font-light">Sign in to continue to TechForge</p>
+                            <p class="text-sm text-gray-400 font-light">Sign in to continue to {{ $layout['brand_name'] ?? $storefrontName }}</p>
                         </div>
                         
                         @if (session('success'))
@@ -199,7 +205,7 @@
                                 <span class="text-xs text-gray-400 group-hover:text-gray-300 transition-colors select-none">Remember me for 30 days</span>
                             </label>
 
-                            <button type="submit" class="w-full bg-gradient-to-r from-primary to-[#ff8c33] hover:from-[#ff8c33] hover:to-primary text-white py-3.5 rounded-xl font-bold transition-all duration-300 shadow-[0_0_15px_rgba(255,107,0,0.3)] hover:shadow-[0_0_25px_rgba(255,107,0,0.5)] hover:-translate-y-0.5 mt-2 flex items-center justify-center gap-2">
+                            <button type="submit" class="w-full bg-primary hover:brightness-110 text-white py-4 rounded-xl font-black uppercase tracking-widest transition-all duration-300 shadow-[0_0_20px_rgba({{ $primaryR }},{{ $primaryG }},{{ $primaryB }},0.4)] hover:shadow-[0_0_30px_rgba({{ $primaryR }},{{ $primaryG }},{{ $primaryB }},0.6)] hover:-translate-y-1 mt-4 flex items-center justify-center gap-2 text-sm">
                                 Sign In <i class="ph-bold ph-sign-in"></i>
                             </button>
                         </form>
@@ -211,10 +217,10 @@
                         </div>
 
                         <div class="grid grid-cols-2 gap-3">
-                            <a href="{{ route('ecommerce.social.redirect', 'google') }}" class="flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all py-2.5 rounded-xl text-sm font-medium text-white group">
+                            <a href="{{ route('ecommerce.social.redirect', 'google') }}" class="flex items-center justify-center gap-2 bg-white/25 hover:bg-white/40 border border-white/30 hover:border-white/60 transition-all py-3 rounded-xl text-sm font-bold text-white group shadow-lg shadow-black/30">
                                 <i class="ph-fill ph-google-logo text-lg text-gray-300 group-hover:text-white transition-colors"></i> Google
                             </a>
-                            <a href="{{ route('ecommerce.social.redirect', 'github') }}" class="flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all py-2.5 rounded-xl text-sm font-medium text-white group">
+                            <a href="{{ route('ecommerce.social.redirect', 'github') }}" class="flex items-center justify-center gap-2 bg-white/25 hover:bg-white/40 border border-white/30 hover:border-white/60 transition-all py-3 rounded-xl text-sm font-bold text-white group shadow-lg shadow-black/30">
                                 <i class="ph-fill ph-github-logo text-lg text-gray-300 group-hover:text-white transition-colors"></i> GitHub
                             </a>
                         </div>
@@ -227,11 +233,11 @@
                     <!-- Register Form -->
                     <div id="register-container" class="absolute top-0 left-0 w-full transition-all duration-500 transform translate-x-full opacity-0 pointer-events-none">
                         <div class="flex flex-col items-center mb-8">
-                            <div class="bg-gradient-to-br from-primary to-orange-400 w-12 h-12 rounded-xl flex items-center justify-center shadow-[0_0_20px_rgba(255,107,0,0.4)] mb-4">
+                            <div class="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center mb-5">
                                 <i class="ph-fill ph-user-plus text-2xl text-white"></i>
                             </div>
                             <h2 class="text-2xl font-bold text-white mb-1">Create Account</h2>
-                            <p class="text-sm text-gray-400 font-light">Join TechForge today</p>
+                            <p class="text-sm text-gray-400 font-light">Join {{ $layout['brand_name'] ?? $storefrontName }} today</p>
                         </div>
 
                         <form action="{{ route('ecommerce.register.post') }}" method="POST" class="space-y-4">
@@ -263,7 +269,7 @@
                                 <span class="text-xs text-gray-400 group-hover:text-gray-300 transition-colors select-none">Remember me for 30 days</span>
                             </label>
 
-                            <button type="submit" class="w-full bg-gradient-to-r from-primary to-[#ff8c33] hover:from-[#ff8c33] hover:to-primary text-white py-3.5 rounded-xl font-bold transition-all duration-300 shadow-[0_0_15px_rgba(255,107,0,0.3)] hover:shadow-[0_0_25px_rgba(255,107,0,0.5)] hover:-translate-y-0.5 mt-2 flex items-center justify-center gap-2">
+                            <button type="submit" class="w-full bg-primary hover:brightness-110 text-white py-4 rounded-xl font-black uppercase tracking-widest transition-all duration-300 shadow-[0_0_20px_rgba({{ $primaryR }},{{ $primaryG }},{{ $primaryB }},0.4)] hover:shadow-[0_0_30px_rgba({{ $primaryR }},{{ $primaryG }},{{ $primaryB }},0.6)] hover:-translate-y-1 mt-4 flex items-center justify-center gap-2 text-sm">
                                 Continue <i class="ph-bold ph-arrow-right"></i>
                             </button>
                         </form>
@@ -275,10 +281,10 @@
                         </div>
 
                         <div class="grid grid-cols-2 gap-3">
-                            <a href="{{ route('ecommerce.social.redirect', 'google') }}" class="flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all py-2.5 rounded-xl text-sm font-medium text-white group">
+                            <a href="{{ route('ecommerce.social.redirect', 'google') }}" class="flex items-center justify-center gap-2 bg-white/25 hover:bg-white/40 border border-white/30 hover:border-white/60 transition-all py-3 rounded-xl text-sm font-bold text-white group shadow-lg shadow-black/30">
                                 <i class="ph-fill ph-google-logo text-lg text-gray-300 group-hover:text-white transition-colors"></i> Google
                             </a>
-                            <a href="{{ route('ecommerce.social.redirect', 'github') }}" class="flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all py-2.5 rounded-xl text-sm font-medium text-white group">
+                            <a href="{{ route('ecommerce.social.redirect', 'github') }}" class="flex items-center justify-center gap-2 bg-white/25 hover:bg-white/40 border border-white/30 hover:border-white/60 transition-all py-3 rounded-xl text-sm font-bold text-white group shadow-lg shadow-black/30">
                                 <i class="ph-fill ph-github-logo text-lg text-gray-300 group-hover:text-white transition-colors"></i> GitHub
                             </a>
                         </div>
@@ -293,18 +299,9 @@
     </div>
 
     <!-- Preloader & Interactivity Scripts -->
-    <script>
-        window.addEventListener('load', () => {
-            const preloader = document.getElementById('preloader');
-            if (preloader) {
-                sessionStorage.setItem('techforge_visited', 'true');
-                setTimeout(() => {
-                    preloader.classList.add('opacity-0');
-                    setTimeout(() => preloader.style.display = 'none', 1000); 
-                }, 1800);
-            }
-        });
+    @vite(['Modules/E-Commerce/Store/resources/js/Common/Preloader.js'])
 
+    <script>
         // Toggle Login/Register Forms
         const loginContainer = document.getElementById('login-container');
         const registerContainer = document.getElementById('register-container');

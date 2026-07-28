@@ -118,6 +118,11 @@ return [
             'prefix_indexes' => true,
             'search_path' => env('MODULE_DB_SEARCH_PATH') ?: 'public',
             'sslmode' => env('MODULE_DB_SSLMODE') ?: env('DB_SSLMODE', 'prefer'),
+            // Neon uses PgBouncer on pooled endpoints. Emulated prepares
+            // prevent stale server-side query plans after a schema change.
+            'options' => extension_loaded('pdo_pgsql') ? array_filter([
+                PDO::ATTR_EMULATE_PREPARES => true,
+            ]) : [],
         ],
 
         'hr' => [
@@ -135,6 +140,11 @@ return [
             'prefix_indexes' => true,
             'search_path' => env('HR_DB_SEARCH_PATH', 'public'),
             'sslmode' => env('HR_DB_SSLMODE', 'prefer'),
+            // Neon uses PgBouncer on pooled endpoints. Emulated prepares
+            // prevent stale server-side query plans after a schema change.
+            'options' => extension_loaded('pdo_pgsql') ? array_filter([
+                PDO::ATTR_EMULATE_PREPARES => true,
+            ]) : [],
         ],
 
         // Inventory owns stock, warehouse, and movement data. It must never
@@ -152,6 +162,12 @@ return [
             'prefix_indexes' => true,
             'search_path' => env('INVENTORY_DB_SEARCH_PATH', 'public'),
             'sslmode' => env('INVENTORY_DB_SSLMODE', 'prefer'),
+            // Neon/PgBouncer pooled endpoint — emulated prepares prevent
+            // stale server-side query plans from causing 25P02 transaction
+            // aborts after any schema change on the underlying tables.
+            'options' => extension_loaded('pdo_pgsql') ? array_filter([
+                PDO::ATTR_EMULATE_PREPARES => true,
+            ]) : [],
         ],
 
         // Procurement owns suppliers, requisitions, purchase orders, and
@@ -189,6 +205,12 @@ return [
             'prefix' => '', 'prefix_indexes' => true,
             'search_path' => env('ORDER_FULFILLMENT_DB_SEARCH_PATH', 'public'),
             'sslmode' => env('ORDER_FULFILLMENT_DB_SSLMODE', 'prefer'),
+            // Neon uses PgBouncer on pooled endpoints. Emulated prepares
+            // prevent stale server-side cached plans from causing 25P02
+            // transaction aborts after any schema change.
+            'options' => extension_loaded('pdo_pgsql') ? array_filter([
+                PDO::ATTR_EMULATE_PREPARES => true,
+            ]) : [],
         ],
         'ecommerce' => [
             'driver' => env('ECOMMERCE_DB_CONNECTION', 'pgsql'),
@@ -202,6 +224,13 @@ return [
             'prefix' => '', 'prefix_indexes' => true,
             'search_path' => env('ECOMMERCE_DB_SEARCH_PATH', 'public'),
             'sslmode' => env('ECOMMERCE_DB_SSLMODE', 'prefer'),
+            // Neon uses PgBouncer on pooled endpoints. Emulated prepares
+            // prevent stale server-side cached plans from causing 25P02
+            // transaction aborts after a schema change (add column, change
+            // column type, etc.) that invalidates the cached query plan.
+            'options' => extension_loaded('pdo_pgsql') ? array_filter([
+                PDO::ATTR_EMULATE_PREPARES => true,
+            ]) : [],
         ],
         'manufacturing' => [
             'driver' => env('MANUFACTURING_DB_CONNECTION', 'pgsql'),
@@ -215,6 +244,11 @@ return [
             'prefix' => '', 'prefix_indexes' => true,
             'search_path' => env('MANUFACTURING_DB_SEARCH_PATH', 'public'),
             'sslmode' => env('MANUFACTURING_DB_SSLMODE', 'prefer'),
+            // Neon uses PgBouncer on pooled endpoints. Emulated prepares
+            // prevent stale server-side query plans after a schema change.
+            'options' => extension_loaded('pdo_pgsql') ? array_filter([
+                PDO::ATTR_EMULATE_PREPARES => true,
+            ]) : [],
         ],
         'finance' => [
             // Finance owns accounting data. Never fall back to DB_* or a
@@ -230,6 +264,11 @@ return [
             'prefix' => '', 'prefix_indexes' => true,
             'search_path' => env('FINANCE_DB_SEARCH_PATH', 'public'),
             'sslmode' => env('FINANCE_DB_SSLMODE', 'prefer'),
+            // Neon uses PgBouncer on pooled endpoints. Emulated prepares
+            // prevent stale server-side query plans after a schema change.
+            'options' => extension_loaded('pdo_pgsql') ? array_filter([
+                PDO::ATTR_EMULATE_PREPARES => true,
+            ]) : [],
         ],
 
         // Business Intelligence owns only analytics snapshots, audit data,
@@ -247,6 +286,11 @@ return [
             'prefix_indexes' => true,
             'search_path' => env('BUSINESS_INTELLIGENCE_DB_SEARCH_PATH', 'public'),
             'sslmode' => env('BUSINESS_INTELLIGENCE_DB_SSLMODE', 'prefer'),
+            // Neon pooled endpoint — emulated prepares prevent stale
+            // server-side cached plans from causing 25P02 errors.
+            'options' => extension_loaded('pdo_pgsql') ? array_filter([
+                PDO::ATTR_EMULATE_PREPARES => true,
+            ]) : [],
         ],
 
         // Staging is optional. It must be configured explicitly: falling back
@@ -264,6 +308,11 @@ return [
             'prefix_indexes' => true,
             'search_path' => env('STAGING_DB_SEARCH_PATH', 'public'),
             'sslmode' => env('STAGING_DB_SSLMODE', 'prefer'),
+            // Neon pooled endpoint — emulated prepares prevent stale
+            // server-side cached plans from causing 25P02 errors.
+            'options' => extension_loaded('pdo_pgsql') ? array_filter([
+                PDO::ATTR_EMULATE_PREPARES => true,
+            ]) : [],
         ],
 
         'sqlsrv' => [
