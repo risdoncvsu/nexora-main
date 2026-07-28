@@ -14,12 +14,14 @@
             ['label' => 'Registration', 'route' => route('admin.itsm.registration'), 'key' => 'registration'],
             ['label' => 'Client Management', 'route' => route('admin.itsm.clients'), 'key' => 'clients'],
             ['label' => 'Service Desk', 'route' => route('admin.itsm.service-desk'), 'key' => 'service-desk'],
+            ['label' => 'Audit Trail', 'route' => route('admin.itsm.audit-trail'), 'key' => 'audit-trail'],
         ]
         : [
             ['label' => 'Employee Management', 'route' => route('client.itsm.employees'), 'key' => 'employees'],
             ['label' => 'Service Desk', 'route' => route('client.itsm.service-desk'), 'key' => 'service-desk'],
             ['label' => 'Compliance Tracking', 'route' => route('client.itsm.compliance'), 'key' => 'compliance'],
             ['label' => 'Risk Management', 'route' => route('client.itsm.risk'), 'key' => 'risk'],
+            ['label' => 'Audit Trail', 'route' => route('client.itsm.audit-trail'), 'key' => 'audit-trail'],
         ];
     $storeRoute = $ticketType === 'nexora_support'
         ? route('client.itsm.service-desk.support.store')

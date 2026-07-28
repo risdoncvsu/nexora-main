@@ -201,3 +201,9 @@ Route::get('/client/itsm/service-desk/knowledge-base', [ServiceController::class
 
 Route::post('/knowledge-base/store', [KnowledgeBaseController::class, 'store'])
     ->name('knowledge-base.store');
+
+// This fallback lets the web audit middleware record authenticated 404s with
+// the same client scope as the request that caused them.
+Route::fallback(function () {
+    abort(404);
+})->name('system.not-found');

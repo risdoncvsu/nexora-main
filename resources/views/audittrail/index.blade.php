@@ -41,10 +41,27 @@
                         <p class="mt-1 text-sm text-slate-600">Search, inspect, and export recorded ERP activity.</p>
                     </div>
                     <div class="flex flex-wrap items-center gap-3">
-                        <form method="GET" action="{{ route($indexRoute) }}" class="flex min-w-0 flex-1 items-center rounded-full bg-slate-200 px-4 py-3 sm:w-72 sm:flex-none">
-                            <input type="search" name="search" value="{{ request('search') }}" placeholder="Search actions or modules" aria-label="Search audit logs" class="min-w-0 flex-1 border-0 bg-transparent text-sm text-slate-900 outline-none">
+                        <form method="GET" action="{{ route($indexRoute) }}" class="flex flex-wrap items-center gap-2">
+                            <label class="flex min-w-0 flex-1 items-center rounded-full bg-slate-200 px-4 py-3 sm:w-56 sm:flex-none">
+                                <input type="search" name="search" value="{{ request('search') }}" placeholder="Search actions or modules" aria-label="Search audit logs" class="min-w-0 flex-1 border-0 bg-transparent text-sm text-slate-900 outline-none">
+                            </label>
+                            <select name="category" aria-label="Filter by category" class="rounded-full bg-slate-200 px-4 py-3 text-sm text-slate-700 outline-none">
+                                <option value="">All categories</option>
+                                <option value="user_actions" @selected(request('category') === 'user_actions')>User actions</option>
+                                <option value="erp_events" @selected(request('category') === 'erp_events')>ERP events</option>
+                                <option value="errors" @selected(request('category') === 'errors')>Errors</option>
+                            </select>
+                            <select name="module" aria-label="Filter by module" class="max-w-48 rounded-full bg-slate-200 px-4 py-3 text-sm text-slate-700 outline-none">
+                                <option value="">All modules</option>
+                                @foreach ($modules as $module)
+                                    <option value="{{ $module }}" @selected(request('module') === $module)>{{ $module }}</option>
+                                @endforeach
+                            </select>
+                            <input type="date" name="from" value="{{ request('from') }}" aria-label="From date" class="rounded-full bg-slate-200 px-4 py-3 text-sm text-slate-700 outline-none">
+                            <input type="date" name="to" value="{{ request('to') }}" aria-label="To date" class="rounded-full bg-slate-200 px-4 py-3 text-sm text-slate-700 outline-none">
+                            <button type="submit" class="rounded-full border border-[#346DCB] px-4 py-3 text-sm font-semibold text-[#346DCB] transition hover:bg-blue-50">Filter</button>
                         </form>
-                        <a href="{{ route($exportRoute, ['search' => request('search')]) }}" class="rounded-full bg-[#346DCB] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#2554a3]">Export CSV</a>
+                        <a href="{{ route($exportRoute, request()->query()) }}" class="rounded-full bg-[#346DCB] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#2554a3]">Export CSV</a>
                     </div>
                 </section>
 
@@ -65,7 +82,9 @@
                                     @if ($isRoot)<th class="px-4 py-4">Client</th>@endif
                                     <th class="px-4 py-4">Actor</th>
                                     <th class="px-4 py-4">Department</th>
+                                    <th class="px-4 py-4">Category</th>
                                     <th class="px-4 py-4">Action</th>
+                                    <th class="px-4 py-4">HTTP</th>
                                     <th class="px-4 py-4">Date &amp; Time</th>
                                     <th class="px-4 py-4 text-center">Details</th>
                                 </tr>
@@ -79,6 +98,8 @@
                                             'department' => $log->department,
                                             'event' => $log->event,
                                             'module' => $log->module,
+                                            'category' => $log->category,
+                                            'httpStatus' => $log->http_status,
                                             'timestamp' => $log->created_at?->format('M d, Y H:i'),
                                             'details' => $log->details,
                                         ], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
@@ -88,12 +109,14 @@
                                         @if ($isRoot)<td class="px-4 py-4">CL-{{ str_pad((string) $log->client_id, 5, '0', STR_PAD_LEFT) }}</td>@endif
                                         <td class="px-4 py-4">{{ $log->actor }}</td>
                                         <td class="px-4 py-4">{{ $log->department }}</td>
+                                        <td class="px-4 py-4"><span class="rounded-full px-3 py-1 text-xs font-semibold {{ $log->category === 'Error' ? 'bg-red-50 text-red-700' : ($log->category === 'User action' ? 'bg-violet-50 text-violet-700' : 'bg-emerald-50 text-emerald-700') }}">{{ $log->category }}</span></td>
                                         <td class="px-4 py-4"><span class="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-[#346DCB]">{{ str_replace('.', ' ', $log->event) }}</span></td>
+                                        <td class="px-4 py-4 font-semibold {{ ($log->http_status ?? 200) >= 400 ? 'text-red-700' : 'text-emerald-700' }}">{{ $log->http_status ?? '—' }}</td>
                                         <td class="whitespace-nowrap px-4 py-4 text-slate-500">{{ $log->created_at?->format('M d, Y H:i') }}</td>
                                         <td class="px-4 py-4 text-center"><button type="button" class="audit-details rounded-full bg-[#EBF1FA] px-4 py-2 text-xs font-bold text-[#346DCB] transition hover:bg-[#346DCB] hover:text-white" data-log="{{ $detailPayload }}">Details</button></td>
                                     </tr>
                                 @empty
-                                    <tr><td colspan="{{ $isRoot ? 7 : 6 }}" class="px-4 py-12 text-center text-slate-400">No audit records match this search.</td></tr>
+                                    <tr><td colspan="{{ $isRoot ? 9 : 8 }}" class="px-4 py-12 text-center text-slate-400">No audit records match these filters.</td></tr>
                                 @endforelse
                             </tbody>
                         </table>
@@ -119,7 +142,7 @@
         const label = (name, value) => `<div><dt class="text-xs font-bold uppercase tracking-wider text-slate-400">${escapeHtml(name)}</dt><dd class="mt-1 break-words font-medium text-slate-800">${escapeHtml(value)}</dd></div>`;
         document.querySelectorAll('.audit-details').forEach((button) => button.addEventListener('click', () => {
             const log = JSON.parse(button.dataset.log || '{}');
-            auditDetailList.innerHTML = label('Log ID', log.id) + label('Actor', log.actor) + label('Department', log.department) + label('Action', log.event) + label('Module', log.module) + label('Date & time', log.timestamp) + `<div class="sm:col-span-2"><dt class="text-xs font-bold uppercase tracking-wider text-slate-400">Request details</dt><dd class="mt-1 whitespace-pre-wrap break-words rounded-xl bg-slate-50 p-3 font-mono text-xs text-slate-700">${escapeHtml(JSON.stringify(log.details || {}, null, 2))}</dd></div>`;
+            auditDetailList.innerHTML = label('Log ID', log.id) + label('Actor', log.actor) + label('Department', log.department) + label('Category', log.category) + label('Action', log.event) + label('Module', log.module) + label('HTTP status', log.httpStatus) + label('Date & time', log.timestamp) + `<div class="sm:col-span-2"><dt class="text-xs font-bold uppercase tracking-wider text-slate-400">Request details</dt><dd class="mt-1 whitespace-pre-wrap break-words rounded-xl bg-slate-50 p-3 font-mono text-xs text-slate-700">${escapeHtml(JSON.stringify(log.details || {}, null, 2))}</dd></div>`;
             auditModal.classList.remove('hidden'); auditModal.classList.add('flex');
         }));
         const closeAuditDetails = () => { auditModal.classList.add('hidden'); auditModal.classList.remove('flex'); };

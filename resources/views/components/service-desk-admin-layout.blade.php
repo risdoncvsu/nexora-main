@@ -23,6 +23,7 @@
             ['label' => 'Registration', 'route' => route('admin.itsm.registration'), 'key' => 'registration'],
             ['label' => 'Client Management', 'route' => route('admin.itsm.clients'), 'key' => 'clients'],
             ['label' => 'Service Desk', 'route' => route('admin.itsm.service-desk'), 'key' => 'service-desk'],
+            ['label' => 'Audit Trail', 'route' => route('admin.itsm.audit-trail'), 'key' => 'audit-trail'],
         ]" />
         <main class="relative flex-1 overflow-hidden p-6">
             <img src="{{ asset('images/nexora-icon.png') }}" alt="" class="pointer-events-none absolute left-1/2 top-1/2 w-[64rem] -translate-x-1/2 -translate-y-1/2 opacity-10 blur-sm">
