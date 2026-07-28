@@ -19,8 +19,17 @@ class UserController extends Controller
     ];
 
     private const ACCESS_PERMISSIONS = [
-        'hr.manage_employees',
+        'hr.view_employee_records',
+        'hr.create_employees',
+        'hr.edit_employee_records',
+        'hr.delete_employees',
+        'hr.manage_departments',
+        'hr.manage_onboarding',
+        'hr.manage_attendance',
+        'hr.view_attendance_reports',
+        'hr.manage_leave_requests',
         'hr.approve_leave',
+        'hr.manage_employee_documents',
         'inventory.manage_catalog',
         'inventory.receive_stock',
         'inventory.adjust_stock',
@@ -31,6 +40,17 @@ class UserController extends Controller
         'finance.manage_invoices',
         'ecommerce.manage_storefront',
         'bi.view_analytics',
+    ];
+
+    private const DEPARTMENT_PERMISSION_MODULES = [
+        'human resources' => 'hr',
+        'inventory management' => 'inventory',
+        'procurement management' => 'procurement',
+        'order management' => 'order_fulfillment',
+        'production management' => 'manufacturing',
+        'finance' => 'finance',
+        'e-commerce' => 'ecommerce',
+        'business intelligence' => 'bi',
     ];
     public function __construct(
         private readonly HrEmployeeProfileProvisioner $hrEmployeeProfileProvisioner,
@@ -131,6 +151,14 @@ class UserController extends Controller
         $currentEmployee = $this->hrEmployeeProfileProvisioner->findEmployeeForCompany($company, $employee);
         abort_unless($currentEmployee, 404);
 
+        $allowedPermissions = $this->permissionsForDepartment($currentEmployee->department ?? null);
+        $selectedPermissions = array_values(array_unique($validated['access_permissions'] ?? []));
+        abort_if(
+            array_diff($selectedPermissions, $allowedPermissions) !== [],
+            422,
+            'Access permissions must belong to the employee\'s assigned department.'
+        );
+
         if ($currentEmployee->status === 'Pending' && $validated['status'] === 'Active') {
             return redirect()
                 ->route('client.itsm.pending-approvals')
@@ -143,7 +171,7 @@ class UserController extends Controller
             ['company_id' => $company->id, 'employee_id' => $employee],
             [
                 'access_role' => $validated['access_role'] ?? $this->suggestAccessRole($currentEmployee),
-                'access_permissions' => array_values(array_unique($validated['access_permissions'] ?? [])),
+                'access_permissions' => $selectedPermissions,
             ],
         );
 
@@ -203,6 +231,18 @@ class UserController extends Controller
         return str_contains($position, 'manager') || str_contains($position, 'supervisor')
             ? 'department_manager'
             : 'department_employee';
+    }
+
+    private function permissionsForDepartment(?string $department): array
+    {
+        $module = self::DEPARTMENT_PERMISSION_MODULES[strtolower(trim((string) $department))] ?? null;
+
+        return $module
+            ? array_values(array_filter(
+                self::ACCESS_PERMISSIONS,
+                fn (string $permission): bool => str_starts_with($permission, $module . '.')
+            ))
+            : [];
     }
 
 

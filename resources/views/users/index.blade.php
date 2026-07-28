@@ -11,25 +11,56 @@
         'auditor' => 'Auditor / Viewer',
     ];
     $permissionGroups = [
-        'Human Resources' => [
-            'hr.manage_employees' => 'Manage employees',
-            'hr.approve_leave' => 'Approve leave requests',
+        'hr' => [
+            'label' => 'Human Resources',
+            'permissions' => [
+                'hr.view_employee_records' => 'View employee records',
+                'hr.create_employees' => 'Create employee records',
+                'hr.edit_employee_records' => 'Edit employee records',
+                'hr.delete_employees' => 'Delete employee records',
+                'hr.manage_departments' => 'Manage departments',
+                'hr.manage_onboarding' => 'Manage employee onboarding',
+                'hr.manage_attendance' => 'Manage attendance records',
+                'hr.view_attendance_reports' => 'View attendance reports',
+                'hr.manage_leave_requests' => 'Manage leave requests',
+                'hr.approve_leave' => 'Approve or reject leave',
+                'hr.manage_employee_documents' => 'Manage employee documents',
+            ],
         ],
-        'Inventory' => [
-            'inventory.manage_catalog' => 'Manage item catalog',
-            'inventory.receive_stock' => 'Receive stock',
-            'inventory.adjust_stock' => 'Adjust stock',
+        'inventory' => [
+            'label' => 'Inventory',
+            'permissions' => [
+                'inventory.manage_catalog' => 'Manage item catalog',
+                'inventory.receive_stock' => 'Receive stock',
+                'inventory.adjust_stock' => 'Adjust stock',
+            ],
         ],
-        'Operations' => [
-            'procurement.approve_purchase_orders' => 'Approve purchase orders',
-            'order_fulfillment.update_orders' => 'Update order fulfillment',
-            'manufacturing.manage_work_orders' => 'Manage work orders',
-            'manufacturing.record_quality_checks' => 'Record quality checks',
+        'procurement' => [
+            'label' => 'Procurement',
+            'permissions' => ['procurement.approve_purchase_orders' => 'Approve purchase orders'],
         ],
-        'Business' => [
-            'finance.manage_invoices' => 'Manage invoices',
-            'ecommerce.manage_storefront' => 'Manage storefront',
-            'bi.view_analytics' => 'View analytics',
+        'order_fulfillment' => [
+            'label' => 'Order Fulfillment',
+            'permissions' => ['order_fulfillment.update_orders' => 'Update order fulfillment'],
+        ],
+        'manufacturing' => [
+            'label' => 'Manufacturing',
+            'permissions' => [
+                'manufacturing.manage_work_orders' => 'Manage work orders',
+                'manufacturing.record_quality_checks' => 'Record quality checks',
+            ],
+        ],
+        'finance' => [
+            'label' => 'Finance',
+            'permissions' => ['finance.manage_invoices' => 'Manage invoices'],
+        ],
+        'ecommerce' => [
+            'label' => 'E-commerce',
+            'permissions' => ['ecommerce.manage_storefront' => 'Manage storefront'],
+        ],
+        'bi' => [
+            'label' => 'Business Intelligence',
+            'permissions' => ['bi.view_analytics' => 'View analytics'],
         ],
     ];
     $navItems = $portal === 'admin'
@@ -92,7 +123,7 @@
 
                             
 
-                            @if ($active !== 'pending-approvals')
+                            @if ($portal === 'admin' && $active !== 'pending-approvals')
                                 <button type="button" id="editSelectedButton" disabled class="rounded-full bg-slate-500 px-6 py-3 text-xl font-semibold text-white opacity-50 transition enabled:bg-[#0B1E3D] enabled:opacity-100 enabled:hover:bg-[#132B52]">
                                     Edit selected
                                 </button>
@@ -137,7 +168,7 @@
 
                         <div class="mb-6 flex items-center justify-between">
                             <h2 class="text-xl font-semibold">{{ $active === 'pending-approvals' ? 'Employee accounts awaiting your approval' : 'All ' . $entityLabelPlural }}</h2>
-                            @if ($active !== 'pending-approvals')
+                            @if ($portal === 'admin' && $active !== 'pending-approvals')
                                 <label class="flex items-center gap-2 text-base">
                                     <input type="checkbox" id="selectAllCheckbox" class="h-5 w-5 accent-[#346DCB]">
                                     Select All
@@ -158,7 +189,7 @@
                                             <th class="sortable cursor-pointer whitespace-nowrap px-2 py-4">ERP Role</th>
                                         @endif
                                         <th class="sortable cursor-pointer whitespace-nowrap px-2 py-4">Status</th>
-                                        <th class="px-2 py-4 text-center">{{ $active === 'pending-approvals' ? 'Action' : '' }}</th>
+                                        <th class="px-2 py-4 text-center">{{ $portal === 'client' || $active === 'pending-approvals' ? 'Action' : '' }}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -194,6 +225,10 @@
                                                         @csrf
                                                         <button type="submit" class="rounded-md bg-[#346DCB] px-4 py-2 font-semibold text-white hover:bg-[#2554a3]">Approve</button>
                                                     </form>
+                                                @elseif ($portal === 'client')
+                                                    <button type="button" class="edit-employee-button inline-flex items-center gap-2 rounded-md bg-[#132B52] px-4 py-2 font-semibold text-white hover:bg-[#2554a3]" aria-label="Edit {{ $user->name ?? 'employee' }}">
+                                                        <span aria-hidden="true">&#9998;</span> Edit
+                                                    </button>
                                                 @else
                                                     <input type="checkbox" class="row-checkbox h-5 w-5 accent-[#346DCB]">
                                                 @endif
@@ -276,7 +311,8 @@
 
                         <label class="block">
                             <span class="mb-2 block text-sm font-semibold">Department</span>
-                            <input type="text" name="department" id="edit_department" class="h-11 w-full rounded border border-slate-300 px-3">
+                            <input type="text" name="department" id="edit_department" readonly class="h-11 w-full rounded border border-slate-300 bg-slate-100 px-3 text-slate-600">
+                            <span class="mt-1 block text-xs text-slate-500">Managed in HR; it determines the relevant access controls below.</span>
                         </label>
 
                         <label class="block">
@@ -290,13 +326,13 @@
 
                         <fieldset class="rounded-xl border border-slate-200 p-4 md:col-span-2">
                             <legend class="px-2 text-sm font-semibold">Operational permissions</legend>
-                            <p class="mb-4 text-xs text-slate-500">These control actions inside ERP modules; they do not change the employee's HR title or department.</p>
+                            <p class="mb-4 text-xs text-slate-500">Permissions are shown only for this employee's assigned department. They control actions inside its module and do not change the HR title or department.</p>
                             <div class="grid gap-4 md:grid-cols-2">
-                                @foreach ($permissionGroups as $group => $permissions)
-                                    <div>
-                                        <p class="mb-2 text-xs font-bold uppercase tracking-wide text-[#346DCB]">{{ $group }}</p>
+                                @foreach ($permissionGroups as $module => $group)
+                                    <div data-permission-module="{{ $module }}" hidden>
+                                        <p class="mb-2 text-xs font-bold uppercase tracking-wide text-[#346DCB]">{{ $group['label'] }}</p>
                                         <div class="space-y-2">
-                                            @foreach ($permissions as $value => $label)
+                                            @foreach ($group['permissions'] as $value => $label)
                                                 <label class="flex items-center gap-2 text-sm text-slate-700">
                                                     <input type="checkbox" name="access_permissions[]" value="{{ $value }}" data-access-permission class="h-4 w-4 rounded border-slate-300 accent-[#346DCB]">
                                                     {{ $label }}
@@ -306,6 +342,7 @@
                                     </div>
                                 @endforeach
                             </div>
+                            <p id="accessPermissionEmpty" class="hidden text-sm text-slate-500">No module permissions are configured for this department yet.</p>
                         </fieldset>
                     @endif
 
@@ -400,6 +437,35 @@
             if (field) field.value = value ?? '';
         }
 
+        const permissionModuleByDepartment = {
+            'human resources': 'hr',
+            'inventory management': 'inventory',
+            'procurement management': 'procurement',
+            'order management': 'order_fulfillment',
+            'production management': 'manufacturing',
+            'finance': 'finance',
+            'e-commerce': 'ecommerce',
+            'business intelligence': 'bi',
+        };
+
+        function showPermissionsForDepartment(department, selectedPermissions) {
+            const module = permissionModuleByDepartment[(department || '').trim().toLowerCase()] || '';
+            let visibleCount = 0;
+
+            document.querySelectorAll('[data-permission-module]').forEach((group) => {
+                const visible = group.dataset.permissionModule === module;
+                group.hidden = !visible;
+                if (visible) visibleCount += 1;
+
+                group.querySelectorAll('[data-access-permission]').forEach((checkbox) => {
+                    checkbox.disabled = !visible;
+                    checkbox.checked = visible && selectedPermissions.includes(checkbox.value);
+                });
+            });
+
+            document.getElementById('accessPermissionEmpty')?.classList.toggle('hidden', visibleCount > 0);
+        }
+
         function openEditModal(row) {
             const id = row.dataset.rowId;
             editForm.action = updateUrlTemplate.replace('__ID__', id);
@@ -420,9 +486,7 @@
                 setField('edit_access_role', row.dataset.accessRole || 'department_employee');
                 let permissions = [];
                 try { permissions = JSON.parse(row.dataset.accessPermissions || '[]'); } catch (_) { permissions = []; }
-                document.querySelectorAll('[data-access-permission]').forEach((checkbox) => {
-                    checkbox.checked = permissions.includes(checkbox.value);
-                });
+                showPermissionsForDepartment(row.dataset.department, permissions);
             }
 
             setField('edit_status', row.dataset.status || 'Active');
@@ -480,6 +544,13 @@
         editSelectedButton?.addEventListener('click', () => {
             const row = checkedRows()[0];
             if (row) openEditModal(row);
+        });
+
+        document.querySelectorAll('.edit-employee-button').forEach((button) => {
+            button.addEventListener('click', () => {
+                const row = button.closest('tr');
+                if (row) openEditModal(row);
+            });
         });
 
         deleteSelectedButton?.addEventListener('click', () => {
