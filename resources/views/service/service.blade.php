@@ -48,12 +48,12 @@
             :nav-items="$navItems"
         />
 
-        <main class="relative flex-1 overflow-hidden p-6">
+        <main class="relative flex-1 overflow-hidden p-4 sm:p-6">
             <img src="{{ asset('images/nexora-icon.png') }}" alt="" class="pointer-events-none absolute left-1/2 top-1/2 w-[64rem] -translate-x-1/2 -translate-y-1/2 opacity-10 blur-sm">
 
-            <section class="relative z-10 grid gap-6 lg:grid-cols-[22rem_1fr]">
-                <aside class="self-start rounded-[1.875rem] bg-white p-8 text-slate-950">
-                    <nav class="space-y-6 text-xl">
+            <section class="relative z-10 grid min-h-[calc(100vh-10rem)] grid-cols-1 gap-6 xl:grid-cols-[22rem_minmax(0,1fr)]">
+                <aside class="rounded-[1.875rem] bg-white p-5 text-slate-950 sm:p-8">
+                    <nav class="flex flex-wrap gap-x-6 gap-y-3 text-base sm:text-xl xl:block xl:space-y-6">
                         @if ($portal === 'admin')
                             <a href="{{ route('admin.itsm.service-desk') }}" class="block font-extrabold text-slate-950">Nexora Support Queue</a>
                             <a href="{{ route('admin.itsm.service-desk.assigned') }}" class="block font-medium text-slate-700 hover:text-[#346DCB]">Assigned Requests</a>

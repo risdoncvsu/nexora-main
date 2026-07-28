@@ -124,14 +124,14 @@
             <div class="relative z-10 grid min-h-[calc(100vh-10rem)] grid-cols-1 gap-6 xl:grid-cols-[22rem_minmax(0,1fr)]">
                 <aside class="rounded-[1.875rem] bg-white p-5 text-slate-950 sm:p-8">
                     <nav class="flex flex-wrap gap-x-6 gap-y-3 text-base sm:text-xl xl:block xl:space-y-6">
-                        <a href="{{ $portal === 'admin' ? route('admin.itsm.clients') : route('client.itsm.employees') }}" class="block {{ $active === 'employees' || $active === 'clients' ? 'font-extrabold' : 'font-medium hover:text-[#346DCB]' }}">All {{ $portal === 'admin' ? ucfirst($entityLabelPlural) : 'Employees' }}</a>
+                        <a href="{{ $portal === 'admin' ? route('admin.itsm.clients') : route('client.itsm.employees') }}" class="block {{ $active === 'employees' || $active === 'clients' ? 'font-extrabold text-slate-950' : 'font-medium text-slate-700 hover:text-[#346DCB]' }}">All {{ $portal === 'admin' ? ucfirst($entityLabelPlural) : 'Employees' }}</a>
                         @if ($portal === 'admin')
-                            <a href="{{ route('admin.itsm.pending-approvals') }}" class="block {{ $active === 'pending-approvals' ? 'font-extrabold text-[#346DCB]' : 'font-medium hover:text-[#346DCB]' }}">Pending Approvals</a>
+                            <a href="{{ route('admin.itsm.pending-approvals') }}" class="block {{ $active === 'pending-approvals' ? 'font-extrabold text-slate-950' : 'font-medium text-slate-700 hover:text-[#346DCB]' }}">Pending Approvals</a>
                         @else
-                            <a href="{{ route('client.itsm.pending-approvals') }}" class="block {{ $active === 'pending-approvals' ? 'font-extrabold text-[#346DCB]' : 'font-medium hover:text-[#346DCB]' }}">Pending Approvals</a>
+                            <a href="{{ route('client.itsm.pending-approvals') }}" class="block {{ $active === 'pending-approvals' ? 'font-extrabold text-slate-950' : 'font-medium text-slate-700 hover:text-[#346DCB]' }}">Pending Approvals</a>
                         @endif
                         @if ($portal === 'admin')
-                            <a href="{{ route('admin.itsm.roles') }}" class="block {{ $active === 'roles' ? 'font-extrabold text-[#346DCB]' : 'font-medium hover:text-[#346DCB]' }}">Roles & Permissions</a>
+                            <a href="{{ route('admin.itsm.roles') }}" class="block {{ $active === 'roles' ? 'font-extrabold text-slate-950' : 'font-medium text-slate-700 hover:text-[#346DCB]' }}">Roles & Permissions</a>
                         @endif
 
                     </nav>
