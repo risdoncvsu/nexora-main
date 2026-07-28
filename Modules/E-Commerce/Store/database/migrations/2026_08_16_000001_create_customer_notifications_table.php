@@ -8,7 +8,12 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::connection('ecommerce')->create('customer_notifications', function (Blueprint $table) {
+        $schema = Schema::connection('ecommerce');
+        if ($schema->hasTable('customer_notifications')) {
+            return;
+        }
+
+        $schema->create('customer_notifications', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('client_id')->nullable()->index();
             $table->unsignedBigInteger('user_id')->nullable()->index()->comment('null = broadcast to all customers');

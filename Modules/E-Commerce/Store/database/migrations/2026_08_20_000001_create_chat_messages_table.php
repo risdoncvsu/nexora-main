@@ -10,7 +10,12 @@ return new class extends Migration
 
     public function up(): void
     {
-        Schema::connection('ecommerce')->create('chat_messages', function (Blueprint $table) {
+        $schema = Schema::connection('ecommerce');
+        if ($schema->hasTable('chat_messages')) {
+            return;
+        }
+
+        $schema->create('chat_messages', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('client_id');
             $table->unsignedBigInteger('user_id'); // the CUSTOMER
