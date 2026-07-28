@@ -13,10 +13,7 @@ class EmployeeAccessProfile extends Model
         'access_permissions',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'access_permissions' => 'array',
-        ];
-    }
+    protected $casts = [
+        'access_permissions' => 'array',
+    ];
 }

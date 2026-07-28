@@ -332,7 +332,7 @@
                   placeholder="Generated from first and last name"
                   class="w-[452px] h-[28px] bg-[#0d1730] text-slate-300 text-sm rounded px-3 py-2 outline-none border border-white/10" />
             </div>
-            <p class="mt-1 text-[11px] text-slate-400">If the same name already exists, a number is added (e.g. johnsmith2@nexora.com).</p>
+            <p class="mt-1 text-[11px] text-slate-400">If the same name already exists, a number is added (e.g. johnsmith2@{{ $companyEmailDomain ?? 'company-nexora.mail' }}).</p>
           </div>
 
           <!-- Next button -->
@@ -520,6 +520,7 @@ const firstNameInput = document.querySelector('input[name="first_name"]');
 const lastNameInput = document.querySelector('input[name="last_name"]');
 const companyEmailPreview = document.getElementById('company_email_preview');
 const existingCompanyEmails = @json(\Modules\HR\Models\Employee::pluck('company_email')->filter()->values());
+const companyEmailDomain = @json($companyEmailDomain ?? 'company-nexora.mail');
 
 function buildCompanyEmail(firstName, lastName) {
     const first = (firstName || '').replace(/\s+/g, '').toLowerCase();
@@ -527,14 +528,14 @@ function buildCompanyEmail(firstName, lastName) {
     if (!first || !last) return '';
 
     const base = first + last;
-    let email = base + '@nexora.com';
+    let email = base + '@' + companyEmailDomain;
     if (!existingCompanyEmails.includes(email)) return email;
 
     let suffix = 2;
-    while (existingCompanyEmails.includes(base + suffix + '@nexora.com')) {
+    while (existingCompanyEmails.includes(base + suffix + '@' + companyEmailDomain)) {
         suffix++;
     }
-    return base + suffix + '@nexora.com';
+    return base + suffix + '@' + companyEmailDomain;
 }
 
 function updateCompanyEmailPreview() {

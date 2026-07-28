@@ -210,7 +210,7 @@
                                             data-email="{{ $portal === 'client' ? e($user->email ?? '') : '' }}"
                                             data-department="{{ $portal === 'client' ? e($user->department ?? '') : '' }}"
                                             data-access-role="{{ $portal === 'client' ? e($user->access_role ?? 'department_employee') : '' }}"
-                                            data-access-permissions="{{ $portal === 'client' ? e(json_encode($user->access_permissions ?? [])) : '[]' }}"
+                                            data-access-permissions='@json($portal === "client" ? array_values(is_array($user->access_permissions ?? null) ? $user->access_permissions : []) : [])'
                                         >
                                             <td class="px-2 py-4">{{ $portal === 'admin' ? 'CL-' . str_pad((string) $user->id, 5, '0', STR_PAD_LEFT) : 'EMP-' . str_pad((string) $user->id, 5, '0', STR_PAD_LEFT) }}</td>
                                             <td class="px-2 py-4">{{ $portal === 'admin' ? $user->company_name : ($user->username ?? 'employee') }}</td>
@@ -251,8 +251,8 @@
             </div>
         </main>
 
-        <div id="editModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 px-6">
-            <div class="w-full max-w-4xl rounded-2xl bg-white p-8 text-slate-950 shadow-2xl">
+        <div id="editModal" class="fixed inset-0 z-50 hidden items-start justify-center overflow-y-auto bg-black/50 px-4 py-6 sm:px-6">
+            <div class="my-auto max-h-[calc(100dvh-3rem)] w-full max-w-4xl overflow-y-auto rounded-2xl bg-white p-5 text-slate-950 shadow-2xl sm:p-8">
                 <div class="mb-6 flex items-center justify-between">
                     <h2 class="text-2xl font-bold">Edit {{ ucfirst($entityLabel) }}</h2>
                     <button type="button" id="closeEditModal" class="text-2xl font-bold text-slate-500 hover:text-slate-950">&times;</button>
@@ -503,11 +503,17 @@
                 setField('edit_department', row.dataset.department);
                 setField('edit_access_role', row.dataset.accessRole || 'department_employee');
                 let permissions = [];
-                try { permissions = JSON.parse(row.dataset.accessPermissions || '[]'); } catch (_) { permissions = []; }
+                try {
+                    const parsedPermissions = JSON.parse(row.dataset.accessPermissions || '[]');
+                    permissions = Array.isArray(parsedPermissions) ? parsedPermissions.map(String) : [];
+                } catch (_) {
+                    permissions = [];
+                }
                 showPermissionsForDepartment(row.dataset.department, permissions);
             }
 
             setField('edit_status', row.dataset.status || 'Active');
+            editModal.scrollTop = 0;
             editModal.classList.remove('hidden');
             editModal.classList.add('flex');
         }

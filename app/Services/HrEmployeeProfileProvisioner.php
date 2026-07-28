@@ -18,7 +18,10 @@ class HrEmployeeProfileProvisioner
     {
         $companySegment = $this->credentialSegment($company->company_name, 'company');
         $nameSegment = $this->credentialSegment($manager['first_name'] . ' ' . $manager['last_name'], 'hrmanager');
-        $baseEmail = "{$companySegment}.{$nameSegment}@nexora.hr";
+        // All generated identities use the same client-owned mail namespace:
+        // employeename@company-nexora.mail.  HR managers are employees too,
+        // so they must not receive a separate @nexora.hr identity.
+        $baseEmail = "{$nameSegment}@{$companySegment}-nexora.mail";
 
         return $this->uniqueHrEmail($baseEmail);
     }

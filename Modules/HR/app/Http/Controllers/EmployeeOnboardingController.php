@@ -8,6 +8,7 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\File;
 use Illuminate\Validation\Rule;
+use App\Models\Company;
 
 class EmployeeOnboardingController extends Controller
 {
@@ -23,7 +24,9 @@ class EmployeeOnboardingController extends Controller
             );
         }
 
-        return view('employees.onboarding.step1', compact('step1', 'companyEmailPreview'));
+        $companyEmailDomain = self::companyEmailDomain();
+
+        return view('employees.onboarding.step1', compact('step1', 'companyEmailPreview', 'companyEmailDomain'));
     }
 
     public function storeStep1(Request $request)
@@ -251,24 +254,37 @@ class EmployeeOnboardingController extends Controller
     }
 
     /**
-     * firstnamelastname@nexora.com, or firstnamelastname2@nexora.com when the name already exists.
+     * firstnamelastname@company-nexora.mail, or a numbered local part when
+     * that client already has the same generated address.
      */
     public static function generateUniqueCompanyEmail(string $firstName, string $lastName): string
     {
         $firstName = preg_replace('/\s+/', '', $firstName);
         $lastName = preg_replace('/\s+/', '', $lastName);
         $base = strtolower($firstName.$lastName);
-        $email = $base.'@nexora.com';
+        $domain = self::companyEmailDomain();
+        $email = $base.'@'.$domain;
 
         if (! Employee::where('company_email', $email)->exists()) {
             return $email;
         }
 
         $suffix = 2;
-        while (Employee::where('company_email', $base.$suffix.'@nexora.com')->exists()) {
+        while (Employee::where('company_email', $base.$suffix.'@'.$domain)->exists()) {
             $suffix++;
         }
 
-        return $base.$suffix.'@nexora.com';
+        return $base.$suffix.'@'.$domain;
+    }
+
+    public static function companyEmailDomain(): string
+    {
+        $company = Company::find((int) session('employee_client_id'));
+        $segment = Str::of((string) ($company?->company_name ?? 'company'))
+            ->lower()
+            ->replaceMatches('/[^a-z0-9]+/', '')
+            ->toString();
+
+        return ($segment !== '' ? $segment : 'company').'-nexora.mail';
     }
 }

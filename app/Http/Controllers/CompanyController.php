@@ -131,7 +131,9 @@ class CompanyController extends Controller
         $company = $this->credentialSegment($companyName, 'company');
         $admin = $this->credentialSegment($adminName, 'admin');
 
-        return "{$company}.{$admin}@nexora.mail";
+        // A company system admin is a client identity, not a root Nexora
+        // identity.  Keep the same address convention used by HR employees.
+        return "{$admin}@{$company}-nexora.mail";
     }
 
     private function credentialSegment(string $value, string $fallback): string

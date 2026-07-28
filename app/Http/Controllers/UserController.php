@@ -110,7 +110,15 @@ class UserController extends Controller
             $employees->each(function (object $employee) use ($profiles): void {
                 $profile = $profiles->get($employee->id);
                 $employee->access_role = $profile?->access_role ?? $this->suggestAccessRole($employee);
-                $employee->access_permissions = $profile?->access_permissions ?? [];
+                $permissions = $profile?->access_permissions ?? [];
+
+                // Older profile rows can contain JSON as a raw string. Normalise it
+                // before serialising it into the edit modal after a saved redirect.
+                if (is_string($permissions)) {
+                    $permissions = json_decode($permissions, true) ?: [];
+                }
+
+                $employee->access_permissions = array_values(array_map('strval', is_array($permissions) ? $permissions : []));
             });
         }
 
