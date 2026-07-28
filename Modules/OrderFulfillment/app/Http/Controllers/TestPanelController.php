@@ -27,11 +27,11 @@ class TestPanelController extends Controller
 {
     public const ORDER_STATUSES = [
         'NEW', 'PACKING', 'READY_TO_SHIP', 'SHIPPED',
-        'OUT_FOR_DELIVERY', 'DELIVERED', 'DELAYED', 'CANCELLED', 'RETURNED',
+        'OUT_FOR_DELIVERY', 'DELIVERED', 'COMPLETE', 'DELAYED', 'CANCELLED', 'RETURNED',
     ];
 
     public const SHIPMENT_STATUSES = [
-        'SHIPPED', 'READY_TO_SHIP', 'OUT_FOR_DELIVERY', 'DELAYED', 'DELIVERED', 'CANCELLED',
+        'SHIPPED', 'READY_TO_SHIP', 'OUT_FOR_DELIVERY', 'DELAYED', 'DELIVERED', 'COMPLETE', 'CANCELLED',
     ];
 
     public const RETURN_STATUSES = [
@@ -71,7 +71,14 @@ class TestPanelController extends Controller
             return response()->json(['success' => false, 'message' => 'Order not found.'], 404);
         }
 
-        $order->update(['status' => $data['status'], 'updated_at' => now()]);
+        $update = ['status' => $data['status'], 'updated_at' => now()];
+        if ($data['status'] === 'DELIVERED' && ! $order->delivered_at) {
+            $update['delivered_at'] = now();
+        } elseif (! in_array($data['status'], ['DELIVERED', 'COMPLETE'], true)) {
+            $update['delivered_at'] = null;
+        }
+
+        $order->update($update);
 
         return response()->json(['success' => true, 'status' => $order->status]);
     }

@@ -59,6 +59,8 @@ class BusinessIntelligenceController
         $ai = $this->cachedAiInsight($clientId) ?? [];
 
         return view('bi::ai-insights', [
+            'kpiOverview' => $this->dashboardKpis($metrics),
+            'businessHealth' => $this->businessHealth($metrics),
             'alerts' => $this->insightAlerts($metrics),
             'executiveSummary' => !empty($ai['executiveSummary']) ? $ai['executiveSummary'] : $this->executiveSummary($metrics),
             'recommendations' => !empty($ai['recommendations']) ? $ai['recommendations'] : $this->recommendations($metrics),
@@ -539,37 +541,43 @@ class BusinessIntelligenceController
                 'title' => 'Finance & Accounting',
                 'stats' => [['label' => 'Revenue', 'value' => $metrics['revenue']], ['label' => 'Invoiced', 'value' => $metrics['invoiced']], ['label' => 'Expenses', 'value' => $metrics['expenses']], ['label' => 'Overdue', 'value' => $metrics['finance_overdue']]],
                 'chart1' => ['type' => 'line', 'label' => 'Invoice revenue', 'data' => $this->financeTrend($clientId)],
-                'chart2' => ['type' => 'bar', 'label' => 'Invoice status', 'data' => $this->financeStatusBreakdown($clientId)],
+                'chart2' => ['type' => 'doughnut', 'label' => 'AR Aging', 'data' => $this->financeAging($clientId) ?: $this->financeStatusBreakdown($clientId)],
+                'details' => ['aging' => $this->financeAging($clientId)],
             ],
             'inventory' => [
                 'title' => 'Inventory & Warehouse',
                 'stats' => [['label' => 'Items', 'value' => $metrics['inventory_items']], ['label' => 'Low stock', 'value' => $metrics['inventory_low_stock']]],
                 'chart1' => ['type' => 'bar', 'label' => 'Items by category', 'data' => $this->inventoryCategoryBreakdown($clientId)],
                 'chart2' => ['type' => 'bar', 'label' => 'Stock alerts', 'data' => [['label' => 'Low stock', 'value' => $metrics['inventory_low_stock']]]],
+                'details' => ['low_items' => $this->inventoryLowItems($clientId)],
             ],
             'procurement' => [
                 'title' => 'Procurement',
                 'stats' => [['label' => 'Open purchase orders', 'value' => $metrics['procurement_open']]],
                 'chart1' => ['type' => 'doughnut', 'label' => 'Purchase order status', 'data' => $this->statusBreakdown('procurement', 'purchase_orders', $clientId)],
-                'chart2' => ['type' => 'bar', 'label' => 'Open orders', 'data' => [['label' => 'Open', 'value' => $metrics['procurement_open']]]],
+                'chart2' => ['type' => 'bar', 'label' => 'Average lead time (days)', 'data' => $this->supplierLeadTimeChart($clientId)],
+                'details' => ['supplier_lead_times' => $this->supplierLeadTimes($clientId)],
             ],
             'manufacturing' => [
                 'title' => 'Manufacturing',
                 'stats' => [['label' => 'Active work orders', 'value' => $metrics['manufacturing_active']]],
                 'chart1' => ['type' => 'doughnut', 'label' => 'Work order status', 'data' => $this->statusBreakdown('manufacturing', 'work_orders', $clientId)],
                 'chart2' => ['type' => 'bar', 'label' => 'Work orders in progress', 'data' => [['label' => 'Active', 'value' => $metrics['manufacturing_active']]]],
+                'details' => [],
             ],
             'fulfillment' => [
                 'title' => 'Order Fulfillment',
                 'stats' => [['label' => 'Orders', 'value' => $metrics['fulfillment_orders']], ['label' => 'Delayed shipments', 'value' => $metrics['fulfillment_delayed']]],
                 'chart1' => ['type' => 'doughnut', 'label' => 'Order status', 'data' => $this->statusBreakdown('order_fulfillment', 'orders', $clientId)],
-                'chart2' => ['type' => 'bar', 'label' => 'Shipment risk', 'data' => [['label' => 'Delayed', 'value' => $metrics['fulfillment_delayed']]]],
+                'chart2' => ['type' => 'bar', 'label' => 'Carrier performance', 'data' => $this->carrierPerformanceChart($clientId)],
+                'details' => ['carriers' => $this->carrierPerformance($clientId)],
             ],
             default => [
                 'title' => 'E-commerce & CRM',
                 'stats' => [['label' => 'Catalog records', 'value' => $metrics['ecommerce_products']]],
                 'chart1' => ['type' => 'bar', 'label' => 'Catalog records', 'data' => [['label' => 'Products', 'value' => $metrics['ecommerce_products']]]],
-                'chart2' => ['type' => 'bar', 'label' => 'Status', 'data' => []],
+                'chart2' => ['type' => 'bar', 'label' => 'Conversion funnel', 'data' => $this->ecommerceFunnelChart($clientId)],
+                'details' => [],
             ],
         };
     }
@@ -622,6 +630,50 @@ class BusinessIntelligenceController
                 'change_class' => ($onTime !== null && $onTime < 80) ? 'change-down' : 'change-up',
             ],
         ];
+    }
+
+    /**
+     * A deterministic client-scoped health score for the AI Insights page.
+     * It intentionally uses the metrics already collected for the dashboard,
+     * so viewing the page cannot introduce an extra cross-database query.
+     */
+    private function businessHealth(array $metrics): array
+    {
+        $score = 100;
+        $factors = [];
+
+        $rules = [
+            ['key' => 'inventory_low_stock', 'label' => 'Inventory availability', 'penalty' => 4, 'maximum' => 25, 'warning' => 'item(s) require replenishment'],
+            ['key' => 'finance_overdue', 'label' => 'Collections', 'penalty' => 5, 'maximum' => 25, 'warning' => 'overdue invoice(s) require follow-up'],
+            ['key' => 'fulfillment_delayed', 'label' => 'Order fulfillment', 'penalty' => 4, 'maximum' => 20, 'warning' => 'shipment(s) are delayed'],
+        ];
+
+        foreach ($rules as $rule) {
+            $count = (int) ($metrics[$rule['key']] ?? 0);
+            if ($count > 0) {
+                $score -= min($rule['maximum'], $count * $rule['penalty']);
+                $factors[] = [
+                    'label' => $rule['label'],
+                    'detail' => $count . ' ' . $rule['warning'] . '.',
+                    'status' => $count >= 5 ? 'negative' : 'warning',
+                ];
+            } else {
+                $factors[] = [
+                    'label' => $rule['label'],
+                    'detail' => 'No active issues detected.',
+                    'status' => 'positive',
+                ];
+            }
+        }
+
+        $score = max(0, min(100, $score));
+        $explanation = $score >= 80
+            ? 'Operations are stable. Continue monitoring the live indicators below.'
+            : ($score >= 60
+                ? 'The business is operating, but the highlighted items need attention.'
+                : 'Several operational risks need prompt follow-up.');
+
+        return compact('score', 'explanation', 'factors');
     }
 
     /**
@@ -1417,6 +1469,135 @@ class BusinessIntelligenceController
             return $query->selectRaw('category_id as label, COUNT(*) as value')
                 ->groupBy('category_id')->orderByDesc('value')->limit(8)->get()
                 ->map(fn($row) => ['label' => (string) ($row->label ?? 'Uncategorized'), 'value' => (int) $row->value])->all();
+        } catch (\Throwable) {
+            return [];
+        }
+    }
+
+    /** Extra drill-down data used by the updated department analytics UI. */
+    private function financeAging(?int $clientId): array
+    {
+        try {
+            $schema = Schema::connection('finance');
+            if (! $schema->hasTable('invoices')
+                || ! $schema->hasColumns('invoices', ['payment_status', 'due_date'])) {
+                return [];
+            }
+
+            $query = $this->financeInvoiceQuery($clientId);
+            if (! $query) {
+                return [];
+            }
+
+            return [
+                ['label' => '0–30 days', 'value' => (int) (clone $query)->where('payment_status', 'Unpaid')->whereDate('due_date', '<', today())->whereDate('due_date', '>=', now()->subDays(30))->count()],
+                ['label' => '31–60 days', 'value' => (int) (clone $query)->where('payment_status', 'Unpaid')->whereDate('due_date', '<', now()->subDays(30))->whereDate('due_date', '>=', now()->subDays(60))->count()],
+                ['label' => '61–90 days', 'value' => (int) (clone $query)->where('payment_status', 'Unpaid')->whereDate('due_date', '<', now()->subDays(60))->whereDate('due_date', '>=', now()->subDays(90))->count()],
+                ['label' => '>90 days', 'value' => (int) (clone $query)->where('payment_status', 'Unpaid')->whereDate('due_date', '<', now()->subDays(90))->count()],
+            ];
+        } catch (\Throwable) {
+            return [];
+        }
+    }
+
+    private function inventoryLowItems(?int $clientId): array
+    {
+        try {
+            $schema = Schema::connection('inventory');
+            $required = ['client_id', 'stock', 'reserved_quantity', 'reorder_threshold'];
+            if (! $clientId || ! $schema->hasTable('stock_levels') || ! $schema->hasColumns('stock_levels', $required)) {
+                return [];
+            }
+
+            return DB::connection('inventory')->table('stock_levels')
+                ->where('client_id', $clientId)
+                ->where(function ($query): void {
+                    $query->whereColumn('stock', '<=', 'reserved_quantity')
+                        ->orWhere(function ($query): void {
+                            $query->where('reorder_threshold', '>', 0)
+                                ->whereRaw('(stock - reserved_quantity) <= reorder_threshold');
+                        });
+                })
+                ->limit(10)
+                ->get()
+                ->map(fn ($row): array => [
+                    'label' => (string) ($row->sku ?? $row->item_id ?? 'Item'),
+                    'value' => (int) ($row->stock ?? 0),
+                    'reorder_threshold' => (int) ($row->reorder_threshold ?? 0),
+                ])->all();
+        } catch (\Throwable) {
+            return [];
+        }
+    }
+
+    private function supplierLeadTimes(?int $clientId): array
+    {
+        try {
+            $schema = Schema::connection('procurement');
+            $required = ['client_id', 'supplier_id', 'created_at', 'received_at'];
+            if (! $clientId || ! $schema->hasTable('purchase_orders') || ! $schema->hasColumns('purchase_orders', $required)) {
+                return [];
+            }
+
+            // PostgreSQL's EXTRACT keeps this compatible with Nexora's Neon databases.
+            $rows = DB::connection('procurement')->table('purchase_orders')
+                ->where('client_id', $clientId)->whereNotNull('received_at')
+                ->selectRaw('supplier_id, AVG(EXTRACT(EPOCH FROM (received_at - created_at)) / 86400.0) as avg_days')
+                ->groupBy('supplier_id')->orderByDesc('avg_days')->limit(10)->get();
+
+            $names = $schema->hasTable('suppliers') && $schema->hasColumns('suppliers', ['id', 'name'])
+                ? DB::connection('procurement')->table('suppliers')->whereIn('id', $rows->pluck('supplier_id'))->pluck('name', 'id')
+                : collect();
+
+            return $rows->map(fn ($row): array => [
+                'supplier' => (string) ($names[$row->supplier_id] ?? ('Supplier ' . $row->supplier_id)),
+                'avg_days' => (int) round((float) $row->avg_days),
+            ])->all();
+        } catch (\Throwable) {
+            return [];
+        }
+    }
+
+    private function supplierLeadTimeChart(?int $clientId): array
+    {
+        return array_map(fn (array $row): array => ['label' => $row['supplier'], 'value' => $row['avg_days']], $this->supplierLeadTimes($clientId));
+    }
+
+    private function carrierPerformance(?int $clientId): array
+    {
+        try {
+            $schema = Schema::connection('order_fulfillment');
+            $required = ['client_id', 'courier', 'due_date', 'status'];
+            if (! $clientId || ! $schema->hasTable('shipments') || ! $schema->hasColumns('shipments', $required)) {
+                return [];
+            }
+
+            return DB::connection('order_fulfillment')->table('shipments')->where('client_id', $clientId)
+                ->selectRaw("COALESCE(courier, 'Unassigned') as courier, SUM(CASE WHEN due_date < CURRENT_DATE AND status NOT IN ('Delivered', 'Completed') THEN 1 ELSE 0 END) as delayed")
+                ->groupBy('courier')->orderByDesc('delayed')->limit(10)->get()
+                ->map(fn ($row): array => ['carrier' => (string) $row->courier, 'delayed' => (int) $row->delayed])->all();
+        } catch (\Throwable) {
+            return [];
+        }
+    }
+
+    private function carrierPerformanceChart(?int $clientId): array
+    {
+        return array_map(fn (array $row): array => ['label' => $row['carrier'], 'value' => $row['delayed']], $this->carrierPerformance($clientId));
+    }
+
+    private function ecommerceFunnelChart(?int $clientId): array
+    {
+        try {
+            if (! $clientId || ! Schema::connection('ecommerce')->hasTable('carts')) {
+                return [];
+            }
+
+            $carts = (int) DB::connection('ecommerce')->table('carts')->where('client_id', $clientId)->count();
+            return [
+                ['label' => 'Carts', 'value' => $carts],
+                ['label' => 'Orders', 'value' => $this->count('order_fulfillment', 'orders', $clientId)],
+            ];
         } catch (\Throwable) {
             return [];
         }

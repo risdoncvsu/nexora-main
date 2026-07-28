@@ -57,6 +57,7 @@ class ShippingController extends Controller
             'OUT_FOR_DELIVERY',
             'DELAYED',
             'DELIVERED',
+            'COMPLETE',
         ])
         ->get();
 
@@ -99,7 +100,7 @@ class ShippingController extends Controller
 
         $delayed = Order::where('status', 'DELAYED')->count();
 
-        $delivered = Order::where('status', 'DELIVERED')->count();
+        $delivered = Order::whereIn('status', ['DELIVERED', 'COMPLETE'])->count();
 
         // Delivery rate = delivered orders as a share of ALL orders.
         // Must use the same formula as the Dashboard and Orders tabs

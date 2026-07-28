@@ -5,58 +5,43 @@
         <div class="subheader-bar">
             <div class="subheader-title">
                 <h3>AI Insights Center</h3>
-                <p>AI-generated business insights, recommendations, and alerts.</p>
+                <p>AI-generated business insights, recommendations, and metrics.</p>
             </div>
             <div class="subheader-controls">
-                <div class="control-date-selector">
-                    <i data-lucide="calendar" class="control-icon-sm"></i>
-                    {{ now()->format('M d') }} - {{ now()->addDays(7)->format('M d, Y') }}
-                </div>
             </div>
         </div>
         <div class="content-container">
 
-            {{-- System Alerts --}}
-            <div class="insight-card" id="alertsCard">
-                <div class="alerts-header-row">
-                    <h3>Recent System Alerts</h3>
+            {{-- ==================== FULL‑WIDTH EXECUTIVE KPI OVERVIEW ==================== --}}
+            <div class="ui-card">
+                <div class="card-header">
+                    <div class="card-title">Executive KPI Overview <span class="info-dot"
+                            data-tooltip="High‑level metrics derived from all connected ERP modules.">i</span></div>
                 </div>
-                <p style="font-size:11px; color: var(--slate-500); margin-bottom: 0.75rem;">Full details for all active
-                    alerts</p>
-                <div class="alerts-scroll-row">
-                    @forelse($alerts as $alert)
-                        <div class="alert-square alert-square-{{ $alert['type'] }}">
-                            <div class="alert-square-icon"><i data-lucide="{{ $alert['icon'] }}"></i></div>
-                            <strong>{{ $alert['title'] }}</strong>
-                            <span class="alert-square-time">{{ $alert['time'] }} • {{ $alert['priority'] }}</span>
-                            <p>{{ $alert['description'] }}</p>
-                            @if(!empty($alert['details']))
-                                <table>
-                                    @foreach($alert['details'] as $row)
-                                        <tr>
-                                            @foreach($row as $cell)
-                                                <td>{{ $cell }}</td>
-                                            @endforeach
-                                        </tr>
-                                    @endforeach
-                                </table>
-                            @endif
-                            <p class="alert-square-action">{{ $alert['action'] }}</p>
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem;">
+                    @foreach($kpiOverview as $kpi)
+                        <div class="kpi-card" style="flex-direction: column; align-items: flex-start; gap: 0.5rem;">
+                            <div class="kpi-icon-container">
+                                <i data-lucide="{{ $kpi['icon'] }}" class="kpi-icon"></i>
+                            </div>
+                            <div class="kpi-details" style="flex: none; width: 100%;">
+                                <div class="kpi-label">{{ $kpi['label'] }}</div>
+                                <div class="kpi-value" style="font-size: 20px; margin: 4px 0 2px;">{{ $kpi['value'] }}</div>
+                                <div class="kpi-change {{ $kpi['change_class'] }}" style="font-size: 10px;">{{ $kpi['change'] }}</div>
+                            </div>
                         </div>
-                    @empty
-                        <p style="color: var(--slate-500); font-size: 11px;">No active alerts at this time.</p>
-                    @endforelse
+                    @endforeach
                 </div>
             </div>
 
+            {{-- ==================== MAIN AI‑INSIGHTS GRID ==================== --}}
             <div class="ai-insights-grid">
+
                 {{-- Executive Summary --}}
                 <div class="insight-card">
                     <h3>Executive Summary <span class="info-dot"
-                            data-tooltip="Overview of the most critical business metrics and performance indicators across all modules.">i</span>
-                    </h3>
-                    <div class="card-subtitle">{{ empty($executiveSummary) ? 'No data available' : 'Metric-driven analysis' }}
-                    </div>
+                            data-tooltip="Overview of the most critical business metrics and performance indicators across all modules.">i</span></h3>
+                    <div class="card-subtitle">{{ empty($executiveSummary) ? 'No data available' : 'Metric-driven analysis' }}</div>
                     <div class="insight-list">
                         @forelse($executiveSummary as $item)
                             <div class="insight-item">
@@ -73,8 +58,7 @@
                         @empty
                             <div class="insight-item">
                                 <div class="insight-text-wrapper">
-                                    <p style="color: var(--slate-500);">Insights will appear here once connected to data
-                                        sources.</p>
+                                    <p style="color: var(--slate-500);">Insights will appear here once connected to data sources.</p>
                                 </div>
                             </div>
                         @endforelse
@@ -85,7 +69,7 @@
                 <div class="insight-card">
                     <h3>Top Recommendations <span class="info-dot"
                             data-tooltip="Prioritized actionable recommendations generated from your live metrics.">i</span></h3>
-                    <div class="card-subtitle">&nbsp;</div>
+                    <div class="card-subtitle">{{ empty($recommendations) ? 'No data available' : 'Recommended actions' }}</div>
                     <div class="insight-list">
                         @forelse($recommendations as $index => $rec)
                             <div class="insight-item">
@@ -94,14 +78,12 @@
                                     <p><strong>{{ $rec['title'] }}</strong></p>
                                     <div class="sub-text">{{ $rec['description'] }}</div>
                                 </div>
-                                <span class="mock-badge mb-{{ strtolower($rec['impact']) }}-impact">{{ $rec['impact'] }}
-                                    Impact</span>
+                                <span class="mock-badge mb-{{ strtolower($rec['impact']) }}-impact">{{ $rec['impact'] }} Impact</span>
                             </div>
                         @empty
                             <div class="insight-item">
                                 <div class="insight-text-wrapper">
-                                    <p style="color: var(--slate-500);">No recommendations right now — all tracked metrics look
-                                        healthy.</p>
+                                    <p style="color: var(--slate-500);">No recommendations right now — all tracked metrics look healthy.</p>
                                 </div>
                             </div>
                         @endforelse
@@ -111,9 +93,8 @@
                 {{-- Risk Detection --}}
                 <div class="insight-card">
                     <h3>Risk Detection <span class="info-dot"
-                            data-tooltip="Automated risk monitoring across supply chain, operations, and financial domains.">i</span>
-                    </h3>
-                    <div class="card-subtitle">&nbsp;</div>
+                            data-tooltip="Automated risk monitoring across supply chain, operations, and financial domains.">i</span></h3>
+                    <div class="card-subtitle">{{ empty($risks) ? 'No data available' : 'Automated risk monitoring' }}</div>
                     <div class="insight-list">
                         @forelse($risks as $risk)
                             <div class="insight-item">
@@ -133,6 +114,44 @@
                                 </div>
                             </div>
                         @endforelse
+                    </div>
+                </div>
+
+                {{-- Business Health Score --}}
+                <div class="insight-card">
+                    <h3>Business Health Score <span class="info-dot"
+                            data-tooltip="Overall business performance score computed from live data across all ERP modules.">i</span></h3>
+                    <div class="card-subtitle">AI‑driven assessment</div>
+
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                        <div class="op-donut op-donut-lg">
+                            <svg viewBox="0 0 36 36" class="op-donut-svg">
+                                <path class="op-donut-track" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                <path class="op-donut-fill {{ $businessHealth['score'] >= 80 ? 'health-green' : ($businessHealth['score'] >= 60 ? 'health-yellow' : ($businessHealth['score'] >= 40 ? 'health-orange' : 'health-red')) }}"
+                                     stroke-dasharray="{{ $businessHealth['score'] }}, 100"
+                                     d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                            </svg>
+                            <span class="op-donut-text op-donut-text-lg">{{ $businessHealth['score'] }}%</span>
+                        </div>
+                        <div style="flex: 1;">
+                            <p style="font-size: 11px; color: var(--slate-500); line-height: 1.5;">
+                                {{ $businessHealth['explanation'] }}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="insight-list">
+                        @foreach($businessHealth['factors'] as $factor)
+                            <div class="insight-item">
+                                <div class="insight-icon-circle bg-icon-{{ $factor['status'] === 'positive' ? 'green' : ($factor['status'] === 'warning' ? 'orange' : 'red') }}">
+                                    <i data-lucide="{{ $factor['status'] === 'positive' ? 'trending-up' : 'trending-down' }}" class="insight-icon-sm"></i>
+                                </div>
+                                <div class="insight-text-wrapper">
+                                    <p><strong>{{ $factor['label'] }}</strong></p>
+                                    <div class="sub-text">{{ $factor['detail'] }}</div>
+                                </div>
+                            </div>
+                        @endforeach
                     </div>
                 </div>
             </div>

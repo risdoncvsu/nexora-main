@@ -38,6 +38,15 @@ tailwind.config = { theme: { extend: { colors: { navy: {900:'#0b1e3b',800:'#132b
         </div>
 
         <div>
+          <p class="text-muted text-xs tracking-wide">TOTAL EXPENSES ALL TIME</p>
+          <div class="flex items-center gap-2 mt-1">
+            <span id="totalExpensesAllTime" class="text-3xl font-bold">₱0</span>
+            <span class="text-xs font-semibold rounded-full px-2 py-0.5 bg-blue-500/20 text-blue-400">ALL TIME</span>
+          </div>
+          <p class="text-muted text-xs mt-1">Approved procurement and liability expenses</p>
+        </div>
+
+        <div>
           <div class="flex items-center justify-between mb-1">
             <p class="text-muted text-xs tracking-wide">BUDGET USED</p>
           </div>
@@ -70,6 +79,41 @@ tailwind.config = { theme: { extend: { colors: { navy: {900:'#0b1e3b',800:'#132b
   </div>
   <div id="categoryCards" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5"></div>
 
+  <section class="bg-navy-800 rounded-xl border border-navy-700 p-6">
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
+      <div>
+        <h2 class="text-xl font-semibold">Material Purchase Requests</h2>
+        <p class="text-sm text-muted mt-1">Client-scoped purchase orders received from Procurement.</p>
+      </div>
+      <div class="grid grid-cols-3 sm:grid-cols-7 gap-2 text-xs text-center">
+        @foreach ([['Pending', $pendingCount, 'text-yellow-400'], ['Approved', $approvedCount, 'text-emerald-400'], ['Processing', $processingCount, 'text-blue-400'], ['Delivered', $deliveredCount, 'text-emerald-400'], ['Completed', $completedCount, 'text-emerald-400'], ['Rejected', $rejectedCount, 'text-red-400'], ['Cancelled', $cancelledCount, 'text-red-400']] as [$label, $count, $color])
+          <div class="bg-navy-700 rounded-lg px-3 py-2 min-w-[70px]"><div class="text-muted">{{ $label }}</div><div class="font-bold {{ $color }} mt-1">{{ $count }}</div></div>
+        @endforeach
+      </div>
+    </div>
+
+    <div class="space-y-3 max-h-[430px] overflow-y-auto pr-1">
+      @forelse ($materialRequests as $purchaseOrder)
+        @php($status = strtolower((string) ($purchaseOrder->status ?? 'pending')))
+        <article class="bg-navy-700 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <div class="font-semibold">{{ $purchaseOrder->item ?? 'Unspecified item' }} <span class="text-muted font-normal text-sm">{{ $purchaseOrder->po_number ?? '' }}</span></div>
+            <div class="text-sm text-muted mt-1">{{ $purchaseOrder->brand ?? 'No brand' }} · Qty {{ number_format((float) ($purchaseOrder->qty ?? 0)) }} · ₱{{ number_format((float) ($purchaseOrder->unit_price ?? 0), 2) }} each</div>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="px-3 py-1 rounded-full text-xs {{ $status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' : (in_array($status, ['rejected', 'cancelled']) ? 'bg-red-500/20 text-red-400' : 'bg-emerald-500/20 text-emerald-400') }}">{{ ucfirst($status) }}</span>
+            @if ($status === 'pending')
+              <button type="button" onclick="updateRequestStatus({{ $purchaseOrder->id }}, 'approved')" class="px-3 py-1 rounded-lg text-xs bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30">Approve</button>
+              <button type="button" onclick="updateRequestStatus({{ $purchaseOrder->id }}, 'rejected')" class="px-3 py-1 rounded-lg text-xs bg-red-500/20 text-red-400 hover:bg-red-500/30">Reject</button>
+            @endif
+          </div>
+        </article>
+      @empty
+        <div class="bg-navy-700 rounded-xl p-8 text-center text-muted">No purchase requests found for this client.</div>
+      @endforelse
+    </div>
+  </section>
+
 </div>
 
 <script>
@@ -77,6 +121,9 @@ tailwind.config = { theme: { extend: { colors: { navy: {900:'#0b1e3b',800:'#132b
 let expenseData = {
   categories: [],
   budgetCap: 0,
+  expenseThisMonth: 0,
+  previousMonthExpense: 0,
+  expenseAllTime: 0,
   months: ["Jan","Feb","Mar","Apr","May","Jun"],
   rangeOptions: ["LAST 6 MONTHS", "LAST WEEK", "LAST MONTH", "LAST YEAR"],
   selectedRange: "LAST 6 MONTHS"
@@ -111,6 +158,10 @@ function setExpenseData(data) {
   } else {
     expenseData.budgetCap = 0;
   }
+
+  expenseData.expenseThisMonth = Number(data.expenseThisMonth || 0);
+  expenseData.previousMonthExpense = Number(data.previousMonthExpense || 0);
+  expenseData.expenseAllTime = Number(data.expenseAllTime || 0);
 
   if (data.months && Array.isArray(data.months) && data.months.length > 0) {
     expenseData.months = data.months.map(m => String(m).trim());
@@ -156,13 +207,14 @@ function renderTotals(){
     return;
   }
 
-  const total = cats.reduce((s,c) => s + c.value, 0);
-  const prevTotal = cats.reduce((s,c) => s + c.prevValue, 0);
+  const total = expenseData.expenseThisMonth;
+  const prevTotal = expenseData.previousMonthExpense;
   const diff = total - prevTotal;
   const pct = prevTotal > 0 ? (diff / prevTotal) * 100 : 0;
   const up = diff >= 0;
 
   document.getElementById("totalExpenses").textContent = fmtPeso(total);
+  document.getElementById("totalExpensesAllTime").textContent = fmtPeso(expenseData.expenseAllTime);
 
   const badge = document.getElementById("totalChangeBadge");
   badge.textContent = `${up ? "↑" : "↓"}${Math.abs(pct).toFixed(1)}%`;
@@ -171,9 +223,9 @@ function renderTotals(){
   document.getElementById("totalChangeSub").textContent =
     diff !== 0 ? `${fmtPeso(Math.abs(diff))} ${up ? "higher" : "lower"} than last month` : "No change from last month";
 
-  const usedPct = expenseData.budgetCap > 0 ? Math.min(100, (total / expenseData.budgetCap) * 100) : 0;
+  const usedPct = expenseData.budgetCap > 0 ? Math.min(100, (expenseData.expenseAllTime / expenseData.budgetCap) * 100) : 0;
   document.getElementById("budgetBar").style.width = usedPct + "%";
-  document.getElementById("budgetLabel").textContent = `${fmtPeso(total)} of ${fmtPeso(expenseData.budgetCap)}`;
+  document.getElementById("budgetLabel").textContent = `${fmtPeso(expenseData.expenseAllTime)} of ${fmtPeso(expenseData.budgetCap)}`;
   document.getElementById("budgetPct").textContent = Math.round(usedPct) + "%";
 }
 
@@ -423,6 +475,20 @@ window.addEventListener("resize", () => renderTrendChart());
 
 if (expenseData.categories.length === 0) {
   renderAll();
+}
+
+function updateRequestStatus(id, status) {
+  if (!confirm(`Mark this request as ${status}?`)) return;
+
+  fetch(`{{ url('/finance/expenses/request') }}/${id}/status`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+    body: JSON.stringify({ status })
+  }).then(async response => {
+    if (!response.ok) throw new Error('Unable to update this purchase request.');
+    return response.json();
+  }).then(() => window.location.reload())
+    .catch(error => alert(error.message));
 }
 </script>
 

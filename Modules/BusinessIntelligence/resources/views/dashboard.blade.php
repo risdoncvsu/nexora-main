@@ -5,13 +5,9 @@
         <div class="subheader-bar">
             <div class="subheader-title">
                 <h3>Executive Dashboard</h3>
-                <p>Real-time overview of business performance, sales forecast, and operational efficiency.</p>
+                <p>Real-time overview of business performance, historical sales trend, and operational efficiency.</p>
             </div>
             <div class="subheader-controls">
-                <div class="control-date-selector">
-                    <i data-lucide="calendar" class="control-icon-sm"></i>
-                    {{ now()->format('M d') }} - {{ now()->addDays(7)->format('M d, Y') }}
-                </div>
                 <button id="syncNowBtn" class="control-btn" data-tip="Refresh Data" onclick="syncAllDepartments()">
                     <i data-lucide="refresh-cw" class="control-icon"></i>
                 </button>
@@ -58,7 +54,8 @@
                                     ₱{{ number_format($metrics['invoiced'], 0) }}</div>
                             </div>
                             <div class="sub-box">
-                                <div class="sub-box-label"><i data-lucide="trending-down" class="sub-icon"></i>Expenses</div>
+                                <div class="sub-box-label"><i data-lucide="trending-down" class="sub-icon"></i>Expenses
+                                </div>
                                 <div class="sub-box-val" style="color: var(--warning);">
                                     ₱{{ number_format($metrics['expenses'], 0) }}</div>
                             </div>
@@ -273,6 +270,8 @@
         const clientScope = @json(request()->integer('client_id') ?: null);
         const liveFeedUrl = @json(route('bi.live-feed'));
         const salesForecastUrl = @json(route('bi.sales-forecast'));
+
+        // Helper to add client scope to a URL if a client is selected
         const scopedUrl = (url) => url + (clientScope ? (url.includes('?') ? '&' : '?') + 'client_id=' + clientScope : '');
 
         let salesTrendChart;
@@ -298,7 +297,10 @@
         };
 
         function timeAgo(timestamp) {
-            const seconds = Math.floor((Date.now() - new Date(timestamp).getTime()) / 1000);
+            if (!timestamp) return '—';                     // no timestamp = dash
+            const d = new Date(timestamp);
+            if (isNaN(d.getTime())) return '—';             // invalid date
+            const seconds = Math.floor((Date.now() - d.getTime()) / 1000);
             if (seconds < 10) return 'Just now';
             if (seconds < 60) return seconds + 's ago';
             const minutes = Math.floor(seconds / 60);
@@ -308,8 +310,6 @@
             return Math.floor(hours / 24) + 'd ago';
         }
 
-        // Forces a fresh re-query of every department (busts the 60s cache)
-        // by reloading with ?fresh=1; the client scope is preserved.
         function syncAllDepartments() {
             const icon = document.querySelector('#syncNowBtn .control-icon');
             icon?.classList.add('spin-icon');
@@ -351,7 +351,7 @@
                     <div class="op-risk-mini-card op-risk-mini-${a.severity}">
                         <div class="op-risk-mini-header">
                             <span class="op-risk-mini-category">${a.department}</span>
-                            <span class="op-risk-mini-days" data-timestamp="${a.timestamp}">${timeAgo(a.timestamp)}</span>
+                            <span class="op-risk-mini-days" data-timestamp="${a.timestamp || ''}">${timeAgo(a.timestamp)}</span>
                         </div>
                         <p class="op-risk-mini-issue">${a.title}</p>
                     </div>`).join('');
@@ -416,20 +416,36 @@
                 },
                 plugins: [verticalLinePlugin]
             });
-            changeSalesRange();
+            changeSalesRange();   // initial load
         }
 
         async function changeSalesRange() {
             const range = document.getElementById('salesRange')?.value || '7d';
             try {
-                const res = await fetch(scopedUrl(salesForecastUrl + '?range=' + range));
+                // Build the fetch URL directly (no scopedUrl dependency)
+                const base = salesForecastUrl;
+                const separator = base.includes('?') ? '&' : '?';
+                const url = clientScope
+                    ? `${base}${separator}range=${range}&client_id=${clientScope}`
+                    : `${base}${separator}range=${range}`;
+
+                const res = await fetch(url);
+                if (!res.ok) throw new Error('HTTP ' + res.status);
                 const data = await res.json();
                 if (salesTrendChart) {
                     salesTrendChart.data.labels = data.labels;
                     salesTrendChart.data.datasets[0].data = data.sales;
                     salesTrendChart.update();
+
+                    // Update subtitle
+                    const subtitleEl = document.getElementById('salesSubtitle');
+                    if (subtitleEl) {
+                        subtitleEl.textContent = data.subtitle || '';
+                    }
                 }
-            } catch (e) { }
+            } catch (e) {
+                console.error('changeSalesRange failed:', e);
+            }
         }
 
         document.addEventListener('DOMContentLoaded', () => {

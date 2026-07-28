@@ -227,10 +227,10 @@ function fmtChange(pct){
 }
 
 let cashFlowData = {
-  cashOnHand: { amount: 0, changePct: null },
-  topline: { inflow: 0, outflow: 0, net: 0, changes: { inflow: null, outflow: null, net: null } },
+  cashOnHand: { amount: Number(@json($cashOnHand ?? 0)), changePct: null },
+  topline: { inflow: Number(@json($cashInflow ?? 0)), outflow: Number(@json($cashOutflow ?? 0)), net: Number(@json($netCashFlow ?? 0)), changes: { inflow: null, outflow: null, net: null } },
   trend: { months: [], inflow: [], outflow: [] },
-  summary: { beginningBalance: 0, inflow: 0, outflow: 0 },
+  summary: { beginningBalance: Number(@json($beginningCashBalance ?? 0)), inflow: Number(@json($cashInflow ?? 0)), outflow: Number(@json($cashOutflow ?? 0)) },
   activity: [],
   statement: [],
   upcoming: []

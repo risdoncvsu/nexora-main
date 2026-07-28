@@ -2,19 +2,68 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<script>
+  (function () {
+    try {
+      if (localStorage.getItem('nexora-theme') === 'dark') {
+        document.documentElement.classList.add('dark-theme');
+      }
+    } catch (e) {}
+  })();
+</script>
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <title>Nexora Orders</title>
 <style>
   :root {
+    --bg-header: #FFFFFF;
+    --bg-dark: #EEF2FA;
+    --bg-card: #FFFFFF;
+    --text-light: #16233F;
+    --text-muted: #5B6B85;
+    --border-soft: rgba(15,23,42,0.10);
+    --row-alt: rgba(15,23,42,0.025);
+    --row-hover: rgba(15,23,42,0.045);
+    --accent: #3B82F6;
+    --pill: #EAF0FB;
+    --pill-border: #C9D8F2;
+
+    /* Header/profile menu stay fixed dark-navy in both light and dark mode */
+    --bg-header-fixed: #0B1E3D;
+    --header-text: #FFFFFF;
+    --header-muted: #9FB3D1;
+    --header-border: rgba(255,255,255,0.08);
+
+    /* PACKING / READY FOR DELIVERY status color, kept in sync with the
+       Shipping tab's palette so the same status looks the same everywhere. */
+    --warn-bg: #FFF6E5;
+    --warn-border: #F3D08A;
+    --warn-text: #8A5A06;
+
+    /* Cards/panels/modals need their own soft shadow in light mode for
+       depth against the light page background. */
+    --elev-shadow: 0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.07);
+    --modal-shadow: 0 20px 60px rgba(15,23,42,0.18);
+  }
+
+  html.dark-theme {
     --bg-header: #0B1E3D;
     --bg-dark: #1B3A6B;
     --bg-card: #0B1E3D;
     --text-light: #FFFFFF;
     --text-muted: #9FB3D1;
     --border-soft: rgba(255,255,255,0.08);
+    --row-alt: rgba(255,255,255,0.02);
+    --row-hover: rgba(255,255,255,0.04);
     --accent: #3B82F6;
     --pill: #16305c;
     --pill-border: #2c4373;
+
+    --warn-bg: #6B4A1E;
+    --warn-border: #6b5a24;
+    --warn-text: #FBD38D;
+
+    --elev-shadow: none;
+    --modal-shadow: 0 20px 60px rgba(0,0,0,0.4);
   }
 
   * { box-sizing: border-box; }
@@ -32,8 +81,8 @@
     align-items: center;
     justify-content: space-between;
     padding: 18px 40px;
-    background: var(--bg-header);
-    border-bottom: 1px solid var(--border-soft);
+    background: var(--bg-header-fixed);
+    border-bottom: 1px solid var(--header-border);
   }
 
 .brand{
@@ -42,7 +91,7 @@
     gap:14px;
 }
 
-.logout-logo{
+.brand-logo{
     display:flex;
     align-items:center;
     gap:14px;
@@ -50,11 +99,11 @@
     color:inherit;
 }
 
-.logout-logo .title{
-    color:#FFFFFF;
+.brand-logo .title{
+    color: var(--header-text);
 }
 
-.logout-logo .subtitle{
+.brand-logo .subtitle{
     color:#3B82F6;
 }
 
@@ -82,19 +131,19 @@
   }
 
   .nav-links a {
-    color: var(--text-muted);
+    color: var(--header-muted);
     text-decoration: none;
     font-size: 15px;
     font-weight: 500;
   }
 
   .nav-links a.active {
-    color: var(--text-light);
+    color: var(--header-text);
     font-weight: 700;
   }
 
   .nav-links a:hover {
-    color: var(--text-light);
+    color: var(--header-text);
     text-shadow: 0 0 0.4px currentColor, 0 0 0.4px currentColor;
   }
 
@@ -113,6 +162,7 @@
     padding: 22px 28px;
     flex: 1;
     min-width: 200px;
+    box-shadow: var(--elev-shadow);
   }
 
   .stat-card .label {
@@ -138,6 +188,7 @@
     background: var(--bg-card);
     border-radius: 12px;
     overflow: hidden;
+    box-shadow: var(--elev-shadow);
   }
 
   .order-queue {
@@ -294,14 +345,14 @@
     position: absolute;
     right: 24px;
     top: 56px;
-    background: #16305c;
+    background: var(--bg-header);
     border: 1px solid var(--pill-border);
     border-radius: 12px;
     padding: 14px 16px;
     width: 200px;
     max-height: 420px;
     overflow-y: auto;
-    box-shadow: 0 12px 30px rgba(0,0,0,0.5);
+    box-shadow: var(--modal-shadow);
     display: none;
     z-index: 30;
   }
@@ -366,13 +417,13 @@
     text-align: left;
     padding: 12px 20px;
     font-size: 12px;
-    color: #8b94b8;
+    color: var(--text-muted);
     font-weight: 600;
-    border-bottom: 1px solid rgba(255,255,255,0.08);
+    border-bottom: 1px solid var(--border-soft);
   }
 
   tbody tr {
-    border-bottom: 1px solid rgba(255,255,255,0.06);
+    border-bottom: 1px solid var(--border-soft);
     transition: background 0.15s ease;
   }
 
@@ -380,22 +431,22 @@
     border-bottom: none;
   }
 
-  tbody tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+  tbody tr:nth-child(even) { background: var(--row-alt); }
 
   tbody tr:hover {
-    background: rgba(255,255,255,0.04);
+    background: var(--row-hover);
     cursor: pointer;
   }
 
   td {
     padding: 14px 20px;
     font-size: 14px;
-    color: #cdd6f5;
+    color: var(--text-light);
     vertical-align: middle;
   }
 
   td.order-id {
-    color: #8b94b8;
+    color: var(--text-muted);
   }
 
   .th-qty, .qty-cell,
@@ -405,7 +456,7 @@
   }
 
   td.customer {
-    color: #f1f3fb;
+    color: var(--text-light);
     font-weight: 700;
   }
 
@@ -415,20 +466,22 @@
     font-weight: 700;
     padding: 3px 10px;
     border-radius: 12px;
+    white-space: nowrap;
   }
 
   .badge.status {
     padding: 3px 10px;
     border-radius: 12px;
-    background: rgba(255,255,255,0.1);
-    color: #9FB3D1;
+    background: var(--pill);
+    color: var(--text-muted);
   }
 
-  .badge.status.status-new { background: rgba(255,255,255,0.1); color: #9FB3D1; }
-  .badge.status.status-packing { background: #6B4A1E; color: #FBD38D; }
+  .badge.status.status-new { background: var(--pill); color: var(--text-muted); }
+  .badge.status.status-packing { background: var(--warn-bg); color: var(--warn-text); border: 1px solid var(--warn-border); }
   .badge.status.status-transit { background: #1E3A6B; color: #93C5FD; }
   .badge.status.status-shipped { background: #1E5A6B; color: #7DD3E8; }
   .badge.status.status-delivered { background: #1E5A3A; color: #86EFAC; }
+  .badge.status.status-complete { background: #1E5A3A; color: #86EFAC; }
   .badge.status.status-cancelled { background: #4A1E1E; color: #F3A9A9; }
   .badge.status.status-returned { background: #4A3A1E; color: #F3D3A9; }
 
@@ -443,15 +496,29 @@
   }
 
   .prepare-btn, .btn-prepare {
-    background: var(--bg-dark);
-    color: var(--text-light);
+    background: var(--accent);
+    color: #FFFFFF;
     border: none;
-    padding:4px 10px;
+    padding: 5px 14px;
     border-radius: 20px;
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 700;
     cursor: pointer;
     display: inline-block;
+    box-shadow: 0 2px 6px rgba(59,130,246,0.35);
+    transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+  }
+
+  .prepare-btn:hover, .btn-prepare:hover {
+    background: #2563EB;
+    box-shadow: 0 4px 14px rgba(59,130,246,0.45);
+    transform: translateY(-1px);
+  }
+
+  .prepare-btn:active, .btn-prepare:active {
+    background: #1D4ED8;
+    box-shadow: 0 2px 6px rgba(59,130,246,0.35);
+    transform: translateY(0);
   }
 
   .empty-row td {
@@ -531,27 +598,28 @@
     width: 480px;
     max-width: 90vw;
     max-height: 85vh;
-    background: #16305c;
+    background: var(--bg-card);
+    border: 1px solid var(--border-soft);
     border-radius: 14px;
     overflow-x: hidden;
     overflow-y: auto;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    box-shadow: var(--modal-shadow);
   }
 
   .modal-header {
-    background: #0f2549;
+    background: var(--bg-dark);
     padding: 20px 28px;
   }
 
   .modal-header h2 {
     margin: 0;
-    color: #fff;
+    color: var(--text-light);
     font-size: 18px;
   }
 
   .modal-header p {
     margin: 4px 0 0;
-    color: #8ea3cc;
+    color: var(--text-muted);
     font-size: 13px;
   }
 
@@ -565,13 +633,13 @@
   .modal-body-grid .field-label {
     margin: 0 0 6px;
     font-size: 12px;
-    color: #8ea3cc;
+    color: var(--text-muted);
   }
 
   .modal-body-grid .field-value {
     margin: 0;
     font-size: 15px;
-    color: #fff;
+    color: var(--text-light);
     font-weight: 600;
   }
 
@@ -584,7 +652,7 @@
     margin: 0 0 12px;
     font-size: 13px;
     font-weight: 700;
-    color: #cdd9f0;
+    color: var(--text-muted);
   }
 
   .items-list {
@@ -615,8 +683,8 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background: #0f2549;
-    border: 1px solid rgba(255,255,255,0.06);
+    background: var(--bg-dark);
+    border: 1px solid var(--border-soft);
     border-radius: 8px;
     padding: 10px 14px;
   }
@@ -625,19 +693,19 @@
     margin: 0 0 3px;
     font-size: 14px;
     font-weight: 600;
-    color: #fff;
+    color: var(--text-light);
   }
 
   .item-row .item-meta {
     margin: 0;
     font-size: 12px;
-    color: #8ea3cc;
+    color: var(--text-muted);
   }
 
   .item-row .item-line-total {
     font-size: 14px;
     font-weight: 700;
-    color: #fff;
+    color: var(--text-light);
     white-space: nowrap;
     padding-left: 12px;
   }
@@ -647,17 +715,17 @@
     align-items: center;
     justify-content: space-between;
     padding-top: 12px;
-    border-top: 1px solid rgba(255,255,255,0.08);
+    border-top: 1px solid var(--border-soft);
     font-size: 14px;
   }
 
   .items-total .items-total-label {
-    color: #8ea3cc;
+    color: var(--text-muted);
     font-weight: 600;
   }
 
   .items-total .items-total-value {
-    color: #fff;
+    color: var(--text-light);
     font-weight: 700;
     font-size: 16px;
   }
@@ -666,7 +734,7 @@
     display: flex;
     gap: 12px;
     padding: 20px 28px;
-    border-top: 1px solid rgba(255,255,255,0.08);
+    border-top: 1px solid var(--border-soft);
   }
 
   .btn {
@@ -679,12 +747,12 @@
   }
 
   .btn-close {
-    background: #2b4a7c;
-    color: #dbe4f5;
+    background: var(--bg-dark);
+    color: var(--text-light);
   }
 
   .btn-close:hover {
-    background: #345a94;
+    background: var(--pill-border);
   }
 
   .btn-cancel {
@@ -713,7 +781,7 @@
 }
 
 .priority-new {
-    background: rgba(255,255,255,0.1);
+    background: var(--pill);
     color: var(--text-muted);
 }
 
@@ -745,7 +813,7 @@
     margin: 0 0 8px;
     font-size: 17px;
     font-weight: 700;
-    color: #fff;
+    color: var(--text-light);
 }
 
 .cancel-warning .cancel-desc {
@@ -753,7 +821,7 @@
     max-width: 340px;
     font-size: 13.5px;
     line-height: 1.5;
-    color: #b9c6e3;
+    color: var(--text-muted);
 }
 
 .cancel-items-list {
@@ -762,8 +830,8 @@
     gap: 6px;
     margin: 0 28px 20px;
     padding: 12px 14px;
-    background: #0f2549;
-    border: 1px solid rgba(255,255,255,0.06);
+    background: var(--bg-dark);
+    border: 1px solid var(--border-soft);
     border-radius: 10px;
 }
 
@@ -775,11 +843,11 @@
 }
 
 .cancel-items-list .cancel-item-name {
-    color: #dbe4f5;
+    color: var(--text-light);
 }
 
 .cancel-items-list .cancel-item-amount {
-    color: #fff;
+    color: var(--text-light);
     font-weight: 700;
 }
 
@@ -805,10 +873,10 @@
 
 .btn-no-full {
     background: transparent;
-    border: 1px solid rgba(255,255,255,0.18) !important;
-    color: #dbe4f5;
+    border: 1px solid var(--border-soft) !important;
+    color: var(--text-light);
 }
-.btn-no-full:hover { background: rgba(255,255,255,0.05); }
+.btn-no-full:hover { background: var(--bg-dark); }
 
 .btn-cancel.disabled { opacity: .4; cursor: not-allowed; }
 
@@ -850,7 +918,7 @@
   .nav-divider {
     width: 1px;
     height: 22px;
-    background: rgba(255,255,255,0.18);
+    background: var(--header-border);
   }
 
   /* ===== Profile menu ===== */
@@ -864,34 +932,49 @@
     border-radius: 50%;
     overflow: hidden;
     cursor: pointer;
-    border: 2px solid rgba(255,255,255,0.15);
+    border: 2px solid var(--header-border);
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--bg-header);
+    background: var(--accent, #3B82F6);
     padding: 0;
   }
 
-  .profile-trigger img {
+  .avatar-initial {
     width: 100%;
     height: 100%;
-    object-fit: cover;
-    display: block;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #3B82F6, #2563EB);
+    color: #FFFFFF;
+    font-weight: 700;
+    font-size: 16px;
+    font-family: inherit;
+    line-height: 1;
+  }
+
+  .avatar-initial-lg {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    border-radius: 50%;
+    font-size: 18px;
   }
 
   .profile-trigger:hover {
-    border-color: rgba(255,255,255,0.35);
+    border-color: var(--accent, #3B82F6);
   }
 
   .profile-dropdown {
     position: absolute;
     top: calc(100% + 12px);
     right: 0;
-    background: var(--bg-header);
-    border: 1px solid var(--border-soft);
-    border-radius: 10px;
-    min-width: 190px;
-    padding: 6px;
+    background: var(--bg-header-fixed);
+    border: 1px solid var(--header-border);
+    border-radius: 12px;
+    min-width: 250px;
+    padding: 14px;
     display: none;
     flex-direction: column;
     box-shadow: 0 12px 28px rgba(0,0,0,0.35);
@@ -902,32 +985,125 @@
     display: flex;
   }
 
-  .profile-dropdown a,
-  .profile-dropdown button {
-    display: block;
-    width: 100%;
-    text-align: left;
-    background: none;
-    border: none;
-    color: var(--text-light);
-    font-family: inherit;
+  .profile-summary {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 2px 2px 12px;
+  }
+
+  .profile-summary-text {
+    min-width: 0;
+  }
+
+  .profile-name {
+    color: var(--header-text);
+    font-size: 15px;
+    font-weight: 700;
+  }
+
+  .profile-email {
+    color: var(--header-muted);
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .profile-role-badge {
+    display: inline-block;
+    align-self: flex-start;
+    background: var(--pill, rgba(59,130,246,0.18));
+    border: 1px solid var(--pill-border, rgba(59,130,246,0.35));
+    color: #3B82F6;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    padding: 3px 10px;
+    border-radius: 12px;
+    margin: 0 0 12px;
+  }
+
+  .profile-dropdown .divider {
+    height: 1px;
+    background: var(--header-border);
+    margin: 4px 0 10px;
+  }
+
+  .profile-dropdown-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 2px 12px;
+  }
+
+  .profile-dropdown-row .dark-mode-label {
+    color: var(--header-text);
     font-size: 14px;
     font-weight: 500;
-    padding: 10px 12px;
+  }
+
+  .theme-switch {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 22px;
+    flex-shrink: 0;
+  }
+
+  .theme-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .theme-switch-slider {
+    position: absolute;
+    inset: 0;
+    background: rgba(255,255,255,0.18);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+
+  .theme-switch-slider::before {
+    content: "";
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    left: 3px;
+    top: 3px;
+    background: #FFFFFF;
+    border-radius: 50%;
+    transition: transform 0.15s ease;
+  }
+
+  .theme-switch input:checked + .theme-switch-slider {
+    background: #3B82F6;
+  }
+
+  .theme-switch input:checked + .theme-switch-slider::before {
+    transform: translateX(18px);
+  }
+
+  .profile-dropdown .logout-btn {
+    display: block;
+    width: 100%;
+    text-align: center;
+    background: none;
+    border: none;
+    color: #F87171;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 8px 12px;
     border-radius: 6px;
     cursor: pointer;
     text-decoration: none;
   }
 
-  .profile-dropdown a:hover,
-  .profile-dropdown button:hover {
-    background: rgba(255,255,255,0.08);
-  }
-
-  .profile-dropdown .divider {
-    height: 1px;
-    background: var(--border-soft);
-    margin: 4px 0;
+  .profile-dropdown .logout-btn:hover {
+    background: rgba(248,113,113,0.12);
   }
 </style>
 </head>
@@ -943,7 +1119,7 @@
 
     <!-- Navbar -->
     <div class="navbar">
-      <div class="brand logout-logo" title="Nexora">
+      <div class="brand brand-logo" title="Nexora">
     <img class="logo" src="{{ asset('orderfulfillment/logo/Nexora_Logo_Transparent.png') }}" alt="Nexora Logo">
     <div class="brand-text">
         <div class="title">NEXORA</div>
@@ -961,14 +1137,28 @@
         <div class="nav-divider"></div>
         <div class="profile-menu" id="profileMenu">
           <button type="button" class="profile-trigger" id="profileTrigger" aria-label="Account menu">
-            <img src="{{ asset('orderfulfillment/logo/pf.png') }}" alt="Profile">
+            <span class="avatar-initial">{{ strtoupper(substr(session('employee_name', 'Employee'), 0, 1)) }}</span>
           </button>
           <div class="profile-dropdown" id="profileDropdown">
-            <a href="{{ route('order-fulfillment.dashboard') }}">Employee Dashboard</a>
+            <div class="profile-summary">
+              <span class="avatar-initial avatar-initial-lg">{{ strtoupper(substr(session('employee_name', 'Employee'), 0, 1)) }}</span>
+              <div class="profile-summary-text">
+                <div class="profile-name">{{ session('employee_name', 'Employee') }}</div>
+                <div class="profile-email">{{ session('employee_email', '') }}</div>
+              </div>
+            </div>
+            <div class="divider"></div>
+            <div class="profile-dropdown-row">
+              <span class="dark-mode-label">🌙 Dark Mode</span>
+              <label class="theme-switch">
+                <input type="checkbox" id="darkModeToggle">
+                <span class="theme-switch-slider"></span>
+              </label>
+            </div>
             <div class="divider"></div>
             <form method="POST" action="{{ route('order-fulfillment.logout') }}" style="margin:0;">
               @csrf
-              <button type="submit">Log out</button>
+              <button type="submit" class="logout-btn">⏻ Logout</button>
             </form>
           </div>
         </div>
@@ -1042,6 +1232,10 @@
                 Delivered
               </label>
               <label class="filter-option">
+                <input type="radio" name="statusFilter" value="COMPLETE" class="status-check">
+                Complete
+              </label>
+              <label class="filter-option">
                 <input type="radio" name="statusFilter" value="CANCELLED" class="status-check">
                 Cancelled
               </label>
@@ -1092,6 +1286,7 @@
                 'OUT_FOR_DELIVERY'  => 'OUT FOR DELIVERY',
                 'SHIPPED'           => 'SHIPPED',
                 'DELIVERED'         => 'DELIVERED',
+                'COMPLETE'          => 'COMPLETE',
                 'CANCELLED'         => 'CANCELLED',
                 'RETURNED'          => 'RETURNED',
             ];
@@ -1103,6 +1298,7 @@
                 'OUT_FOR_DELIVERY'  => 'status-transit',
                 'SHIPPED'           => 'status-shipped',
                 'DELIVERED'         => 'status-delivered',
+                'COMPLETE'          => 'status-complete',
                 'CANCELLED'         => 'status-cancelled',
                 'RETURNED'          => 'status-returned',
             ];
@@ -1120,6 +1316,9 @@
                 data-priority="{{ $priority['label'] }}"
                 data-priority-class="{{ $priority['class'] }}"
                 data-due="{{ \Carbon\Carbon::parse($order->due_date)->format('M d') }}"
+                data-tracking="{{ $order->shipment_tracking_number }}"
+                data-courier="{{ $order->shipment_courier }}"
+                data-address="{{ $order->shipment_address }}"
                 {{-- Itemized breakdown for the order modal, sourced from the
                      order_items table (product_name, qty, product_amount). --}}
                 data-items="{{ $order->items->map(fn($item) => [
@@ -1133,7 +1332,7 @@
               <td class="amount-cell">₱{{ number_format($orderTotal, 2) }}</td>
               <td class="status-cell"><span class="badge status {{ $statusClass }}">{{ $statusLabel }}</span></td>
               <td class="priority-cell">
-              @if (!in_array($statusRaw, ['CANCELLED', 'RETURNED']))
+              @if (!in_array($statusRaw, ['CANCELLED', 'RETURNED', 'DELIVERED', 'COMPLETE']))
               <span class="badge {{ $priority['class'] }}">
               {{ $priority['label'] }}
               </span>
@@ -1202,13 +1401,25 @@
           <p class="field-label">Status</p>
           <span class="badge status status-new" id="modalStatus">NEW</span>
         </div>
+        <div id="modalTrackingField" style="display:none;">
+          <p class="field-label">Tracing no.</p>
+          <p class="field-value" id="modalTracking">—</p>
+        </div>
+        <div id="modalCourierField" style="display:none;">
+          <p class="field-label">Courier</p>
+          <p class="field-value" id="modalCourier">—</p>
+        </div>
         <div>
           <p class="field-label">Due date</p>
           <p class="field-value" id="modalDue">Jun 25</p>
         </div>
-        <div>
+        <div id="modalPriorityField">
           <p class="field-label">Priority</p>
           <span class="badge priority" id="modalPriority">Low</span>
+        </div>
+        <div id="modalAddressField" style="display:none;">
+          <p class="field-label">Delivery Address</p>
+          <p class="field-value" id="modalAddress">—</p>
         </div>
       </div>
 
@@ -1280,7 +1491,7 @@
   <div class="assign-toast" id="orderToast">Order moved to packing</div>
 
   <script>
-    const STATUS_CLASSES = ['status-new', 'status-packing', 'status-transit', 'status-shipped', 'status-delivered', 'status-cancelled', 'status-returned'];
+    const STATUS_CLASSES = ['status-new', 'status-packing', 'status-transit', 'status-shipped', 'status-delivered', 'status-complete', 'status-cancelled', 'status-returned'];
 
     const STATUS_LABELS = {
       NEW: 'NEW',
@@ -1289,6 +1500,7 @@
       OUT_FOR_DELIVERY: 'OUT FOR DELIVERY',
       SHIPPED: 'SHIPPED',
       DELIVERED: 'DELIVERED',
+      COMPLETE: 'COMPLETE',
       CANCELLED: 'CANCELLED',
       RETURNED: 'RETURNED',
     };
@@ -1305,6 +1517,7 @@
         OUT_FOR_DELIVERY: 'status-transit',
         SHIPPED: 'status-shipped',
         DELIVERED: 'status-delivered',
+        COMPLETE: 'status-complete',
         CANCELLED: 'status-cancelled',
         RETURNED: 'status-returned',
       };
@@ -1376,6 +1589,25 @@
       const priorityEl = document.getElementById('modalPriority');
       priorityEl.textContent = data.priority;
       priorityEl.className = 'badge ' + data.priorityClass;
+
+      // Once an order has left packing and picked up a shipment
+      // (READY_TO_SHIP through COMPLETE), show the same shipping details
+      // as the Shipping tab's modal — tracing no., courier, and delivery
+      // address — in place of the Priority field, which no longer applies
+      // to an order that's already shipping.
+      const shippingStatuses = ['READY_TO_SHIP', 'OUT_FOR_DELIVERY', 'SHIPPED', 'DELAYED', 'DELIVERED', 'COMPLETE'];
+      const hasShipment = shippingStatuses.includes(data.status);
+
+      document.getElementById('modalPriorityField').style.display = hasShipment ? 'none' : '';
+      document.getElementById('modalTrackingField').style.display = hasShipment ? '' : 'none';
+      document.getElementById('modalCourierField').style.display = hasShipment ? '' : 'none';
+      document.getElementById('modalAddressField').style.display = hasShipment ? '' : 'none';
+
+      if (hasShipment) {
+        document.getElementById('modalTracking').textContent = data.tracking || '—';
+        document.getElementById('modalCourier').textContent = data.courier || '—';
+        document.getElementById('modalAddress').textContent = data.address || '—';
+      }
 
       document.getElementById('modalItemsList').innerHTML = renderItemRows(items);
       document.getElementById('modalItemsTotalLabel').textContent = 'Total (' + itemLabel(items.length) + ')';
@@ -1676,6 +1908,18 @@
       const menu = document.getElementById('profileMenu');
       const trigger = document.getElementById('profileTrigger');
       const dropdown = document.getElementById('profileDropdown');
+
+      const darkModeToggle = document.getElementById('darkModeToggle');
+      if (darkModeToggle) {
+        darkModeToggle.checked = document.documentElement.classList.contains('dark-theme');
+        darkModeToggle.addEventListener('change', function () {
+          document.documentElement.classList.toggle('dark-theme', this.checked);
+          try {
+            localStorage.setItem('nexora-theme', this.checked ? 'dark' : 'light');
+          } catch (e) {}
+        });
+      }
+
       if (!menu || !trigger || !dropdown) return;
 
       trigger.addEventListener('click', function (e) {

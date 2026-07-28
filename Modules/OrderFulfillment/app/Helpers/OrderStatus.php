@@ -37,6 +37,7 @@ class OrderStatus
         'SHIPPED'          => 'SHIPPED',
         'OUT_FOR_DELIVERY' => 'OUT FOR DELIVERY',
         'DELIVERED'        => 'DELIVERED',
+        'COMPLETE'         => 'COMPLETE',
         'DELAYED'          => 'DELAYED',
         'CANCELLED'        => 'CANCELLED',
     ];
@@ -53,6 +54,7 @@ class OrderStatus
         'SHIPPED'          => 'shipped',
         'OUT_FOR_DELIVERY' => 'transit',
         'DELIVERED'        => 'delivered',
+        'COMPLETE'         => 'complete',
         'DELAYED'          => 'cancelled',
         'CANCELLED'        => 'cancelled',
     ];

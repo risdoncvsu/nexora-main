@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use Modules\Finance\Http\Controllers\InvoiceController;
 use Modules\Finance\Http\Controllers\ExpensesController;
 use Modules\Finance\Http\Controllers\AccountsController;
+use Modules\Finance\Http\Controllers\CashFlowController;
 use Modules\Finance\Http\Controllers\DashboardController;
 use Modules\Finance\Http\Controllers\OrderController;
 use Modules\Finance\Http\Controllers\SalesController;
@@ -20,7 +21,8 @@ Route::post('/orders', [OrderController::class, 'store'])->name('finance.orders.
 
 Route::get('expensesdash', [ExpensesController::class, 'index'])->name('finance.expensesdash');
 Route::get('salesdash',[SalesController::class, 'index'])->name('finance.salesdash');
-Route::get('cashflowdash', function () {return view('finance::cashflowdash');})->name('finance.cashflowdash');
+Route::get('cashflowdash', [CashFlowController::class, 'index'])->name('finance.cashflowdash');
+Route::post('expenses/request/{id}/status', [ExpensesController::class, 'updateStatus'])->name('finance.expenses.status');
 Route::get('/accountsdash', [AccountsController::class, 'index'])->name('finance.accountsdash');
 Route::post('/accounts', [AccountsController::class, 'store'])->name('finance.accounts.store');
 Route::put('/accounts/{account}', [AccountsController::class, 'update'])->name('finance.accounts.update');

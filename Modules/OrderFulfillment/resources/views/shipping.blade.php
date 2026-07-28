@@ -2,18 +2,78 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<script>
+  (function () {
+    try {
+      if (localStorage.getItem('nexora-theme') === 'dark') {
+        document.documentElement.classList.add('dark-theme');
+      }
+    } catch (e) {}
+  })();
+</script>
 <title>Nexora Shipping</title>
 <style>
   :root {
+    --bg-header: #FFFFFF;
+    --bg-dark: #EEF2FA;
+    --bg-card: #FFFFFF;
+    --text-light: #16233F;
+    --text-muted: #5B6B85;
+    --border-soft: rgba(15,23,42,0.10);
+    --row-alt: rgba(15,23,42,0.025);
+    --row-hover: rgba(15,23,42,0.045);
+    --accent: #3B82F6;
+    --pill: #EAF0FB;
+    --pill-border: #C9D8F2;
+
+    /* Header/profile menu stay fixed dark-navy in both light and dark mode */
+    --bg-header-fixed: #0B1E3D;
+    --header-text: #FFFFFF;
+    --header-muted: #9FB3D1;
+    --header-border: rgba(255,255,255,0.08);
+
+    /* "Ready for delivery" / dispatch-to-courier surfaces (banner, big
+       action button). These need real light-mode colors of their own —
+       the old dark-brown-on-dark-bg palette only worked against a dark
+       background and looked like a stray dark box once the page itself
+       went light. */
+    --warn-bg: #FFF6E5;
+    --warn-border: #F3D08A;
+    --warn-text: #8A5A06;
+    --warn-btn-bg: #F59E0B;
+    --warn-btn-text: #FFFFFF;
+    --warn-btn-hover: #DB8C0A;
+
+    /* Cards/panels/modals sit flush against a very light background in
+       light mode, so they need a soft shadow of their own for depth —
+       in dark mode the panels already read clearly against the darker
+       page background and don't need one. */
+    --elev-shadow: 0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.07);
+    --modal-shadow: 0 20px 60px rgba(15,23,42,0.18);
+  }
+
+  html.dark-theme {
     --bg-header: #0B1E3D;
     --bg-dark: #1B3A6B;
     --bg-card: #0B1E3D;
     --text-light: #FFFFFF;
     --text-muted: #9FB3D1;
     --border-soft: rgba(255,255,255,0.08);
+    --row-alt: rgba(255,255,255,0.02);
+    --row-hover: rgba(255,255,255,0.04);
     --accent: #3B82F6;
     --pill: #16305c;
     --pill-border: #2c4373;
+
+    --warn-bg: #3a3016;
+    --warn-border: #6b5a24;
+    --warn-text: #f3d98a;
+    --warn-btn-bg: #6B4A1E;
+    --warn-btn-text: #FBD38D;
+    --warn-btn-hover: #7d5824;
+
+    --elev-shadow: none;
+    --modal-shadow: 0 20px 60px rgba(0,0,0,0.4);
   }
 
   * { box-sizing: border-box; }
@@ -31,8 +91,8 @@
     align-items: center;
     justify-content: space-between;
     padding: 18px 40px;
-    background: var(--bg-header);
-    border-bottom: 1px solid var(--border-soft);
+    background: var(--bg-header-fixed);
+    border-bottom: 1px solid var(--header-border);
   }
 
 .brand{
@@ -50,7 +110,7 @@
 }
 
 .brand-logo .title{
-    color:#FFFFFF;
+    color: var(--header-text);
 }
 
 .brand-logo .subtitle{
@@ -67,11 +127,11 @@
   .brand-text .subtitle { font-size: 11px; color: #3B82F6; letter-spacing: 1px; }
 
   .nav-links { display: flex; gap: 36px; }
-  .nav-links a { color: var(--text-muted); text-decoration: none; font-size: 15px; font-weight: 500; }
-  .nav-links a.active { color: var(--text-light); font-weight: 700; }
+  .nav-links a { color: var(--header-muted); text-decoration: none; font-size: 15px; font-weight: 500; }
+  .nav-links a.active { color: var(--header-text); font-weight: 700; }
 
   .nav-links a:hover {
-    color: var(--text-light);
+    color: var(--header-text);
     text-shadow: 0 0 0.4px currentColor, 0 0 0.4px currentColor;
   }
 
@@ -90,6 +150,7 @@
     padding: 22px 28px;
     flex: 1;
     min-width: 200px;
+    box-shadow: var(--elev-shadow);
   }
 
   .stat-card .label { color: var(--text-muted); font-size: 14px; font-weight: 600; margin-bottom: 10px; }
@@ -106,6 +167,7 @@
     background: var(--bg-card);
     border-radius: 12px;
     overflow: hidden;
+    box-shadow: var(--elev-shadow);
   }
 
   .order-queue {
@@ -261,12 +323,12 @@
     position: absolute;
     right: 24px;
     top: 56px;
-    background: #16305c;
+    background: var(--bg-header);
     border: 1px solid var(--pill-border);
     border-radius: 12px;
     padding: 14px 16px;
     width: 200px;
-    box-shadow: 0 12px 30px rgba(0,0,0,0.5);
+    box-shadow: var(--modal-shadow);
     display: none;
     z-index: 30;
   }
@@ -327,12 +389,12 @@
     text-align: left;
     padding: 14px 24px;
     font-size: 14px;
-    color: #fff;
-    border-bottom: 1px solid rgba(255,255,255,0.08);
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border-soft);
   }
 
-  tbody td { padding: 14px 24px; font-size: 14px; border-bottom: 1px solid rgba(255,255,255,0.05); }
-  tbody tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+  tbody td { padding: 14px 24px; font-size: 14px; border-bottom: 1px solid var(--border-soft); }
+  tbody tr:nth-child(even) { background: var(--row-alt); }
 
   .order-id, .product { color: var(--text-muted); }
   .customer { font-weight: 600; }
@@ -346,28 +408,42 @@
     font-size: 11px;
     padding: 3px 10px;
     border-radius: 12px;
+    white-space: nowrap;
   }
 
-  .status-tag.tag-packing   { background: #6B4A1E; color: #FBD38D; }
+  .status-tag.tag-packing   { background: var(--warn-bg); color: var(--warn-text); border: 1px solid var(--warn-border); }
   .status-tag.tag-shipped   { background: #1E5A6B; color: #7DD3E8; }
   .status-tag.tag-transit   { background: #1E3A6B; color: #93C5FD; }
   .status-tag.tag-delivered { background: #1E5A3A; color: #86EFAC; }
+  .status-tag.tag-complete { background: #1E5A3A; color: #86EFAC; }
   .status-tag.tag-cancelled { background: #4A1E1E; color: #F3A9A9; }
 
   .btn-prepare {
     display: inline-block;
-    background: var(--bg-dark);
-    color: var(--text-light);
+    background: var(--accent);
+    color: #FFFFFF;
     font-weight: 700;
     font-size: 13px;
-    padding: 6px 14px;
+    padding: 7px 16px;
     border-radius: 20px;
     text-align: center;
     border: none;
     cursor: pointer;
+    box-shadow: 0 2px 6px rgba(59,130,246,0.35);
+    transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
   }
 
-  .btn-prepare:hover { background: #244a80; }
+  .btn-prepare:hover {
+    background: #2563EB;
+    box-shadow: 0 4px 14px rgba(59,130,246,0.45);
+    transform: translateY(-1px);
+  }
+
+  .btn-prepare:active {
+    background: #1D4ED8;
+    box-shadow: 0 2px 6px rgba(59,130,246,0.35);
+    transform: translateY(0);
+  }
 
   .empty-row td { height: 38px; }
 
@@ -431,10 +507,11 @@
     width: 520px;
     max-width: 90vw;
     max-height: 85vh;
-    background: #16305c;
+    background: var(--bg-card);
     border-radius: 14px;
     overflow-y: auto;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    box-shadow: var(--modal-shadow);
+    border: 1px solid var(--border-soft);
     scrollbar-width: none;      /* Firefox */
     -ms-overflow-style: none;   /* old Edge/IE */
   }
@@ -443,9 +520,9 @@
     display: none;              /* Chrome/Safari/new Edge */
   }
 
-  .modal-header { background: #0f2549; padding: 16px 24px; }
-  .modal-header h2 { margin: 0; color: #fff; font-size: 16px; }
-  .modal-header p { margin: 3px 0 0; color: #8ea3cc; font-size: 12px; }
+  .modal-header { background: var(--bg-dark); padding: 16px 24px; }
+  .modal-header h2 { margin: 0; color: var(--text-light); font-size: 16px; }
+  .modal-header p { margin: 3px 0 0; color: var(--text-muted); font-size: 12px; }
 
   .modal-body {
     padding: 18px 24px;
@@ -454,8 +531,8 @@
     gap: 14px 18px;
   }
 
-  .modal-body .field-label { margin: 0 0 4px; font-size: 11px; color: #8ea3cc; }
-  .modal-body .field-value { margin: 0; font-size: 14px; color: #fff; font-weight: 600; }
+  .modal-body .field-label { margin: 0 0 4px; font-size: 11px; color: var(--text-muted); }
+  .modal-body .field-value { margin: 0; font-size: 14px; color: var(--text-light); font-weight: 600; }
 
   .modal-body .status-pill {
     display: inline-block;
@@ -465,31 +542,33 @@
     border-radius: 12px;
     background: #1E5A6B;
     color: #7DD3E8;
+    white-space: nowrap;
   }
 
-  .modal-body .status-pill.tag-packing   { background: #6B4A1E; color: #FBD38D; }
+  .modal-body .status-pill.tag-packing   { background: var(--warn-bg); color: var(--warn-text); border: 1px solid var(--warn-border); }
   .modal-body .status-pill.tag-shipped   { background: #1E5A6B; color: #7DD3E8; }
   .modal-body .status-pill.tag-transit   { background: #1E3A6B; color: #93C5FD; }
   .modal-body .status-pill.tag-delivered { background: #1E5A3A; color: #86EFAC; }
+  .modal-body .status-pill.tag-complete { background: #1E5A3A; color: #86EFAC; }
   .modal-body .status-pill.tag-cancelled { background: #4A1E1E; color: #F3A9A9; }
 
   .assign-banner {
     margin: 0 24px 16px;
-    background: #3a3016;
-    border: 1px solid #6b5a24;
+    background: var(--warn-bg);
+    border: 1px solid var(--warn-border);
     border-radius: 8px;
     padding: 12px 16px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 16px;
-    color: #f3d98a;
+    color: var(--warn-text);
     font-size: 12.5px;
   }
 
   /* ===== Order items breakdown (order modal + assign-driver modal) ===== */
   .items-section {
-    background: #0f2549;
+    background: var(--bg-dark);
     border: 1px solid var(--pill-border);
     border-radius: 10px;
     padding: 12px 14px;
@@ -541,14 +620,14 @@
     justify-content: space-between;
     gap: 12px;
     padding: 8px 10px;
-    background: rgba(255,255,255,0.03);
+    background: var(--row-alt);
     border-radius: 8px;
   }
 
   .items-row-name {
     font-size: 13.5px;
     font-weight: 600;
-    color: #fff;
+    color: var(--text-light);
   }
 
   .items-row-qty {
@@ -560,7 +639,7 @@
   .items-row-amount {
     font-size: 13.5px;
     font-weight: 700;
-    color: #fff;
+    color: var(--text-light);
     white-space: nowrap;
   }
 
@@ -570,11 +649,11 @@
     justify-content: space-between;
     margin-top: 10px;
     padding: 10px 12px;
-    background: #1b3a6b;
+    background: var(--pill, #1b3a6b);
     border-radius: 8px;
     font-size: 13.5px;
     font-weight: 700;
-    color: #fff;
+    color: var(--text-light);
   }
   /* ===== end order items breakdown ===== */
 
@@ -582,8 +661,8 @@
   .assign-banner.hidden { display: none; }
 
   .btn-assign-driver {
-    background: #6B4A1E;
-    color: #FBD38D;
+    background: var(--warn-btn-bg);
+    color: var(--warn-btn-text);
     border: none;
     padding: 8px 18px;
     border-radius: 8px;
@@ -593,13 +672,13 @@
     white-space: nowrap;
   }
 
-  .btn-assign-driver:hover { background: #7d5824; }
+  .btn-assign-driver:hover { background: var(--warn-btn-hover); }
 
   .modal-footer {
     display: flex;
     gap: 12px;
     padding: 16px 24px;
-    border-top: 1px solid rgba(255,255,255,0.08);
+    border-top: 1px solid var(--border-soft);
   }
 
   .btn {
@@ -619,8 +698,8 @@
 
   /* Footer button swaps to this when the order is ready-to-ship / in the
      assign-driver flow, replacing "Cancel order" (see openShippingModal). */
-  .btn-assign-driver-footer { background: #6B4A1E; color: #FBD38D; }
-  .btn-assign-driver-footer:hover { background: #7d5824; }
+  .btn-assign-driver-footer { background: var(--warn-btn-bg); color: var(--warn-btn-text); }
+  .btn-assign-driver-footer:hover { background: var(--warn-btn-hover); }
 
   /* ===== Cancel confirmation modal ===== */
   .confirm-modal { width: 420px; }
@@ -631,10 +710,10 @@
   .confirm-text {
     margin: 0 0 16px;
     font-size: 14px;
-    color: #dbe4f5;
+    color: var(--text-muted);
     line-height: 1.6;
   }
-  .confirm-text strong { color: #fff; }
+  .confirm-text strong { color: var(--text-light); }
 
   .assign-toast {
     position: fixed;
@@ -668,7 +747,7 @@
   .nav-divider {
     width: 1px;
     height: 22px;
-    background: rgba(255,255,255,0.18);
+    background: var(--header-border);
   }
 
   /* ===== Profile menu ===== */
@@ -682,34 +761,49 @@
     border-radius: 50%;
     overflow: hidden;
     cursor: pointer;
-    border: 2px solid rgba(255,255,255,0.15);
+    border: 2px solid var(--header-border);
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--bg-header);
+    background: var(--accent, #3B82F6);
     padding: 0;
   }
 
-  .profile-trigger img {
+  .avatar-initial {
     width: 100%;
     height: 100%;
-    object-fit: cover;
-    display: block;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #3B82F6, #2563EB);
+    color: #FFFFFF;
+    font-weight: 700;
+    font-size: 16px;
+    font-family: inherit;
+    line-height: 1;
+  }
+
+  .avatar-initial-lg {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    border-radius: 50%;
+    font-size: 18px;
   }
 
   .profile-trigger:hover {
-    border-color: rgba(255,255,255,0.35);
+    border-color: var(--accent, #3B82F6);
   }
 
   .profile-dropdown {
     position: absolute;
     top: calc(100% + 12px);
     right: 0;
-    background: var(--bg-header);
-    border: 1px solid var(--border-soft);
-    border-radius: 10px;
-    min-width: 190px;
-    padding: 6px;
+    background: var(--bg-header-fixed);
+    border: 1px solid var(--header-border);
+    border-radius: 12px;
+    min-width: 250px;
+    padding: 14px;
     display: none;
     flex-direction: column;
     box-shadow: 0 12px 28px rgba(0,0,0,0.35);
@@ -720,32 +814,125 @@
     display: flex;
   }
 
-  .profile-dropdown a,
-  .profile-dropdown button {
-    display: block;
-    width: 100%;
-    text-align: left;
-    background: none;
-    border: none;
-    color: var(--text-light);
-    font-family: inherit;
+  .profile-summary {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 2px 2px 12px;
+  }
+
+  .profile-summary-text {
+    min-width: 0;
+  }
+
+  .profile-name {
+    color: var(--header-text);
+    font-size: 15px;
+    font-weight: 700;
+  }
+
+  .profile-email {
+    color: var(--header-muted);
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .profile-role-badge {
+    display: inline-block;
+    align-self: flex-start;
+    background: var(--pill, rgba(59,130,246,0.18));
+    border: 1px solid var(--pill-border, rgba(59,130,246,0.35));
+    color: #3B82F6;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    padding: 3px 10px;
+    border-radius: 12px;
+    margin: 0 0 12px;
+  }
+
+  .profile-dropdown .divider {
+    height: 1px;
+    background: var(--header-border);
+    margin: 4px 0 10px;
+  }
+
+  .profile-dropdown-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 2px 12px;
+  }
+
+  .profile-dropdown-row .dark-mode-label {
+    color: var(--header-text);
     font-size: 14px;
     font-weight: 500;
-    padding: 10px 12px;
+  }
+
+  .theme-switch {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 22px;
+    flex-shrink: 0;
+  }
+
+  .theme-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .theme-switch-slider {
+    position: absolute;
+    inset: 0;
+    background: rgba(255,255,255,0.18);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+
+  .theme-switch-slider::before {
+    content: "";
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    left: 3px;
+    top: 3px;
+    background: #FFFFFF;
+    border-radius: 50%;
+    transition: transform 0.15s ease;
+  }
+
+  .theme-switch input:checked + .theme-switch-slider {
+    background: #3B82F6;
+  }
+
+  .theme-switch input:checked + .theme-switch-slider::before {
+    transform: translateX(18px);
+  }
+
+  .profile-dropdown .logout-btn {
+    display: block;
+    width: 100%;
+    text-align: center;
+    background: none;
+    border: none;
+    color: #F87171;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 8px 12px;
     border-radius: 6px;
     cursor: pointer;
     text-decoration: none;
   }
 
-  .profile-dropdown a:hover,
-  .profile-dropdown button:hover {
-    background: rgba(255,255,255,0.08);
-  }
-
-  .profile-dropdown .divider {
-    height: 1px;
-    background: var(--border-soft);
-    margin: 4px 0;
+  .profile-dropdown .logout-btn:hover {
+    background: rgba(248,113,113,0.12);
   }
 </style>
 </head>
@@ -780,14 +967,28 @@
         <div class="nav-divider"></div>
         <div class="profile-menu" id="profileMenu">
           <button type="button" class="profile-trigger" id="profileTrigger" aria-label="Account menu">
-            <img src="{{ asset('orderfulfillment/logo/pf.png') }}" alt="Profile">
+            <span class="avatar-initial">{{ strtoupper(substr(session('employee_name', 'Employee'), 0, 1)) }}</span>
           </button>
           <div class="profile-dropdown" id="profileDropdown">
-            <a href="{{ route('order-fulfillment.dashboard') }}">Employee Dashboard</a>
+            <div class="profile-summary">
+              <span class="avatar-initial avatar-initial-lg">{{ strtoupper(substr(session('employee_name', 'Employee'), 0, 1)) }}</span>
+              <div class="profile-summary-text">
+                <div class="profile-name">{{ session('employee_name', 'Employee') }}</div>
+                <div class="profile-email">{{ session('employee_email', '') }}</div>
+              </div>
+            </div>
+            <div class="divider"></div>
+            <div class="profile-dropdown-row">
+              <span class="dark-mode-label">🌙 Dark Mode</span>
+              <label class="theme-switch">
+                <input type="checkbox" id="darkModeToggle">
+                <span class="theme-switch-slider"></span>
+              </label>
+            </div>
             <div class="divider"></div>
             <form method="POST" action="{{ route('order-fulfillment.logout') }}" style="margin:0;">
               @csrf
-              <button type="submit">Log out</button>
+              <button type="submit" class="logout-btn">⏻ Logout</button>
             </form>
           </div>
         </div>
@@ -853,6 +1054,10 @@
                 DELIVERED
               </label>
               <label class="filter-option">
+                <input type="radio" name="statusFilter" value="COMPLETE" class="status-check">
+                COMPLETE
+              </label>
+              <label class="filter-option">
                 <input type="radio" name="statusFilter" value="DELAYED" class="status-check">
                 DELAYED
               </label>
@@ -881,6 +1086,7 @@
         'READY_TO_SHIP'     => 'READY FOR DELIVERY',
         'OUT_FOR_DELIVERY'  => 'OUT FOR DELIVERY',
         'DELIVERED'         => 'DELIVERED',
+        'COMPLETE'          => 'COMPLETE',
         'DELAYED'           => 'DELAYED',
     ];
     $statusLabel = $statusLabels[$statusRaw] ?? strtoupper(str_replace('_', ' ', $statusRaw));
@@ -889,6 +1095,7 @@
         'READY_TO_SHIP'     => 'tag-packing',
         'OUT_FOR_DELIVERY'  => 'tag-transit',
         'DELIVERED'         => 'tag-delivered',
+        'COMPLETE'          => 'tag-complete',
         'DELAYED'           => 'tag-cancelled',
     ];
     $statusClass = $statusClassMap[$statusRaw] ?? 'tag-shipped';
@@ -1063,6 +1270,7 @@
       'READY_TO_SHIP': 'READY FOR DELIVERY',
       'OUT_FOR_DELIVERY': 'OUT FOR DELIVERY',
       'DELIVERED': 'DELIVERED',
+      'COMPLETE': 'COMPLETE',
       'DELAYED': 'DELAYED',
     };
     const statusTagClasses = {
@@ -1070,9 +1278,10 @@
       'READY_TO_SHIP': 'tag-packing',
       'OUT_FOR_DELIVERY': 'tag-transit',
       'DELIVERED': 'tag-delivered',
+      'COMPLETE': 'tag-complete',
       'DELAYED': 'tag-cancelled',
     };
-    const STATUS_TAG_CLASSES = ['tag-packing', 'tag-shipped', 'tag-transit', 'tag-delivered', 'tag-cancelled'];
+    const STATUS_TAG_CLASSES = ['tag-packing', 'tag-shipped', 'tag-transit', 'tag-delivered', 'tag-complete', 'tag-cancelled'];
 
     let currentOrderId = null;
 
@@ -1438,6 +1647,18 @@
       const menu = document.getElementById('profileMenu');
       const trigger = document.getElementById('profileTrigger');
       const dropdown = document.getElementById('profileDropdown');
+
+      const darkModeToggle = document.getElementById('darkModeToggle');
+      if (darkModeToggle) {
+        darkModeToggle.checked = document.documentElement.classList.contains('dark-theme');
+        darkModeToggle.addEventListener('change', function () {
+          document.documentElement.classList.toggle('dark-theme', this.checked);
+          try {
+            localStorage.setItem('nexora-theme', this.checked ? 'dark' : 'light');
+          } catch (e) {}
+        });
+      }
+
       if (!menu || !trigger || !dropdown) return;
 
       trigger.addEventListener('click', function (e) {

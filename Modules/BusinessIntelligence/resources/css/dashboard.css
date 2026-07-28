@@ -333,7 +333,7 @@ main::-webkit-scrollbar { width: 0; background: transparent; }
     border-radius: 12px; box-shadow: 0 12px 40px rgba(11, 30, 61, 0.18);
     opacity: 0; visibility: hidden; transform: translateY(-8px);
     transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
-    z-index: 200;
+    z-index: 250;
 }
 .profile-dropdown.active { opacity: 1; visibility: visible; transform: translateY(0); }
 .profile-dropdown-name { color: var(--deep-navy); font-size: 13px; font-weight: 700; }
@@ -1060,7 +1060,7 @@ tr:nth-child(even) td { background-color: var(--off-white); }
 .bg-icon-blue { background: var(--ice-blue); color: var(--corporate-blue); }
 .bg-icon-num { background: var(--ice-blue); color: var(--navy-mid); }
 .insight-text-wrapper { flex: 1; min-width: 0; }
-.insight-text-wrapper p { font-size: 13px; color: var(--deep-navy); line-height: 1.4; word-break: break-word; }
+.insight-text-wrapper p { font-size: 12px; color: var(--deep-navy); line-height: 1.5; word-break: break-word; }
 .insight-text-wrapper .sub-text { font-size: 10px; color: var(--slate-500); margin-top: 2px; }
 .mock-badge { font-size: 9px; font-weight: 600; padding: 2px 5px; border-radius: 4px; white-space: nowrap; margin-left: auto; align-self: flex-start; }
 .mb-high-impact, .mb-critical { background-color: #f3b8b8; color: var(--critical); }

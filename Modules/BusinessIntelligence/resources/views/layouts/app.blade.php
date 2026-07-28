@@ -35,7 +35,7 @@
         </a>
         <div class="header-right">
             <div class="header-profile-wrap" id="headerNotificationWrap">
-                <button type="button" class="header-profile-btn" id="headerNotificationBtn" aria-label="Open notifications">
+                <button type="button" class="header-profile-btn" id="headerNotificationBtn" aria-label="Open notifications" aria-expanded="false">
                     <i data-lucide="bell" class="profile-icon"></i>
                     <span class="notification-badge" id="notificationBadge">0</span>
                 </button>
@@ -51,13 +51,15 @@
                 </div>
             </div>
             <div class="header-profile-wrap" id="headerProfileWrap">
-                <button type="button" class="header-profile-btn" id="headerProfileBtn" aria-label="Open profile menu">
+                <button type="button" class="header-profile-btn" id="headerProfileBtn" aria-label="Open profile menu" aria-expanded="false">
                     <i data-lucide="user" class="profile-icon"></i>
                 </button>
                 <div class="profile-dropdown" id="profileDropdown">
                     <p class="profile-dropdown-name">{{ session('employee_name', 'Employee') }}</p>
                     <p class="profile-dropdown-role">{{ session('employee_department', 'Nexora ERP') }}</p>
-                    <form method="POST" action="{{ route('logout') }}">
+                    {{-- Several legacy modules reuse the "logout" route name. Resolve
+                         the shared controller action instead of that ambiguous name. --}}
+                    <form method="POST" action="{{ action([\App\Http\Controllers\AuthController::class, 'logout']) }}">
                         @csrf
                         <button type="submit" class="profile-logout-button">Log out</button>
                     </form>
@@ -201,11 +203,11 @@
             const chatClose = document.getElementById('aiChatClose');
             const chatBot = document.getElementById('aiChatBot');
 
-            chatToggle.addEventListener('click', () => {
+            chatToggle?.addEventListener('click', () => {
                 chatBot.classList.toggle('ai-chat-open');
             });
 
-            chatClose.addEventListener('click', () => {
+            chatClose?.addEventListener('click', () => {
                 chatBot.classList.remove('ai-chat-open');
             });
 
@@ -216,29 +218,35 @@
             const notificationWrap = document.getElementById('headerNotificationWrap');
             const dropdown = document.getElementById('notificationDropdown');
 
-            profileBtn.addEventListener('click', (e) => {
+            profileBtn?.addEventListener('click', (e) => {
                 e.stopPropagation();
-                profileDropdown.classList.toggle('active');
-                dropdown.classList.remove('active');
+                const isOpen = profileDropdown?.classList.toggle('active') ?? false;
+                profileBtn.setAttribute('aria-expanded', String(isOpen));
+                dropdown?.classList.remove('active');
+                notificationBtn?.setAttribute('aria-expanded', 'false');
             });
 
-            notificationBtn.addEventListener('click', (e) => {
+            notificationBtn?.addEventListener('click', (e) => {
                 e.stopPropagation();
-                dropdown.classList.toggle('active');
-                profileDropdown.classList.remove('active');
+                const isOpen = dropdown?.classList.toggle('active') ?? false;
+                notificationBtn.setAttribute('aria-expanded', String(isOpen));
+                profileDropdown?.classList.remove('active');
+                profileBtn?.setAttribute('aria-expanded', 'false');
             });
 
             document.addEventListener('click', (e) => {
-                if (!profileWrap.contains(e.target)) {
-                    profileDropdown.classList.remove('active');
+                if (profileWrap && !profileWrap.contains(e.target)) {
+                    profileDropdown?.classList.remove('active');
+                    profileBtn?.setAttribute('aria-expanded', 'false');
                 }
-                if (!notificationWrap.contains(e.target)) {
-                    dropdown.classList.remove('active');
+                if (notificationWrap && !notificationWrap.contains(e.target)) {
+                    dropdown?.classList.remove('active');
+                    notificationBtn?.setAttribute('aria-expanded', 'false');
                 }
             });
 
             // Handle clicking individual notifications
-            dropdown.addEventListener('click', (e) => {
+            dropdown?.addEventListener('click', (e) => {
                 const notifItem = e.target.closest('.notification-item');
                 if (!notifItem) return;
 

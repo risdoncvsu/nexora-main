@@ -97,7 +97,15 @@ tailwind.config = { theme: { extend: { colors: { navy: {900:'#0b1e3b',800:'#132b
     <button id="nextBtn" onclick="changePage(1)" class="hover:text-white disabled:opacity-40 disabled:cursor-not-allowed">Next</button>
   </div>
 
-  <div class="bg-navy-800 rounded-xl overflow-hidden">
+  <div class="bg-navy-800 rounded-xl border border-navy-600 px-6 py-5">
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
+      <div><p class="text-sm text-muted uppercase tracking-wide">Assets</p><h2 id="totalAssets" class="text-2xl font-bold text-emerald-400 mt-2">₱0.00</h2></div>
+      <div><p class="text-sm text-muted uppercase tracking-wide">Liabilities</p><h2 id="totalLiabilities" class="text-2xl font-bold text-red-400 mt-2">₱0.00</h2></div>
+      <div class="sm:border-l sm:border-navy-600 sm:pl-5"><p class="text-sm text-muted uppercase tracking-wide">Equity</p><h2 id="totalEquity" class="text-2xl font-bold text-blue-400 mt-2">₱0.00</h2><p class="text-xs text-muted mt-1">Assets − liabilities</p></div>
+    </div>
+  </div>
+
+  <div class="bg-navy-800 rounded-xl overflow-visible">
     <div class="overflow-x-auto">
       <table class="w-full text-sm">
         <thead>
@@ -377,6 +385,15 @@ function renderTable(){
     const el = document.getElementById("sort-" + f);
     if (el) el.innerHTML = sortIndicator(f);
   });
+  renderSummary();
+}
+
+function renderSummary(){
+  const assets = accounts.filter(a => a.type === 'Asset').reduce((sum, a) => sum + (Number(a.balance) || 0), 0);
+  const liabilities = accounts.filter(a => a.type === 'Liability').reduce((sum, a) => sum + (Number(a.balance) || 0), 0);
+  document.getElementById('totalAssets').textContent = fmtMoney(assets);
+  document.getElementById('totalLiabilities').textContent = fmtMoney(liabilities);
+  document.getElementById('totalEquity').textContent = fmtMoney(assets - liabilities);
 }
 
 function onSearchInput(v){ state.search = v; state.page = 1; renderTable(); }

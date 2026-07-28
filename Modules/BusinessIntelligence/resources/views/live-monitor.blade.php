@@ -32,7 +32,10 @@
         const scopedUrl = (url) => url + (clientScope ? (url.includes('?') ? '&' : '?') + 'client_id=' + clientScope : '');
 
         function timeAgo(timestamp) {
-            const seconds = Math.floor((Date.now() - new Date(timestamp).getTime()) / 1000);
+            if (!timestamp) return '—';                     // no timestamp = dash
+            const d = new Date(timestamp);
+            if (isNaN(d.getTime())) return '—';             // invalid date
+            const seconds = Math.floor((Date.now() - d.getTime()) / 1000);
             if (seconds < 10) return 'Just now';
             if (seconds < 60) return seconds + 's ago';
             const minutes = Math.floor(seconds / 60);
@@ -63,28 +66,28 @@
             }
 
             let html = `
-                <div class="live-summary-bar">
-                    <div class="live-summary-item"><span class="live-summary-count">${data.alerts.length}</span><span class="live-summary-label">Active Alerts</span></div>
-                    <div class="live-summary-item live-summary-critical"><span class="live-summary-count">${data.summary.critical}</span><span class="live-summary-label">Critical</span></div>
-                    <div class="live-summary-item live-summary-warning"><span class="live-summary-count">${data.summary.warning}</span><span class="live-summary-label">Warnings</span></div>
-                    <div class="live-summary-item live-summary-info"><span class="live-summary-count">${data.summary.info}</span><span class="live-summary-label">Info</span></div>
-                </div>`;
+                    <div class="live-summary-bar">
+                        <div class="live-summary-item"><span class="live-summary-count">${data.alerts.length}</span><span class="live-summary-label">Active Alerts</span></div>
+                        <div class="live-summary-item live-summary-critical"><span class="live-summary-count">${data.summary.critical}</span><span class="live-summary-label">Critical</span></div>
+                        <div class="live-summary-item live-summary-warning"><span class="live-summary-count">${data.summary.warning}</span><span class="live-summary-label">Warnings</span></div>
+                        <div class="live-summary-item live-summary-info"><span class="live-summary-count">${data.summary.info}</span><span class="live-summary-label">Info</span></div>
+                    </div>`;
 
             html += '<div class="live-alerts-grid">';
             data.alerts.forEach(a => {
                 html += `
-                    <div class="live-alert-card live-alert-${a.severity}">
-                        <div class="live-alert-header">
-                            <div class="live-alert-icon-wrap"><i data-lucide="${a.icon}" class="live-alert-icon"></i></div>
-                            <div class="live-alert-meta">
-                                <span class="live-alert-dept">${a.department}</span>
-                                <span class="live-alert-time" data-timestamp="${a.timestamp}">${timeAgo(a.timestamp)}</span>
+                        <div class="live-alert-card live-alert-${a.severity}">
+                            <div class="live-alert-header">
+                                <div class="live-alert-icon-wrap"><i data-lucide="${a.icon}" class="live-alert-icon"></i></div>
+                                <div class="live-alert-meta">
+                                    <span class="live-alert-dept">${a.department}</span>
+                                    <span class="live-alert-time" data-timestamp="${a.timestamp || ''}">${timeAgo(a.timestamp)}</span>
+                                </div>
                             </div>
-                        </div>
-                        <h4 class="live-alert-title">${a.title}</h4>
-                        <p class="live-alert-desc">${a.description}</p>
-                        ${a.metrics ? `<div class="live-alert-metrics">${a.metrics.map(m => `<div class="live-alert-metric"><span class="live-metric-val">${m.value}</span><span class="live-metric-label">${m.label}</span></div>`).join('')}</div>` : ''}
-                    </div>`;
+                            <h4 class="live-alert-title">${a.title}</h4>
+                            <p class="live-alert-desc">${a.description}</p>
+                            ${a.metrics ? `<div class="live-alert-metrics">${a.metrics.map(m => `<div class="live-alert-metric"><span class="live-metric-val">${m.value}</span><span class="live-metric-label">${m.label}</span></div>`).join('')}</div>` : ''}
+                        </div>`;
             });
             html += '</div>';
 

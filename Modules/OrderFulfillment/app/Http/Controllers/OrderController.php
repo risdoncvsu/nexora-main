@@ -38,6 +38,7 @@ class OrderController extends Controller
     {
         $orders       = Order::orderByDesc('created_at')->get();
         $this->attachLineItems($orders);
+        $this->attachShipmentInfo($orders);
         $total        = Order::count();
         $inPacking    = Order::where('status', 'PACKING')->count();
         // "In shipping" = every non-delivered shipping status — dispatched
@@ -45,7 +46,7 @@ class OrderController extends Controller
         // counted literal status == 'SHIPPED', undercounting anything
         // sitting in READY_TO_SHIP, OUT_FOR_DELIVERY, or DELAYED.
         $inShipping   = Order::whereIn('status', ['READY_TO_SHIP', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELAYED'])->count();
-        $delivered    = Order::where('status', 'DELIVERED')->count();
+        $delivered    = Order::whereIn('status', ['DELIVERED', 'COMPLETE'])->count();
         $onTimeRate   = $total > 0 ? round(($delivered / $total) * 100) : 0;
         // The Orders template uses these names for its stat cards.
         $totalOrders       = $total;
@@ -59,7 +60,7 @@ class OrderController extends Controller
         $packingOrders = Order::where('status', 'PACKING')->orderByDesc('created_at')->get();
         // Everything that has REACHED shipping or later, so an order doesn't
         // vanish from this column the moment it advances past SHIPPED.
-        $shippedOrders = Order::whereIn('status', ['SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED'])
+        $shippedOrders = Order::whereIn('status', ['SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED', 'COMPLETE'])
             ->orderByDesc('created_at')
             ->get();
 
@@ -83,6 +84,7 @@ class OrderController extends Controller
                     'OUT_FOR_DELIVERY' => ['🚚', "Order {$o->id} is out for delivery"],
                     'SHIPPED'          => ['🚚', "Order {$o->id} has been shipped"],
                     'DELIVERED'        => ['✅', "Order {$o->id} has been delivered"],
+                    'COMPLETE'         => ['🎉', "Order {$o->id} is complete"],
                     'CANCELLED'        => ['❌', "Order {$o->id} has been cancelled"],
                     'RETURNED'         => ['↩️', "Order {$o->id} was returned by the customer"],
                 ];
@@ -203,7 +205,7 @@ class OrderController extends Controller
         }
 
         $shipment = Shipment::where('order_id', $order->id)
-            ->whereNotIn('status', ['CANCELLED', 'DELIVERED'])
+            ->whereNotIn('status', ['CANCELLED', 'DELIVERED', 'COMPLETE'])
             ->first();
 
         if ($shipment) {
@@ -255,6 +257,29 @@ class OrderController extends Controller
                     'product_amount' => (float) ($order->product_amount ?: 0),
                 ]),
             ]));
+        });
+    }
+
+    /**
+     * Give the Orders modal the same tracking, courier, and address details
+     * as Shipping once an order has a shipment. Shipment's client scope keeps
+     * this lookup isolated to the signed-in company.
+     */
+    private function attachShipmentInfo(Collection $orders): void
+    {
+        if ($orders->isEmpty()) {
+            return;
+        }
+
+        $shipmentsByOrder = Shipment::whereIn('order_id', $orders->pluck('id'))
+            ->get(['order_id', 'tracking_number', 'courier', 'address'])
+            ->keyBy('order_id');
+
+        $orders->each(function (Order $order) use ($shipmentsByOrder): void {
+            $shipment = $shipmentsByOrder->get($order->id);
+            $order->shipment_tracking_number = $shipment->tracking_number ?? null;
+            $order->shipment_courier = $shipment->courier ?? null;
+            $order->shipment_address = $shipment->address ?? $order->address ?? null;
         });
     }
 }

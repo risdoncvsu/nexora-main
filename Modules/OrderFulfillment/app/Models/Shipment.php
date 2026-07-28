@@ -28,11 +28,13 @@ class Shipment extends Model
         'due_date',
         'shipped_at',
         'out_for_delivery_at',
+        'delivered_at',
     ];
 
     protected $casts = [
         'shipped_at'           => 'datetime',
         'out_for_delivery_at'  => 'datetime',
+        'delivered_at'         => 'datetime',
     ];
 
     public function order()
@@ -52,6 +54,14 @@ class Shipment extends Model
             ) {
                 $shipment->shipped_at = now();
             }
+
+            if (
+                $shipment->isDirty('status') &&
+                strtoupper($shipment->status) === 'DELIVERED' &&
+                ! $shipment->delivered_at
+            ) {
+                $shipment->delivered_at = now();
+            }
         });
 
         // Keep the parent Order's status mirrored to its Shipment's status
@@ -63,10 +73,16 @@ class Shipment extends Model
         // matter where the status change comes from.
         static::updated(function (Shipment $shipment) {
             if ($shipment->wasChanged('status') && $shipment->order_id) {
-                Order::where('id', $shipment->order_id)->update([
+                $orderUpdate = [
                     'status'     => strtoupper($shipment->status),
                     'updated_at' => now(),
-                ]);
+                ];
+
+                if (strtoupper($shipment->status) === 'DELIVERED' && $shipment->delivered_at) {
+                    $orderUpdate['delivered_at'] = $shipment->delivered_at;
+                }
+
+                Order::withoutGlobalScope('client')->where('id', $shipment->order_id)->update($orderUpdate);
             }
         });
     }

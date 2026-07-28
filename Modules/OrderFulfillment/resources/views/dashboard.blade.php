@@ -2,15 +2,61 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<script>
+  (function () {
+    try {
+      if (localStorage.getItem('nexora-theme') === 'dark') {
+        document.documentElement.classList.add('dark-theme');
+      }
+    } catch (e) {}
+  })();
+</script>
 <title>Nexora Dashboard</title>
 <style>
   :root {
+    --bg-header: #FFFFFF;
+    --bg-dark: #EEF2FA;
+    --bg-card: #FFFFFF;
+    --text-light: #16233F;
+    --text-muted: #5B6B85;
+    --border-soft: rgba(15,23,42,0.10);
+    --row-alt: rgba(15,23,42,0.025);
+    --row-hover: rgba(15,23,42,0.045);
+
+    /* Header/profile menu stay fixed dark-navy in both light and dark mode */
+    --bg-header-fixed: #0B1E3D;
+    --header-text: #FFFFFF;
+    --header-muted: #9FB3D1;
+    --header-border: rgba(255,255,255,0.08);
+
+    /* PACKING / READY FOR DELIVERY status color, kept in sync with the
+       Shipping tab's palette so the same status looks the same everywhere. */
+    --warn-bg: #FFF6E5;
+    --warn-border: #F3D08A;
+    --warn-text: #8A5A06;
+
+    /* Cards/panels/modals need their own soft shadow in light mode for
+       depth against the light page background. */
+    --elev-shadow: 0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.07);
+    --modal-shadow: 0 20px 60px rgba(15,23,42,0.18);
+  }
+
+  html.dark-theme {
     --bg-header: #0B1E3D;
     --bg-dark: #1B3A6B;
     --bg-card: #0B1E3D;
     --text-light: #FFFFFF;
     --text-muted: #9FB3D1;
     --border-soft: rgba(255,255,255,0.08);
+    --row-alt: rgba(255,255,255,0.02);
+    --row-hover: rgba(255,255,255,0.04);
+
+    --warn-bg: #6B4A1E;
+    --warn-border: #6b5a24;
+    --warn-text: #FBD38D;
+
+    --elev-shadow: none;
+    --modal-shadow: 0 20px 60px rgba(0,0,0,0.4);
   }
 
   * { box-sizing: border-box; }
@@ -28,8 +74,8 @@
     align-items: center;
     justify-content: space-between;
     padding: 18px 40px;
-    background: var(--bg-header);
-    border-bottom: 1px solid var(--border-soft);
+    background: var(--bg-header-fixed);
+    border-bottom: 1px solid var(--header-border);
   }
 
 .brand{
@@ -47,7 +93,7 @@
 }
 
 .brand-logo .title{
-    color:#FFFFFF;
+    color: var(--header-text);
 }
 
 .brand-logo .subtitle{
@@ -78,19 +124,19 @@
   }
 
   .nav-links a {
-    color: var(--text-muted);
+    color: var(--header-muted);
     text-decoration: none;
     font-size: 15px;
     font-weight: 500;
   }
 
   .nav-links a.active {
-    color: var(--text-light);
+    color: var(--header-text);
     font-weight: 700;
   }
 
   .nav-links a:hover {
-    color: var(--text-light);
+    color: var(--header-text);
     text-shadow: 0 0 0.4px currentColor, 0 0 0.4px currentColor;
   }
 
@@ -109,6 +155,7 @@
     padding: 22px 28px;
     flex: 1;
     min-width: 200px;
+    box-shadow: var(--elev-shadow);
   }
 
   .stat-card .label {
@@ -141,6 +188,7 @@
     height: 560px;
     display: flex;
     flex-direction: column;
+    box-shadow: var(--elev-shadow);
   }
 
   .column-header {
@@ -269,10 +317,11 @@
   }
 
   .tag-new { background: rgba(255,255,255,0.1); color: var(--text-muted); }
-  .tag-packing { background: #6B4A1E; color: #FBD38D; }
+  .tag-packing { background: var(--warn-bg); color: var(--warn-text); border: 1px solid var(--warn-border); }
   .tag-shipped { background: #1E5A6B; color: #7DD3E8; }
   .tag-transit { background: #1E3A6B; color: #93C5FD; }
   .tag-delivered { background: #1E5A3A; color: #86EFAC; }
+  .tag-complete { background: #1E5A3A; color: #86EFAC; }
   .tag-cancelled { background: #4A1E1E; color: #F3A9A9; }
 
   /* Priority tags (based on order age) */
@@ -417,7 +466,7 @@
   .nav-divider {
     width: 1px;
     height: 22px;
-    background: rgba(255,255,255,0.18);
+    background: var(--header-border);
   }
 
   /* ===== Profile menu ===== */
@@ -431,34 +480,49 @@
     border-radius: 50%;
     overflow: hidden;
     cursor: pointer;
-    border: 2px solid rgba(255,255,255,0.15);
+    border: 2px solid var(--header-border);
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--bg-header);
+    background: var(--accent, #3B82F6);
     padding: 0;
   }
 
-  .profile-trigger img {
+  .avatar-initial {
     width: 100%;
     height: 100%;
-    object-fit: cover;
-    display: block;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #3B82F6, #2563EB);
+    color: #FFFFFF;
+    font-weight: 700;
+    font-size: 16px;
+    font-family: inherit;
+    line-height: 1;
+  }
+
+  .avatar-initial-lg {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    border-radius: 50%;
+    font-size: 18px;
   }
 
   .profile-trigger:hover {
-    border-color: rgba(255,255,255,0.35);
+    border-color: var(--accent, #3B82F6);
   }
 
   .profile-dropdown {
     position: absolute;
     top: calc(100% + 12px);
     right: 0;
-    background: var(--bg-header);
-    border: 1px solid var(--border-soft);
-    border-radius: 10px;
-    min-width: 190px;
-    padding: 6px;
+    background: var(--bg-header-fixed);
+    border: 1px solid var(--header-border);
+    border-radius: 12px;
+    min-width: 250px;
+    padding: 14px;
     display: none;
     flex-direction: column;
     box-shadow: 0 12px 28px rgba(0,0,0,0.35);
@@ -469,32 +533,125 @@
     display: flex;
   }
 
-  .profile-dropdown a,
-  .profile-dropdown button {
-    display: block;
-    width: 100%;
-    text-align: left;
-    background: none;
-    border: none;
-    color: var(--text-light);
-    font-family: inherit;
+  .profile-summary {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 2px 2px 12px;
+  }
+
+  .profile-summary-text {
+    min-width: 0;
+  }
+
+  .profile-name {
+    color: var(--header-text);
+    font-size: 15px;
+    font-weight: 700;
+  }
+
+  .profile-email {
+    color: var(--header-muted);
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .profile-role-badge {
+    display: inline-block;
+    align-self: flex-start;
+    background: var(--pill, rgba(59,130,246,0.18));
+    border: 1px solid var(--pill-border, rgba(59,130,246,0.35));
+    color: #3B82F6;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    padding: 3px 10px;
+    border-radius: 12px;
+    margin: 0 0 12px;
+  }
+
+  .profile-dropdown .divider {
+    height: 1px;
+    background: var(--header-border);
+    margin: 4px 0 10px;
+  }
+
+  .profile-dropdown-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 2px 12px;
+  }
+
+  .profile-dropdown-row .dark-mode-label {
+    color: var(--header-text);
     font-size: 14px;
     font-weight: 500;
-    padding: 10px 12px;
+  }
+
+  .theme-switch {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 22px;
+    flex-shrink: 0;
+  }
+
+  .theme-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .theme-switch-slider {
+    position: absolute;
+    inset: 0;
+    background: rgba(255,255,255,0.18);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+
+  .theme-switch-slider::before {
+    content: "";
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    left: 3px;
+    top: 3px;
+    background: #FFFFFF;
+    border-radius: 50%;
+    transition: transform 0.15s ease;
+  }
+
+  .theme-switch input:checked + .theme-switch-slider {
+    background: #3B82F6;
+  }
+
+  .theme-switch input:checked + .theme-switch-slider::before {
+    transform: translateX(18px);
+  }
+
+  .profile-dropdown .logout-btn {
+    display: block;
+    width: 100%;
+    text-align: center;
+    background: none;
+    border: none;
+    color: #F87171;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 8px 12px;
     border-radius: 6px;
     cursor: pointer;
     text-decoration: none;
   }
 
-  .profile-dropdown a:hover,
-  .profile-dropdown button:hover {
-    background: rgba(255,255,255,0.08);
-  }
-
-  .profile-dropdown .divider {
-    height: 1px;
-    background: var(--border-soft);
-    margin: 4px 0;
+  .profile-dropdown .logout-btn:hover {
+    background: rgba(248,113,113,0.12);
   }
 </style>
 
@@ -521,14 +678,28 @@
       <div class="nav-divider"></div>
       <div class="profile-menu" id="profileMenu">
         <button type="button" class="profile-trigger" id="profileTrigger" aria-label="Account menu">
-          <img src="{{ asset('orderfulfillment/logo/pf.png') }}" alt="Profile">
+          <span class="avatar-initial">{{ strtoupper(substr(session('employee_name', 'Employee'), 0, 1)) }}</span>
         </button>
         <div class="profile-dropdown" id="profileDropdown">
-          <a href="{{ route('order-fulfillment.dashboard') }}">Employee Dashboard</a>
+          <div class="profile-summary">
+            <span class="avatar-initial avatar-initial-lg">{{ strtoupper(substr(session('employee_name', 'Employee'), 0, 1)) }}</span>
+            <div class="profile-summary-text">
+              <div class="profile-name">{{ session('employee_name', 'Employee') }}</div>
+              <div class="profile-email">{{ session('employee_email', '') }}</div>
+            </div>
+          </div>
+          <div class="divider"></div>
+          <div class="profile-dropdown-row">
+            <span class="dark-mode-label">🌙 Dark Mode</span>
+            <label class="theme-switch">
+              <input type="checkbox" id="darkModeToggle">
+              <span class="theme-switch-slider"></span>
+            </label>
+          </div>
           <div class="divider"></div>
           <form method="POST" action="{{ route('order-fulfillment.logout') }}" style="margin:0;">
             @csrf
-            <button type="submit">Log out</button>
+            <button type="submit" class="logout-btn">⏻ Logout</button>
           </form>
         </div>
       </div>
@@ -569,10 +740,11 @@
       'shipped'   => 'tag-shipped',
       'transit'   => 'tag-transit',
       'delivered' => 'tag-delivered',
+      'complete'  => 'tag-complete',
       'cancelled' => 'tag-cancelled',
     ];
     $statusMap = [];
-    foreach (['NEW', 'PACKING', 'READY_TO_SHIP', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED', 'DELAYED', 'CANCELLED'] as $key) {
+    foreach (['NEW', 'PACKING', 'READY_TO_SHIP', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED', 'COMPLETE', 'DELAYED', 'CANCELLED'] as $key) {
       $statusMap[$key] = [
         'label' => \Modules\OrderFulfillment\Helpers\OrderStatus::label($key),
         'class' => $statusClassByTier[\Modules\OrderFulfillment\Helpers\OrderStatus::tier($key)],
@@ -603,6 +775,11 @@
                 }
             } else {
                 $showPriority = true;
+            }
+            // Priority no longer matters once an order has finished its
+            // lifecycle — hide the tag once it's DELIVERED or COMPLETE.
+            if (in_array(strtoupper($order->status), ['DELIVERED', 'COMPLETE'], true)) {
+                $showPriority = false;
             }
           @endphp
           <div class="order-card">
@@ -648,6 +825,11 @@
                 }
             } else {
                 $showPriority = true;
+            }
+            // Priority no longer matters once an order has finished its
+            // lifecycle — hide the tag once it's DELIVERED or COMPLETE.
+            if (in_array(strtoupper($order->status), ['DELIVERED', 'COMPLETE'], true)) {
+                $showPriority = false;
             }
           @endphp
           <div class="order-card">
@@ -704,6 +886,11 @@
                 }
             } else {
                 $showPriority = true;
+            }
+            // Priority no longer matters once an order has finished its
+            // lifecycle — hide the tag once it's DELIVERED or COMPLETE.
+            if (in_array(strtoupper($order->status), ['DELIVERED', 'COMPLETE'], true)) {
+                $showPriority = false;
             }
           @endphp
           <div class="order-card">
@@ -824,6 +1011,18 @@
       const menu = document.getElementById('profileMenu');
       const trigger = document.getElementById('profileTrigger');
       const dropdown = document.getElementById('profileDropdown');
+
+      const darkModeToggle = document.getElementById('darkModeToggle');
+      if (darkModeToggle) {
+        darkModeToggle.checked = document.documentElement.classList.contains('dark-theme');
+        darkModeToggle.addEventListener('change', function () {
+          document.documentElement.classList.toggle('dark-theme', this.checked);
+          try {
+            localStorage.setItem('nexora-theme', this.checked ? 'dark' : 'light');
+          } catch (e) {}
+        });
+      }
+
       if (!menu || !trigger || !dropdown) return;
 
       trigger.addEventListener('click', function (e) {

@@ -7,7 +7,7 @@
 </head>
 <body>
 
-<h1>Test Panel — Status Simulator</h1>
+<h1>Test Panel</h1>
 
 <p>
   <a href="{{ route('order-fulfillment.dashboard') }}">Dashboard</a> |

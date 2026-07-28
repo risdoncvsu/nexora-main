@@ -8,8 +8,7 @@
                 <p id="deptDesc">Deep dive into each department's key performance indicators and trends.</p>
             </div>
             <div class="subheader-controls">
-                <select id="deptSelector" class="control-date-selector chart-range-select" onchange="switchDepartment()"
-                    style="width:280px;">
+                <select id="deptSelector" class="control-date-selector chart-range-select" onchange="switchDepartment()" style="width:280px;">
                     <option value="finance">Finance &amp; Accounting</option>
                     <option value="inventory">Inventory &amp; Warehouse</option>
                     <option value="procurement">Procurement</option>
@@ -38,6 +37,9 @@
                     <div class="placeholder-graph-box chart-box"><canvas id="deptChart2"></canvas></div>
                 </div>
             </div>
+
+            {{-- Details / Drilldowns --}}
+            <div id="deptDetails" style="margin-top:1rem;display:grid;gap:1rem;"></div>
         </div>
     </div>
 @endsection
@@ -175,6 +177,66 @@
                 deptChart2 = renderChart('deptChart2', data.chart2);
 
                 lucide.createIcons();
+
+                // Render department details / drilldowns if provided by the API
+                const detailsEl = document.getElementById('deptDetails');
+                if (detailsEl) {
+                    detailsEl.innerHTML = '';
+                    const d = data.details || {};
+
+                    if (d.aging) {
+                        detailsEl.innerHTML += `
+                            <div class="ui-card">
+                                <div class="card-header"><div class="card-title">AR Aging</div></div>
+                                <div class="card-body">
+                                    <table class="product-table" style="width:100%;">
+                                        <thead><tr><th>Bucket</th><th>Count</th></tr></thead>
+                                        <tbody>${d.aging.map(a => `<tr><td>${a.label}</td><td>${a.value}</td></tr>`).join('')}</tbody>
+                                    </table>
+                                </div>
+                            </div>`;
+                    }
+
+                    if (d.low_items) {
+                        detailsEl.innerHTML += `
+                            <div class="ui-card">
+                                <div class="card-header"><div class="card-title">Low stock items</div></div>
+                                <div class="card-body">
+                                    <table class="product-table" style="width:100%;">
+                                        <thead><tr><th>SKU</th><th>Stock</th><th>Reorder</th></tr></thead>
+                                        <tbody>${d.low_items.map(i => `<tr><td>${i.label}</td><td>${i.value}</td><td>${i.reorder_threshold ?? 0}</td></tr>`).join('')}</tbody>
+                                    </table>
+                                </div>
+                            </div>`;
+                    }
+
+                    if (d.supplier_lead_times) {
+                        detailsEl.innerHTML += `
+                            <div class="ui-card">
+                                <div class="card-header"><div class="card-title">Supplier Lead Times</div></div>
+                                <div class="card-body">
+                                    <table class="product-table" style="width:100%;">
+                                        <thead><tr><th>Supplier</th><th>Avg days</th></tr></thead>
+                                        <tbody>${d.supplier_lead_times.map(s => `<tr><td>${s.supplier}</td><td>${s.avg_days}</td></tr>`).join('')}</tbody>
+                                    </table>
+                                </div>
+                            </div>`;
+                    }
+
+                    if (d.carriers) {
+                        detailsEl.innerHTML += `
+                            <div class="ui-card">
+                                <div class="card-header"><div class="card-title">Carrier Performance</div></div>
+                                <div class="card-body">
+                                    <table class="product-table" style="width:100%;">
+                                        <thead><tr><th>Carrier</th><th>Delayed</th></tr></thead>
+                                        <tbody>${d.carriers.map(c => `<tr><td>${c.carrier}</td><td>${c.delayed}</td></tr>`).join('')}</tbody>
+                                    </table>
+                                </div>
+                            </div>`;
+                    }
+
+                }
             } catch (e) {
                 document.getElementById('deptStats').innerHTML = '<p style="color:var(--danger);text-align:center;padding:1rem;grid-column:1/-1;">Failed to load data</p>';
             }

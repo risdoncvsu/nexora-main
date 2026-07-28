@@ -28,7 +28,7 @@ class DashboardController extends Controller
         $inShippingCount     = (clone $orders)
             ->whereIn('status', ['READY_TO_SHIP', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELAYED'])
             ->count();
-        $deliveredCount      = (clone $orders)->where('status', 'DELIVERED')->count();
+        $deliveredCount      = (clone $orders)->whereIn('status', ['DELIVERED', 'COMPLETE'])->count();
         $totalFulfilled      = $deliveredCount;
         $onTimeRate          = $totalOrders > 0 ? round(($deliveredCount / $totalOrders) * 100) : 0;
 
@@ -42,7 +42,7 @@ class DashboardController extends Controller
         // through delivery, not just for the literal 'SHIPPED' status — otherwise
         // a READY_TO_SHIP order shows in neither the PACKING nor SHIPPED column.
         $shippedOrders   = (clone $orders)
-            ->whereIn('status', ['READY_TO_SHIP', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED'])
+            ->whereIn('status', ['READY_TO_SHIP', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED', 'COMPLETE'])
             ->orderByDesc('created_at')
             ->get();
         $cancelledOrders = (clone $orders)->where('status', 'CANCELLED')->get();
@@ -62,7 +62,10 @@ class DashboardController extends Controller
             ->concat($shippedOrders->map(function ($order) {
                 $status = strtoupper($order->status);
 
-                if ($status === 'DELIVERED') {
+                if ($status === 'COMPLETE') {
+                    $order->activity_icon    = '🎉';
+                    $order->activity_message = "Order {$order->id} is complete";
+                } elseif ($status === 'DELIVERED') {
                     $order->activity_icon    = '✅';
                     $order->activity_message = "Order {$order->id} has been delivered";
                 } elseif ($status === 'OUT_FOR_DELIVERY') {

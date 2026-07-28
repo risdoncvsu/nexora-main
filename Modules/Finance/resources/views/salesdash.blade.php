@@ -94,11 +94,11 @@ let salesData = {
     changePct: 0,
     changeSub: ""
   },
-  range: "This week",
+  range: @json($rangeLabel ?? "This week"),
   trend: { months: ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"], series: [] },
   totalSalesSidebar: Number(@json($totalSales ?? 0)),
-  topProducts: [],
-  revenueStreams: []
+  topProducts: @json($topProducts ?? []),
+  revenueStreams: @json($revenueStreams ?? [])
 };
 
 function setSalesData(data) {
@@ -163,29 +163,13 @@ function getSalesLabelsForRange(range){
 }
 
 function selectSalesRange(range){
-  salesData.range = range;
-  document.getElementById("salesRangeLabel").textContent = range;
-
-  const newMonths = getSalesLabelsForRange(range);
-  const currentSeries = salesData.trend.series;
-
-  salesData.trend.months = newMonths;
-
-  if (currentSeries.length > 0) {
-    salesData.trend.series = currentSeries.map(s => ({
-      ...s,
-      values: Array(newMonths.length).fill(0)
-    }));
-  } else {
-    salesData.trend.series = [{
-      label: 'Sales',
-      color: '#4ca6ff',
-      values: Array(newMonths.length).fill(0)
-    }];
-  }
-
-  closeAllMenus();
-  renderSalesChart();
+  const ranges = {
+    'This week': 'week',
+    'Last week': 'last_week',
+    'This month': 'month',
+    'This year': 'year'
+  };
+  window.location.href = `${window.location.pathname}?range=${ranges[range] || 'week'}`;
 }
 
 function setSalesTrendData(months, series){
@@ -329,8 +313,12 @@ function renderRevenueStreams(){
     </div>`;
 }
 
-salesData.trend.months = getSalesLabelsForRange("This week");
-salesData.trend.series = [{ label: 'Sales', color: '#4ca6ff', values: Array(7).fill(0) }];
+salesData.trend.months = getSalesLabelsForRange(salesData.range);
+salesData.trend.series = [{
+  label: 'Sales',
+  color: '#4ca6ff',
+  values: @json($trendValues ?? [])
+}];
 
 requestAnimationFrame(() => {
   renderSalesSummary();

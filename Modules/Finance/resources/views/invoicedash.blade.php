@@ -872,7 +872,7 @@ document.getElementById("editReferenceNumber").value =
 document.getElementById("editPaymentStatus").value =
     invoice.payment_status ?? "Unpaid";
 
-    document.getElementById("editInvoiceForm").action = `/invoice/${invoice.id}`;
+    document.getElementById("editInvoiceForm").action = `{{ url('/finance/invoice') }}/${invoice.id}`;
     const modal = document.getElementById("editInvoiceModal");
 
     modal.classList.remove("hidden");
@@ -893,7 +893,7 @@ function rejectInvoice(id) {
         return;
     }
 
-    fetch(`/invoice/${id}/reject`, {
+    fetch(`{{ url('/finance/invoice') }}/${id}/reject`, {
         method: "PUT",
         headers: {
             "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]').content,
