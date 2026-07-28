@@ -1,0 +1,27 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public $withinTransaction = false;
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::table('cart_items', function (Blueprint $table) {
+            $table->json('configuration')->nullable()->after('product_type');
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        // Intentionally non-destructive: production storefront data is never removed by rollback.
+    }
+};
