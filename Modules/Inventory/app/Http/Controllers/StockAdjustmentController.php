@@ -8,6 +8,7 @@ use Modules\Inventory\Models\Item;
 use Modules\Inventory\Models\StockAdjustment;
 use Modules\Inventory\Models\StockLevel;
 use Modules\Inventory\Models\StockMovement;
+use Modules\Inventory\Models\Defect;
 use Modules\Inventory\Models\Warehouse;
 use Modules\Inventory\Http\Controllers\Concerns\HasInventoryPermissions;
 use Illuminate\Http\Request;
@@ -199,16 +200,41 @@ class StockAdjustmentController extends Controller
             'approved_at' => now(),
         ]);
 
+        $isDecrease = $adjustment->type === 'decrease';
         StockMovement::create([
-            'type' => 'adjustment',
+            // Keep the movement ledger consistent with receiving and
+            // manufacturing: a decrease is outbound stock, an increase is
+            // inbound stock. The adjustment reference preserves the reason.
+            'type' => $isDecrease ? 'outbound' : 'inbound',
             'item_id' => $adjustment->item_id,
             'warehouse_id' => $adjustment->warehouse_id,
-            'quantity' => $adjustment->type === 'decrease' ? -$adjustment->quantity : $adjustment->quantity,
+            'quantity' => $isDecrease ? -$adjustment->quantity : $adjustment->quantity,
             'reference' => 'ADJ-' . now()->format('Y') . '-' . str_pad($adjustment->id, 4, '0', STR_PAD_LEFT),
             'notes' => "Adjustment #{$adjustment->id} approved: {$adjustment->type} ({$adjustment->reason})",
-            'performed_by' => session('employee_id'),
+            'performed_by' => (int) session('employee_id'),
             'created_at' => now(),
         ]);
+
+        // A confirmed damage decrease is a defective item. Surface it in the
+        // replacement workflow automatically, keyed to this adjustment so an
+        // approval retry cannot create a duplicate request candidate.
+        if ($isDecrease && strtolower((string) $adjustment->reason) === 'damage') {
+            Defect::firstOrCreate(
+                [
+                    'client_id' => (int) session('employee_client_id'),
+                    'source' => 'Adjustment',
+                    'source_id' => (string) $adjustment->id,
+                ],
+                [
+                    'part_name' => $adjustment->item?->name ?? ('Item #' . $adjustment->item_id),
+                    'quantity' => $adjustment->quantity,
+                    'description' => 'Auto-logged from damage adjustment #' . $adjustment->id
+                        . ' at ' . ($warehouse->name ?? 'warehouse') . '.',
+                    'status' => 'Open',
+                    'created_by' => session('employee_name', 'System'),
+                ]
+            );
+        }
 
         return true;
     }

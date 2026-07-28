@@ -112,7 +112,7 @@
                 transform: rotate(40deg);
             }
 
-            .nexora-modal > *:not(.nexora-modal-logo) {
+            .nexora-modal > * {
                 position: relative;
                 z-index: 1;
             }
@@ -326,6 +326,14 @@
             }
 
             .nexora-modal-form-full { grid-column: 1 / -1; }
+
+            .info-list { display:grid; grid-template-columns:1fr 1fr; gap:14px 20px; }
+            .info-item { min-width:0; }
+            .info-item.info-full { grid-column:1 / -1; }
+            .info-key { display:block; margin-bottom:3px; color:rgba(255,255,255,.5); font-size:11px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; }
+            .info-val { color:#fff; font-size:14px; word-break:break-word; }
+            .clickable-row { cursor:pointer; }
+            @media (max-width:640px) { .info-list { grid-template-columns:1fr; } }
 
             .nexora-modal-textarea {
                 width: 100%;
@@ -634,7 +642,6 @@
              cancelText, variant, onConfirm}). --}}
         <div id="nexoraConfirmModal" class="nexora-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="nexoraConfirmTitle">
             <div class="nexora-modal nexora-modal-sm">
-                <div class="nexora-modal-logo"></div>
                 <div class="nexora-modal-header">
                     <div class="nexora-modal-heading">
                         <span class="nexora-modal-icon nexora-modal-icon-blue" id="nexoraConfirmIcon"></span>

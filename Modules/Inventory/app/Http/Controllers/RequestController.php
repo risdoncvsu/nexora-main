@@ -13,6 +13,7 @@ class RequestController extends Controller
         try {
             $rows = DB::connection('inventory')
                 ->table('requisitions')
+                ->where('client_id', (int) session('employee_client_id'))
                 ->where('requested_by', session('employee_name'))
                 ->orderByDesc('created_at')
                 ->get();
@@ -74,6 +75,7 @@ class RequestController extends Controller
         $names = [];
         $year = now()->format('Y');
         $reqSeq = DB::connection('inventory')->table('requisitions')
+            ->where('client_id', (int) session('employee_client_id'))
             ->whereYear('created_at', $year)
             ->count() + 1;
         $batchId = 'BATCH-' . $year . '-' . str_pad((string) $reqSeq, 4, '0', STR_PAD_LEFT);
@@ -168,11 +170,32 @@ class RequestController extends Controller
 
     public function replacementItems()
     {
-        $items = \Modules\Inventory\Models\Defect::where('status', 'Open')->get()->map(fn ($d) => [
+        // Do not offer a defect twice while its replacement request is still
+        // moving through Procurement. The request rows are raw cross-module
+        // data, so scope the lookup explicitly to the signed-in client.
+        $activeDefectIds = DB::connection('inventory')
+            ->table('requisitions')
+            ->where('client_id', (int) session('employee_client_id'))
+            ->where('type', 'replacement')
+            ->whereIn('status', ['Pending', 'Approved', 'Processing', 'In Transit'])
+            ->pluck('notes')
+            ->map(function ($notes) {
+                return preg_match('/\[defect_id:(\d+)\]/', (string) $notes, $matches)
+                    ? (int) $matches[1]
+                    : null;
+            })
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        $items = \Modules\Inventory\Models\Defect::where('status', 'Open')
+            ->when($activeDefectIds !== [], fn ($query) => $query->whereNotIn('id', $activeDefectIds))
+            ->get()->map(fn ($d) => [
             'id' => $d->id,
             'part_name' => $d->part_name,
             'quantity' => $d->quantity,
-            'source' => $d->source,
+            'source' => ucfirst((string) $d->source),
         ]);
 
         return response()->json($items);

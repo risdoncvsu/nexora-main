@@ -74,6 +74,19 @@ class InventoryBridgeService
                         'stock'             => max(0, $sl->stock - $res->quantity),
                         'updated_at'        => now(),
                     ]);
+
+                    $this->inv()->table('stock_movements')->insert([
+                        'client_id'    => $clientId,
+                        'type'         => 'outbound',
+                        'item_id'      => $itemId,
+                        'warehouse_id' => $res->warehouse_id,
+                        'quantity'     => -$res->quantity,
+                        'reference'    => $woId,
+                        'reference_id' => $woId,
+                        'performed_by' => session('employee_id'),
+                        'notes'        => 'Consumed for manufacturing work order',
+                        'created_at'   => now(),
+                    ]);
                 }
 
                 $this->inv()->table('order_reservations')->where('id', $res->id)->update([
@@ -151,19 +164,38 @@ class InventoryBridgeService
             $itemId = $this->resolveItemId(null, $partName, $clientId);
             if (!$itemId) return false;
 
-            $sl = $this->inv()->table('stock_levels')
-                ->where('item_id', $itemId)
-                ->when($clientId, fn ($q) => $q->where('client_id', $clientId))
-                ->whereRaw('stock - reserved_quantity >= ?', [$qty])
-                ->orderByRaw('(stock - reserved_quantity) DESC')
-                ->first();
-            if (!$sl) return false; // no unreserved stock -> caller keeps it locked
+            return $this->inv()->transaction(function () use ($itemId, $qty, $clientId) {
+                // Lock before evaluating availability so concurrent rework
+                // actions cannot both consume the same available units.
+                $sl = $this->inv()->table('stock_levels')
+                    ->where('item_id', $itemId)
+                    ->when($clientId, fn ($q) => $q->where('client_id', $clientId))
+                    ->whereRaw('stock - reserved_quantity >= ?', [$qty])
+                    ->orderByRaw('(stock - reserved_quantity) DESC')
+                    ->lockForUpdate()
+                    ->first();
+                if (! $sl) return false;
 
-            $this->inv()->table('stock_levels')->where('id', $sl->id)->update([
-                'stock'      => max(0, $sl->stock - $qty),
-                'updated_at' => now(),
-            ]);
-            return true;
+                $this->inv()->table('stock_levels')->where('id', $sl->id)->update([
+                    'stock'      => max(0, $sl->stock - $qty),
+                    'updated_at' => now(),
+                ]);
+
+                $this->inv()->table('stock_movements')->insert([
+                    'client_id'    => $clientId,
+                    'type'         => 'outbound',
+                    'item_id'      => $itemId,
+                    'warehouse_id' => $sl->warehouse_id,
+                    'quantity'     => -$qty,
+                    'reference'    => 'rework',
+                    'reference_id' => null,
+                    'performed_by' => session('employee_id'),
+                    'notes'        => 'Grabbed from stock for manufacturing rework',
+                    'created_at'   => now(),
+                ]);
+
+                return true;
+            });
         } catch (\Throwable $e) {
             report($e);
             return false;

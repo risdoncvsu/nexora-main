@@ -354,6 +354,31 @@ class StockReceivingController extends Controller
                 $procurement->table('purchase_orders')
                     ->where('id', $delivery->purchase_order_id)
                     ->update(['status' => 'delivered', 'updated_at' => now()]);
+
+                // A replacement is complete only after its final shipment is
+                // actually received in Inventory. Resolve the exact defect
+                // linked from the originating requisition, never a similarly
+                // named record belonging to another client.
+                if (Schema::connection('procurement')->hasColumn('purchase_orders', 'requisition_reference')) {
+                    $requisitionReference = $procurement->table('purchase_orders')
+                        ->where('id', $delivery->purchase_order_id)
+                        ->where('client_id', $clientId)
+                        ->value('requisition_reference');
+
+                    $requestNotes = $requisitionReference
+                        ? $inv->table('requisitions')
+                            ->where('client_id', $clientId)
+                            ->where('req_id', $requisitionReference)
+                            ->value('notes')
+                        : null;
+
+                    if ($requestNotes && preg_match('/\[defect_id:(\d+)\]/', $requestNotes, $matches)) {
+                        $inv->table('defects')
+                            ->where('client_id', $clientId)
+                            ->where('id', (int) $matches[1])
+                            ->update(['status' => 'Resolved', 'updated_at' => now()]);
+                    }
+                }
             }
         }
 

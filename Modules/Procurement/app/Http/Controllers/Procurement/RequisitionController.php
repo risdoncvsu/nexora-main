@@ -6,10 +6,81 @@ use App\Http\Controllers\Controller;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Modules\Inventory\Models\Defect;
 use Modules\Procurement\Services\RequisitionStatusWriter;
 
 class RequisitionController extends Controller
 {
+    /**
+     * Inventory owns defect records. Procurement can coordinate the supplier
+     * replacement lifecycle, but all access stays scoped to the signed-in
+     * client's Inventory data.
+     */
+    private function defectsForCurrentClient(Request $request)
+    {
+        $query = Defect::query()->orderByDesc('created_at');
+
+        if (! (config('nexora.root_admin_module_testing') && $request->user()?->role === 'root_admin')) {
+            $query->where('client_id', (int) session('employee_client_id'));
+        }
+
+        return $query;
+    }
+
+    /** Inventory defect feed for Procurement's Defect Items sub-tab. */
+    public function defects(Request $request)
+    {
+        return response()->json(
+            $this->defectsForCurrentClient($request)->get()->map(fn (Defect $defect) => [
+                'id' => $defect->id,
+                'defect_no' => sprintf('DEF-%06d', $defect->id),
+                'part_name' => $defect->part_name,
+                'quantity' => $defect->quantity,
+                'description' => $defect->description,
+                'source' => $defect->source,
+                'reported_by' => $defect->created_by,
+                'status' => $defect->status,
+                'date' => optional($defect->created_at)->toIso8601String(),
+            ])
+        );
+    }
+
+    /**
+     * Track supplier-return progress without fabricating an Inventory receipt.
+     * Physical stock still changes only through Inventory stock receiving.
+     */
+    public function updateDefect(Request $request, int $defect)
+    {
+        $data = $request->validate([
+            'action' => 'required|string|in:reject,return,intransit,received',
+        ]);
+
+        $record = $this->defectsForCurrentClient($request)->whereKey($defect)->firstOrFail();
+        $current = strtolower(trim((string) $record->status));
+        $transitions = [
+            'reject' => ['open' => 'Rejected'],
+            'return' => ['open' => 'Returned to Supplier'],
+            'intransit' => ['returned to supplier' => 'Replacement In Transit'],
+            'received' => ['replacement in transit' => 'Replacement Received'],
+        ];
+        $next = $transitions[$data['action']][$current] ?? null;
+
+        if (! $next) {
+            return response()->json([
+                'message' => sprintf('This action is unavailable while the defect is %s.', $record->status),
+            ], 422);
+        }
+
+        $record->update(['status' => $next]);
+
+        return response()->json([
+            'status' => 'ok',
+            'defect_status' => $next,
+            'receiving_created' => false,
+            'message' => 'Defect replacement status updated. Inventory stock is updated only when an incoming shipment is approved.',
+        ]);
+    }
+
     private function getRequisitionConnection()
     {
         foreach (['order_fulfillment', 'inventory'] as $connectionName) {

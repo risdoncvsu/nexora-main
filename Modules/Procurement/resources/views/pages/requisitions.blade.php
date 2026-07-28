@@ -173,12 +173,13 @@
                 <th>REPORTED BY</th>
                 <th>STATUS</th>
                 <th>DATE</th>
+                <th>ACTION</th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td colspan="7" style="text-align:center; padding:40px 16px; color:var(--text-muted);">
-                  Defect Items tracking is coming soon.
+                <td colspan="8" style="text-align:center; padding:40px 16px; color:var(--text-muted);">
+                  Loading defect items…
                 </td>
               </tr>
             </tbody>

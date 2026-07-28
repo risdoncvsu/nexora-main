@@ -5,9 +5,9 @@
 @push('styles')
 <style>
     /* Status badge styles moved to the shared inventory.css (single source). */
-    .type-restock { background: #dbeafe; color: #1e40af; }
-    .type-replacement { background: #fef9c3; color: #854d0e; }
-    .type-pill { display: inline-block; padding: 3px 10px; border-radius: 9999px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; }
+    .type-pill { display:inline-block; padding:3px 10px; border:1px solid transparent; border-radius:9999px; font-size:10px; font-weight:700; letter-spacing:.4px; text-transform:uppercase; }
+    .type-pill.type-restock { background:#F0FFF5; border-color:rgba(59,130,246,.5); color:#3B82F6; }
+    .type-pill.type-replacement { background:#F0FFF5; border-color:rgba(217,119,6,.5); color:#D97706; }
 
     .stock-status { font-size: 11px; font-weight: 600; margin-left: 6px; padding: 2px 6px; border-radius: 4px; }
     .stock-out { color: #991b1b; background: #fee2e2; }
@@ -26,9 +26,9 @@
     .req-type-icon.restock { background: rgba(27,111,200,0.2); }
     .req-type-icon.replacement { background: rgba(245,158,11,0.2); }
 
-    .priority-high { background: rgba(239,68,68,0.2); color: #fca5a5; }
-    .priority-low { background: rgba(245,158,11,0.2); color: #fcd34d; }
-    .priority-pill { display: inline-block; padding: 3px 10px; border-radius: 9999px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; }
+    .priority-pill { display:inline-block; padding:3px 10px; border:1px solid transparent; border-radius:9999px; font-size:10px; font-weight:700; letter-spacing:.4px; text-transform:uppercase; }
+    .priority-pill.priority-high { background:#F0FFF5; border-color:rgba(220,38,38,.5); color:#DC2626; }
+    .priority-pill.priority-low { background:#F0FFF5; border-color:rgba(217,119,6,.5); color:#D97706; }
 
     .cart-wrap { border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); overflow: hidden; }
     .cart-table { width: 100%; border-collapse: collapse; }
@@ -127,7 +127,16 @@
                 </thead>
                 <tbody id="requestsBody">
                     @forelse ($requests as $req)
-                        <tr class="req-row" data-status="{{ strtolower($req->status ?? 'pending') }}" data-search="{{ strtolower($req->req_id . ' ' . $req->part_name) }}">
+                        <tr class="req-row clickable-row" onclick="openRequestInfo(this)"
+                            data-status="{{ strtolower($req->status ?? 'pending') }}"
+                            data-search="{{ strtolower($req->req_id . ' ' . $req->part_name) }}"
+                            data-reqid="{{ $req->req_id }}" data-type="{{ $req->type ? ucfirst($req->type) : '—' }}"
+                            data-item="{{ strip_tags($req->part_name) }}" data-qty="{{ $req->quantity }}"
+                            data-priority="{{ strtolower($req->priority ?? 'low') === 'high' ? 'High' : 'Low' }}"
+                            data-statuslabel="{{ $req->status ?? 'Pending' }}" data-requested="{{ $req->requested_by ?? '—' }}"
+                            data-dept="{{ $req->department ?? '—' }}"
+                            data-date="{{ \Carbon\Carbon::parse($req->date_requested)->format('M d, Y') }}"
+                            data-notes="{{ trim(preg_replace('/\[[^\]]+\]/', '', $req->notes ?? '')) ?: '—' }}">
                             <td class="cell-strong" style="font-size:11px;">{{ $req->req_id }}</td>
                             <td>@if($req->type)<span class="type-pill type-{{ $req->type }}">{{ ucfirst($req->type) }}</span>@else<span style="color:#94a3b8;">—</span>@endif</td>
                             <td>{!! $req->part_name !!}</td>
@@ -141,6 +150,7 @@
                                     $s = strtolower($req->status ?? 'pending');
                                     $bc = match($s) {
                                         'pending' => 'status-pending',
+                                        'approved' => 'status-approved',
                                         'processing' => 'status-processing',
                                         'completed' => 'status-completed',
                                         'rejected' => 'status-rejected',
@@ -173,7 +183,6 @@
 
 <div id="requestModal" class="nexora-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="newRequestTitle">
     <div class="nexora-modal nexora-modal-md">
-        <div class="nexora-modal-logo"></div>
         <div class="nexora-modal-header">
             <div style="display:flex;align-items:center;gap:10px;">
                 <span class="req-type-icon restock" id="headerIconRestock">
@@ -250,10 +259,33 @@
     </div>
 </div>
 
+<div id="requestInfoModal" class="nexora-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="requestInfoTitle">
+    <div class="nexora-modal nexora-modal-md">
+        <div class="nexora-modal-header">
+            <div class="nexora-modal-heading"><h2 id="requestInfoTitle" class="nexora-modal-title">Request Details</h2></div>
+            <button type="button" onclick="closeRequestInfo()" class="nexora-modal-close" aria-label="Close">&times;</button>
+        </div>
+        <div class="info-list">
+            <div class="info-item"><span class="info-key">Request ID</span><span class="info-val" id="ri_reqid"></span></div>
+            <div class="info-item"><span class="info-key">Status</span><span class="info-val" id="ri_status"></span></div>
+            <div class="info-item"><span class="info-key">Type</span><span class="info-val" id="ri_type"></span></div>
+            <div class="info-item"><span class="info-key">Priority</span><span class="info-val" id="ri_priority"></span></div>
+            <div class="info-item"><span class="info-key">Item</span><span class="info-val" id="ri_item"></span></div>
+            <div class="info-item"><span class="info-key">Quantity</span><span class="info-val" id="ri_qty"></span></div>
+            <div class="info-item"><span class="info-key">Date Requested</span><span class="info-val" id="ri_date"></span></div>
+            <div class="info-item"><span class="info-key">Requested By</span><span class="info-val" id="ri_requested"></span></div>
+            <div class="info-item"><span class="info-key">Department</span><span class="info-val" id="ri_dept"></span></div>
+            <div class="info-item info-full"><span class="info-key">Notes</span><span class="info-val" id="ri_notes"></span></div>
+        </div>
+        <div class="nexora-modal-actions"><button type="button" onclick="closeRequestInfo()" class="nexora-modal-btn-secondary">Close</button></div>
+    </div>
+</div>
+
 <script>
     var restockItems = [];
     var defectItems = [];
     var cart = [];
+    var pendingRestockItemId = null;
 
     function fetchRestockItems() {
         var list = document.getElementById('itemList');
@@ -263,6 +295,10 @@
             .then(function(items) {
                 restockItems = items;
                 renderRestockItems();
+                if (pendingRestockItemId !== null) {
+                    addRestockToCart(pendingRestockItemId);
+                    pendingRestockItemId = null;
+                }
             })
             .catch(function() {
                 list.innerHTML = '<div class="il-empty">Failed to load items</div>';
@@ -336,6 +372,7 @@
     function addRestockToCart(id) {
         var item = restockItems.find(function(i) { return i.id === id; });
         if (!item) return;
+        if (cart.some(function(c) { return c.type === 'restock' && c.item_id === id; })) return;
         cart.push({
             type: 'restock',
             item_id: item.id,
@@ -349,6 +386,7 @@
     function addReplacementToCart(id) {
         var item = defectItems.find(function(i) { return i.id === id; });
         if (!item) return;
+        if (cart.some(function(c) { return c.type === 'replacement' && c.defect_id === id; })) return;
         cart.push({
             type: 'replacement',
             defect_id: item.id,
@@ -454,6 +492,14 @@
         document.addEventListener('DOMContentLoaded', function() { openRequestModal(); });
     @endif
 
+    (function () {
+        var requestItemId = parseInt(new URLSearchParams(window.location.search).get('item'), 10);
+        if (!isNaN(requestItemId)) {
+            pendingRestockItemId = requestItemId;
+            openRequestModal();
+        }
+    })();
+
     function filterRequests() {
         var q = document.getElementById('searchInput').value.toLowerCase();
         var st = document.getElementById('statusFilter').value.toLowerCase();
@@ -468,5 +514,18 @@
         var empty = document.getElementById('emptyRow');
         if (empty) empty.style.display = visible > 0 ? 'none' : '';
     }
+
+    var requestInfoModal = document.getElementById('requestInfoModal');
+    function openRequestInfo(row) {
+        var d = row.dataset;
+        document.getElementById('ri_reqid').textContent = d.reqid;
+        document.getElementById('ri_status').innerHTML = '<span class="status-badge status-' + d.statuslabel.toLowerCase() + '">' + d.statuslabel + '</span>';
+        document.getElementById('ri_type').innerHTML = d.type !== '—' ? '<span class="type-pill type-' + d.type.toLowerCase() + '">' + d.type + '</span>' : '—';
+        document.getElementById('ri_priority').innerHTML = '<span class="priority-pill priority-' + d.priority.toLowerCase() + '">' + d.priority + '</span>';
+        ['item', 'qty', 'date', 'requested', 'dept', 'notes'].forEach(function (key) { document.getElementById('ri_' + key).textContent = d[key]; });
+        requestInfoModal.classList.add('open');
+    }
+    function closeRequestInfo() { requestInfoModal.classList.remove('open'); }
+    requestInfoModal.addEventListener('click', function (event) { if (event.target === this) closeRequestInfo(); });
 </script>
 @endsection

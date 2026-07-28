@@ -107,6 +107,35 @@ class ReturnController extends Controller
         ]);
     }
 
+    /** Reject a customer return while it is awaiting the client's review. */
+    public function decline($id): JsonResponse
+    {
+        $return = ReturnItem::find($id);
+
+        if (! $return) {
+            return response()->json(['success' => false, 'message' => 'Return not found.'], 404);
+        }
+
+        if ($return->status !== 'NEW') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Return is already ' . $return->status . '.',
+            ], 409);
+        }
+
+        $return->update([
+            'status' => 'Declined',
+            'resolution' => 'Declined',
+            'updated_at' => now(),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'status' => $return->status,
+            'resolution' => $return->resolution,
+        ]);
+    }
+
     /**
      * AJAX: move a return to any of its allowed statuses (Inspecting,
      * Refunded, Completed, ...). Generic on purpose so future Returns-tab
@@ -127,7 +156,7 @@ class ReturnController extends Controller
         }
 
         $validated = $request->validate([
-            'status'     => 'required|string|in:NEW,Inspecting,In Transit to Warehouse,Refunded,Completed',
+            'status'     => 'required|string|in:NEW,Inspecting,In Transit to Warehouse,Refunded,Completed,Declined',
             'resolution' => 'nullable|string|max:255',
         ]);
 

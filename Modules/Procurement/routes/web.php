@@ -42,6 +42,8 @@ Route::prefix('suppliers')->name('suppliers.')->group(function () {
 
 Route::prefix('requisitions')->name('requisitions.')->group(function () {
     Route::get('/', [RequisitionController::class, 'index'])->name('index');
+    Route::get('/defects', [RequisitionController::class, 'defects'])->name('defects');
+    Route::put('/defects/{defect}', [RequisitionController::class, 'updateDefect'])->name('defects.update');
     Route::post('/', [RequisitionController::class, 'store'])->name('store');
     Route::put('/{requisition}', [RequisitionController::class, 'update'])->name('update');
     Route::delete('/{requisition}', [RequisitionController::class, 'destroy'])->name('destroy');

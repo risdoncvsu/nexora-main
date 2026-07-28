@@ -676,6 +676,12 @@
   .btn-accept { background: #16a34a; color: #eafff0; }
   .btn-accept:hover { background: #1bbf58; }
 
+  .btn-reject { background: #dc2626; color: #fff0f0; }
+  .btn-reject:hover { background: #e5433a; }
+
+  .btn:disabled,
+  .btn:disabled:hover { opacity: 0.5; cursor: not-allowed; }
+
   /* ===== Nav actions (links + profile grouped on the right) ===== */
   .nav-actions {
     display: flex;
@@ -1108,6 +1114,7 @@
 
       <div class="modal-footer">
         <button class="btn btn-close" onclick="closeReturnModal()">Close</button>
+        <button class="btn btn-reject" id="modalRejectBtn">Reject return</button>
         <button class="btn btn-accept" id="modalAcceptBtn">Accept return</button>
       </div>
     </div>
@@ -1126,6 +1133,7 @@
 const ADMIN_CANCEL_REASONS = ['Cancelled while shipping', 'Cancelled before shipping'];
 
 const acceptUrlTemplate = @json(route('order-fulfillment.returns.accept', ['id' => '__ID__']));
+const rejectUrlTemplate = @json(route('order-fulfillment.returns.decline', ['id' => '__ID__']));
 const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
 
 let currentReturnRow = null;
@@ -1166,9 +1174,14 @@ function openReturnModal(row)
         row.dataset.reason;
 
     const isAdminCancellation = ADMIN_CANCEL_REASONS.includes(row.dataset.reason);
+    const isPending = row.dataset.status === 'NEW';
     const acceptBtn = document.getElementById('modalAcceptBtn');
-    acceptBtn.style.display = isAdminCancellation ? 'none' : '';
-    acceptBtn.disabled = row.dataset.status !== 'NEW';
+    const rejectBtn = document.getElementById('modalRejectBtn');
+    const showActions = !isAdminCancellation && isPending;
+    acceptBtn.style.display = showActions ? '' : 'none';
+    rejectBtn.style.display = showActions ? '' : 'none';
+    acceptBtn.disabled = !isPending;
+    rejectBtn.disabled = !isPending;
     acceptBtn.textContent = 'Accept return';
 
     document.getElementById('pageContent')
@@ -1226,6 +1239,36 @@ function openReturnModal(row)
           alert(err.message);
           btn.disabled = false;
           btn.textContent = 'Accept return';
+        });
+    });
+
+    document.getElementById('modalRejectBtn').addEventListener('click', function () {
+      if (!currentReturnRow) return;
+
+      const row = currentReturnRow;
+      const btn = this;
+      btn.disabled = true;
+      btn.textContent = 'Rejecting...';
+
+      fetch(rejectUrlTemplate.replace('__ID__', encodeURIComponent(row.dataset.returnId)), {
+        method: 'POST',
+        headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
+      })
+        .then(function (res) { return res.json().then(function (data) { return { ok: res.ok, data: data }; }); })
+        .then(function (result) {
+          if (!result.ok || !result.data.success) throw new Error(result.data.message || 'Could not reject this return.');
+          row.dataset.status = result.data.status;
+          row.dataset.resolution = result.data.resolution;
+          const badge = row.querySelector('.status-badge');
+          if (badge) badge.textContent = result.data.status;
+          const resolutionCell = row.children[5];
+          if (resolutionCell) resolutionCell.textContent = result.data.resolution;
+          closeReturnModal();
+        })
+        .catch(function (err) {
+          alert(err.message);
+          btn.disabled = false;
+          btn.textContent = 'Reject return';
         });
     });
 

@@ -197,6 +197,7 @@
     const defects = document.getElementById('req-tab-defects');
     if(requests) requests.classList.toggle('hidden', tab !== 'requests');
     if(defects) defects.classList.toggle('hidden', tab !== 'defects');
+    if(tab === 'defects' && typeof loadDefectItems === 'function') loadDefectItems();
   }
 
   function animateDashboard(){

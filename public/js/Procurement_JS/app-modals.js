@@ -40,7 +40,7 @@
   }
   function getTableType(row){
     const id = row?.closest('table')?.id;
-    return ({'po-table':'po','suppliers-table':'supplier','requisitions-table':'req','invoices-table':'invoice','deliveries-table':'delivery'})[id] || '';
+    return ({'po-table':'po','suppliers-table':'supplier','requisitions-table':'req','invoices-table':'invoice','deliveries-table':'delivery','defect-items-table':'defect'})[id] || '';
   }
   function resolveSupplierByPO(po){
     const found = [...document.querySelectorAll('#po-table tbody tr')].find(r => textFrom(r.children[0]) === po);
@@ -188,6 +188,73 @@
     return [...document.querySelectorAll('#requisitions-table tbody tr')].find(row => textFrom(row.children[0]) === ref || row.dataset.reqRef === ref || row.dataset.po === ref);
   }
 
+  function defectRowMarkup(defect){
+    const date = defect.date ? new Date(defect.date).toLocaleDateString(undefined, {year:'numeric', month:'short', day:'numeric'}) : '—';
+    return `
+      <td><b>${htmlEscape(defect.defect_no)}</b></td>
+      <td>${htmlEscape(defect.part_name)}</td>
+      <td>${Number(defect.quantity || 0)}</td>
+      <td>${htmlEscape(defect.description || '—')}</td>
+      <td>${htmlEscape(defect.reported_by || '—')}</td>
+      <td>${statusPill(defect.status)}</td>
+      <td>${htmlEscape(date)}</td>
+      <td><span class="row-actions"><button title="View" onclick="openViewModal(this)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/></svg></button></span></td>`;
+  }
+
+  function loadDefectItems(){
+    const table = document.getElementById('defect-items-table');
+    if(!table) return;
+    fetch(procurementUrl('requisitions/defects'), {headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json'}})
+      .then(async response => {
+        const payload = await response.json().catch(() => []);
+        if(!response.ok) throw new Error(payload?.message || 'Unable to load defect items.');
+        return payload;
+      })
+      .then(items => {
+        const body = table.querySelector('tbody');
+        if(!body) return;
+        if(!Array.isArray(items) || !items.length){
+          body.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:40px 16px; color:var(--text-muted);">No defect items reported for this client.</td></tr>';
+          return;
+        }
+        body.innerHTML = '';
+        items.forEach(defect => {
+          const row = document.createElement('tr');
+          row.dataset.id = defect.id;
+          row.dataset.defectNo = defect.defect_no;
+          row.dataset.part = defect.part_name;
+          row.dataset.qty = defect.quantity;
+          row.dataset.description = defect.description || '';
+          row.dataset.source = defect.source || '';
+          row.dataset.reportedBy = defect.reported_by || '';
+          row.dataset.date = defect.date || '';
+          row.dataset.status = String(defect.status || 'Open').toLowerCase().replace(/\s+/g, '-');
+          row.innerHTML = defectRowMarkup(defect);
+          body.appendChild(row);
+        });
+      })
+      .catch(error => showToast(error.message || 'Unable to load defect items.', 'no'));
+  }
+
+  function defectAction(row, action){
+    const id = row?.dataset?.id;
+    if(!id) return;
+    fetch(procurementUrl(`requisitions/defects/${id}`), {
+      method:'PUT',
+      headers:{'Content-Type':'application/x-www-form-urlencoded','X-Requested-With':'XMLHttpRequest','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]')?.content || ''},
+      body:new URLSearchParams({action}).toString()
+    }).then(async response => {
+      const payload = await response.json().catch(() => ({}));
+      if(!response.ok) throw new Error(payload.message || `Defect update failed (${response.status})`);
+      return payload;
+    }).then(payload => {
+      row.dataset.status = String(payload.defect_status || '').toLowerCase().replace(/\s+/g, '-');
+      if(row.children[5]) row.children[5].innerHTML = statusPill(payload.defect_status);
+      closeViewModal();
+      showToast(payload.message || `${row.dataset.defectNo} updated.`, 'ok');
+    }).catch(error => showToast(error.message || 'Unable to update this defect item.', 'no'));
+  }
+
   function updateRequisitionStatus(ref, status){
     const reqRow = findReqRowByRef(ref);
     if(!reqRow) return;
@@ -236,6 +303,9 @@
       const ship = textFrom(row.children[0]);
       return {type, key:ship, title:`Shipment · ${ship}`, ship, po:textFrom(row.children[1]), supplier:supplierNameFromCell(row.children[2]), stage:row.dataset.stage || '0', status:textFrom(row.children[4]), date:textFrom(row.children[5]), note:row.dataset.note || 'Shipment tracking entry.', carrier:row.dataset.carrier || 'Assigned carrier'};
     }
+    if(type === 'defect'){
+      return {type, key:row.dataset.defectNo || textFrom(row.children[0]), title:`Defect · ${row.dataset.defectNo || textFrom(row.children[0])}`, defectNo:row.dataset.defectNo || textFrom(row.children[0]), part:row.dataset.part || textFrom(row.children[1]), qty:Number(row.dataset.qty || textFrom(row.children[2]) || 0), description:row.dataset.description || textFrom(row.children[3]), reportedBy:row.dataset.reportedBy || textFrom(row.children[4]), status:textFrom(row.children[5]), source:row.dataset.source || 'Inventory', date:row.dataset.date || textFrom(row.children[6])};
+    }
     return {type:'', key:'', title:'Record'};
   }
   function setViewActions(left, right, po){
@@ -276,7 +346,7 @@
   function updateRowStatus(row, status){
     const type = getTableType(row);
     row.dataset.status = String(status || '').toLowerCase().replace(/\s+/g,'-');
-    const pillCell = type === 'delivery' ? row.children[5] : (type === 'invoice' ? row.children[4] : (type === 'po' ? row.children[5] : row.children[6]));
+    const pillCell = type === 'delivery' ? row.children[5] : (type === 'invoice' ? row.children[4] : (type === 'po' || type === 'defect' ? row.children[5] : row.children[6]));
     if(pillCell) pillCell.innerHTML = statusPill(status);
   }
   function renderViewRecord(row){
@@ -343,6 +413,13 @@
       body = `<div class="detail-grid"><div class="detail-card"><h4>Invoice overview</h4><div class="modal-row"><span>Invoice no.</span><span>${htmlEscape(record.inv)}</span></div><div class="modal-row"><span>PO number</span><span>${htmlEscape(record.po)}</span></div><div class="modal-row"><span>Supplier</span><span>${htmlEscape(record.supplier)}</span></div><div class="modal-row"><span>Invoice date</span><span>${htmlEscape(record.date)}</span></div></div><div class="detail-card"><h4>Payment details</h4><div class="modal-row"><span>Amount</span><span>${money(record.amount)}</span></div><div class="modal-row"><span>Due date</span><span>${htmlEscape(record.dueDate)}</span></div><div class="modal-row"><span>Payment method</span><span>${htmlEscape(record.method)}</span></div><div class="modal-row"><span>Status</span><span>${htmlEscape(record.status)}</span></div></div></div><div class="detail-note"><b>Notes</b><br>${htmlEscape(record.notes)}</div>`;
       if(record.status !== 'Paid') setViewActions({label:'Flag issue', className:'btn-reject', onClick:()=>{ closeViewModal(); showToast(`${record.inv} flagged for review`, 'info'); }},{label:'Mark as paid', className:'btn-approve', onClick:()=>{ updateRowStatus(row,'Paid'); row.dataset.notes = 'Marked paid from view modal.'; closeViewModal(); showToast(`${record.inv} marked as paid`, 'ok'); }});
       else setViewActions({label:'Delete', className:'btn-reject', onClick:()=> openDeleteModal(row)},{label:'Edit', className:'btn-approve', onClick:()=> openEditModal(row)});
+    } else if(record.type === 'defect'){
+      body = `<div class="detail-grid"><div class="detail-card"><h4>Defect details</h4><div class="modal-row"><span>Defect #</span><span>${htmlEscape(record.defectNo)}</span></div><div class="modal-row"><span>Item</span><span>${htmlEscape(record.part)}</span></div><div class="modal-row"><span>Quantity</span><span>${record.qty}</span></div><div class="modal-row"><span>Status</span><span>${statusPill(record.status)}</span></div></div><div class="detail-card"><h4>Report information</h4><div class="modal-row"><span>Source</span><span>${htmlEscape(record.source)}</span></div><div class="modal-row"><span>Reported by</span><span>${htmlEscape(record.reportedBy || '—')}</span></div><div class="modal-row"><span>Date</span><span>${htmlEscape(record.date || '—')}</span></div><div class="modal-row"><span>Stock handling</span><span>Inventory receiving only</span></div></div></div><div class="detail-note"><b>Description</b><br>${htmlEscape(record.description || 'No description provided.')}</div>`;
+      const state = String(record.status || '').toLowerCase();
+      if(state === 'open') setViewActions({label:'Reject', className:'btn-reject', onClick:()=>defectAction(row, 'reject')},{label:'Return to Supplier', className:'btn-approve', onClick:()=>defectAction(row, 'return')});
+      else if(state === 'returned to supplier') setViewActions({label:'Close', className:'btn-view', onClick:closeViewModal},{label:'Mark Replacement In Transit', className:'btn-approve', onClick:()=>defectAction(row, 'intransit')});
+      else if(state === 'replacement in transit') setViewActions({label:'Close', className:'btn-view', onClick:closeViewModal},{label:'Mark Replacement Received', className:'btn-approve', onClick:()=>defectAction(row, 'received')});
+      else setViewActions({label:'Close', className:'btn-view', onClick:closeViewModal}, null);
     }
     document.getElementById('modal-body').innerHTML = body;
     document.getElementById('view-modal').classList.add('open');
@@ -619,7 +696,7 @@
       }
       // Both tables expose a single View action; approving/rejecting a
       // requisition happens inside its View Details modal.
-      if(tableId === 'po-table' || tableId === 'requisitions-table') {
+      if(tableId === 'po-table' || tableId === 'requisitions-table' || tableId === 'defect-items-table') {
         wrap.innerHTML = viewBtn;
         return;
       }
@@ -644,7 +721,7 @@
       openTrackModal(btn);
       return;
     }
-    if(tableId === 'po-table' || tableId === 'requisitions-table') {
+    if(tableId === 'po-table' || tableId === 'requisitions-table' || tableId === 'defect-items-table') {
       openViewModal(btn);
       return;
     }
