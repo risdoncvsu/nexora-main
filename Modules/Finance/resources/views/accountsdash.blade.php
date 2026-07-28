@@ -350,7 +350,7 @@ function renderTable(){
 </td>
 
 <td class="${state.compact ? 'py-1.5' : 'py-3'} pr-4">
-        <div class="relative inline-block">
+        <div class="relative inline-block overflow-visible">
           <button onclick="event.stopPropagation(); toggleMenu('rowMenu-${a.number}')" class="dd-toggle flex items-center gap-1 text-blue-400 hover:text-blue-300 text-sm">
             Actions
             <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>

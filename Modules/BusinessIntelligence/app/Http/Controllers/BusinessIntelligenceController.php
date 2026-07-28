@@ -59,8 +59,6 @@ class BusinessIntelligenceController
         $ai = $this->cachedAiInsight($clientId) ?? [];
 
         return view('bi::ai-insights', [
-            'kpiOverview' => $this->dashboardKpis($metrics),
-            'businessHealth' => $this->businessHealth($metrics),
             'alerts' => $this->insightAlerts($metrics),
             'executiveSummary' => !empty($ai['executiveSummary']) ? $ai['executiveSummary'] : $this->executiveSummary($metrics),
             'recommendations' => !empty($ai['recommendations']) ? $ai['recommendations'] : $this->recommendations($metrics),
@@ -630,50 +628,6 @@ class BusinessIntelligenceController
                 'change_class' => ($onTime !== null && $onTime < 80) ? 'change-down' : 'change-up',
             ],
         ];
-    }
-
-    /**
-     * A deterministic client-scoped health score for the AI Insights page.
-     * It intentionally uses the metrics already collected for the dashboard,
-     * so viewing the page cannot introduce an extra cross-database query.
-     */
-    private function businessHealth(array $metrics): array
-    {
-        $score = 100;
-        $factors = [];
-
-        $rules = [
-            ['key' => 'inventory_low_stock', 'label' => 'Inventory availability', 'penalty' => 4, 'maximum' => 25, 'warning' => 'item(s) require replenishment'],
-            ['key' => 'finance_overdue', 'label' => 'Collections', 'penalty' => 5, 'maximum' => 25, 'warning' => 'overdue invoice(s) require follow-up'],
-            ['key' => 'fulfillment_delayed', 'label' => 'Order fulfillment', 'penalty' => 4, 'maximum' => 20, 'warning' => 'shipment(s) are delayed'],
-        ];
-
-        foreach ($rules as $rule) {
-            $count = (int) ($metrics[$rule['key']] ?? 0);
-            if ($count > 0) {
-                $score -= min($rule['maximum'], $count * $rule['penalty']);
-                $factors[] = [
-                    'label' => $rule['label'],
-                    'detail' => $count . ' ' . $rule['warning'] . '.',
-                    'status' => $count >= 5 ? 'negative' : 'warning',
-                ];
-            } else {
-                $factors[] = [
-                    'label' => $rule['label'],
-                    'detail' => 'No active issues detected.',
-                    'status' => 'positive',
-                ];
-            }
-        }
-
-        $score = max(0, min(100, $score));
-        $explanation = $score >= 80
-            ? 'Operations are stable. Continue monitoring the live indicators below.'
-            : ($score >= 60
-                ? 'The business is operating, but the highlighted items need attention.'
-                : 'Several operational risks need prompt follow-up.');
-
-        return compact('score', 'explanation', 'factors');
     }
 
     /**

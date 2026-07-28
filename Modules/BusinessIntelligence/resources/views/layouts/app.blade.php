@@ -25,6 +25,21 @@
             text-align: left;
             cursor: pointer;
         }
+
+        .footer-controls { display: flex; align-items: center; justify-content: center; width: 100%; }
+        .theme-toggle-btn { position: relative; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: transparent; border: 0; cursor: pointer; flex-shrink: 0; }
+        .theme-icon { position: absolute; width: 18px; height: 18px; color: #fff; stroke: #fff; transition: transform .4s cubic-bezier(.34, 1.4, .64, 1), opacity .3s ease; }
+        .theme-icon-sun { opacity: 1; transform: translateY(0) rotate(0deg) scale(1); }
+        .theme-icon-moon { opacity: 0; transform: translateY(18px) rotate(90deg) scale(.4); }
+        [data-theme="dark"] .theme-icon-sun { opacity: 0; transform: translateY(-18px) rotate(-90deg) scale(.4); }
+        [data-theme="dark"] .theme-icon-moon { opacity: 1; transform: translateY(0) rotate(0deg) scale(1); }
+        .sidebar-footer .sidebar-toggle-btn { display: flex; align-items: center; justify-content: center; padding: 0; width: 0; height: 32px; background: transparent; border: 0; cursor: pointer; overflow: hidden; opacity: 0; flex-shrink: 0; transition: width .2s ease, height .2s ease, opacity .18s ease, margin .2s ease; }
+        .sidebar-footer .sidebar-toggle-btn i, #sidebarToggleIcon { width: 18px; height: 18px; color: #fff !important; stroke: #fff !important; }
+        #sidebar:not(.collapsed) .footer-controls { flex-direction: row; }
+        #sidebar:not(.collapsed):hover .sidebar-footer .sidebar-toggle-btn { width: 32px; opacity: 1; margin-left: 14px; }
+        #sidebar.collapsed .footer-controls { flex-direction: column; gap: 0; }
+        #sidebar.collapsed .sidebar-footer .sidebar-toggle-btn { width: 32px; height: 0; margin-top: 0; }
+        #sidebar.collapsed:hover .sidebar-footer .sidebar-toggle-btn { height: 32px; opacity: 1; margin-top: 14px; }
     </style>
 </head>
 
@@ -71,12 +86,6 @@
     <div class="app-body">
         <aside id="sidebar">
             <div class="nav-menu" id="navMenu">
-                <button id="sidebarToggle" class="nav-item sidebar-toggle-btn" title="Toggle Sidebar">
-                    <div class="nav-item-title">
-                        <i data-lucide="panel-left-close" id="sidebarToggleIcon"></i>
-                        <span class="nav-item-text">Collapse</span>
-                    </div>
-                </button>
                 <a href="{{ route('bi.dashboard', request()->only('client_id')) }}"
                     class="nav-item {{ request()->routeIs('bi.dashboard') ? 'active' : '' }}" data-tooltip="Dashboard">
                     <div class="nav-item-title">
@@ -114,19 +123,15 @@
             </div>
 
             {{-- Sidebar footer – classic divider + version + toggle --}}
-            <div class="sidebar-footer">
-                <div class="sidebar-version">
-                    <i data-lucide="info" class="footer-icon"></i>
-                    <span>NEXORA BI v1.0.0</span>
-                </div>
-
-                <div class="theme-switch-wrapper">
-                    <i data-lucide="sun" class="theme-switch-icon"></i>
-                    <label class="theme-switch">
-                        <input type="checkbox" id="themeSwitchCheckbox">
-                        <span class="theme-switch-slider"></span>
-                    </label>
-                    <i data-lucide="moon" class="theme-switch-icon"></i>
+            <div class="sidebar-footer" id="sidebarFooter">
+                <div class="footer-controls" id="footerControls">
+                    <button type="button" class="theme-toggle-btn" id="themeToggleBtn" title="Toggle theme" aria-label="Toggle theme">
+                        <i data-lucide="sun" class="theme-icon theme-icon-sun"></i>
+                        <i data-lucide="moon" class="theme-icon theme-icon-moon"></i>
+                    </button>
+                    <button type="button" id="sidebarToggle" class="sidebar-toggle-btn" title="Collapse Sidebar" aria-label="Collapse Sidebar">
+                        <i data-lucide="panel-left-close" id="sidebarToggleIcon"></i>
+                    </button>
                 </div>
             </div>
         </aside>
@@ -268,18 +273,26 @@
             const sidebarToggleIcon = document.getElementById('sidebarToggleIcon');
 
             if (sidebar && sidebarToggle && sidebarToggleIcon) {
+                const syncSidebarToggle = () => {
+                    const isCollapsed = sidebar.classList.contains('collapsed');
+                    const label = isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar';
+                    sidebarToggle.title = label;
+                    sidebarToggle.setAttribute('aria-label', label);
+                    sidebarToggleIcon.setAttribute('data-lucide', isCollapsed ? 'panel-left-open' : 'panel-left-close');
+                };
+
                 // Restore saved state
                 if (localStorage.getItem('sidebarCollapsed') === 'true') {
                     sidebar.classList.add('collapsed');
-                    sidebarToggleIcon.setAttribute('data-lucide', 'panel-left-open');
-                    lucide.createIcons();
                 }
+                syncSidebarToggle();
+                lucide.createIcons();
 
                 sidebarToggle.addEventListener('click', () => {
                     sidebar.classList.toggle('collapsed');
                     const isCollapsed = sidebar.classList.contains('collapsed');
                     localStorage.setItem('sidebarCollapsed', isCollapsed);
-                    sidebarToggleIcon.setAttribute('data-lucide', isCollapsed ? 'panel-left-open' : 'panel-left-close');
+                    syncSidebarToggle();
                     lucide.createIcons();
                 });
             }
@@ -504,18 +517,18 @@
         }
 
         // ============================================================
-        // SIDEBAR THEME SWITCH (replaces old header toggle)
+        // SIDEBAR THEME SWITCH
         // ============================================================
-        const themeCheckbox = document.getElementById('themeSwitchCheckbox');
+        const themeToggleBtn = document.getElementById('themeToggleBtn');
 
         // Apply saved theme
         if (localStorage.getItem('theme') === 'dark') {
             document.documentElement.setAttribute('data-theme', 'dark');
-            themeCheckbox.checked = true;
         }
 
-        themeCheckbox.addEventListener('change', () => {
-            if (themeCheckbox.checked) {
+        themeToggleBtn?.addEventListener('click', () => {
+            const enableDark = document.documentElement.getAttribute('data-theme') !== 'dark';
+            if (enableDark) {
                 document.documentElement.setAttribute('data-theme', 'dark');
                 localStorage.setItem('theme', 'dark');
             } else {

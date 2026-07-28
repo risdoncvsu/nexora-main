@@ -19,7 +19,7 @@
 
 .container{
     display:flex;
-    height:100vh;
+    height:calc(100vh - 128px);
 }
     /*==========================
             HEADER
@@ -57,51 +57,66 @@
         .nexora-logo:hover img {
             filter: drop-shadow(0 8px 20px rgba(0,0,0,.25));
         }
-                /* Dropdown */
-        .dropdown-menu{
-            position:absolute;
-            top:60px;
-            right:0;
-            width:180px;
-            background:#132C55;
-            border:1px solid rgba(255,255,255,.08);
-            border-radius:12px;
-            overflow:hidden;
-            display:none;
-            box-shadow:0 15px 35px rgba(0,0,0,.35);
-            z-index:999;
-        }
-
-        .dropdown-menu a,
-        .dropdown-menu button{
-            width:100%;
-            display:block;
-            padding:14px 18px;
-            color:white;
-            text-decoration:none;
-            background:none;
-            border:none;
-            text-align:left;
-            font-size:20px;
-            font-family:'Inter', sans-serif;
+        .profile-trigger{
+            width:42px;
+            height:42px;
+            margin-right:40px;
+            border:1px solid rgba(255,255,255,.24);
+            border-radius:50%;
+            background:rgba(74,158,232,.16);
+            color:#fff;
+            display:flex;
+            align-items:center;
+            justify-content:center;
             cursor:pointer;
-            transition:.2s;
+            transition:transform .2s ease, background .2s ease, border-color .2s ease;
         }
-
-        .dropdown-menu a:hover,
-        .dropdown-menu button:hover{
-            background:#4A9EE8;
+        .profile-trigger:hover,
+        .profile-trigger:focus-visible{
+            transform:scale(1.05);
+            background:rgba(74,158,232,.32);
+            border-color:#78b9f1;
+            outline:none;
         }
-
-        .dropdown-menu hr{
-            border:none;
-            border-top:1px solid rgba(255,255,255,.1);
+        .profile-trigger svg{ width:25px; height:25px; }
+        .profile-dropdown{
+            position:absolute;
+            top:88px;
+            right:24px;
+            width:min(320px, calc(100vw - 32px));
+            padding:22px;
+            border:1px solid rgba(74,158,232,.28);
+            border-radius:18px;
+            background:#eef5ff;
+            box-shadow:0 16px 40px rgba(0,0,0,.36);
+            color:#172033;
+            opacity:0;
+            visibility:hidden;
+            transform:translateY(-8px);
+            pointer-events:none;
+            transition:opacity .2s ease, transform .2s ease, visibility .2s ease;
+            z-index:1000;
         }
-
-        /* Show menu */
-        .user-menu.open .dropdown-menu{
-            display:block;
+        .profile-dropdown.open{ opacity:1; visibility:visible; transform:translateY(0); pointer-events:auto; }
+        .profile-dropdown-close{
+            position:absolute; top:8px; right:12px; border:0; background:transparent;
+            color:#64748b; font-size:24px; line-height:1; cursor:pointer;
         }
+        .profile-dropdown-email{ margin:0 28px 4px; text-align:center; color:#1f2937; font-size:13px; font-weight:700; overflow-wrap:anywhere; }
+        .profile-dropdown-name{ margin:0 28px 18px; text-align:center; color:#64748b; font-size:12px; }
+        .profile-dropdown-avatar{
+            width:72px; height:72px; margin:0 auto 10px; border-radius:50%;
+            display:flex; align-items:center; justify-content:center;
+            background:#0b1e3d; color:#fff; border:4px solid #fff; box-shadow:0 4px 12px rgba(11,30,61,.18);
+        }
+        .profile-dropdown-avatar svg{ width:34px; height:34px; }
+        .profile-logout-button{
+            width:100%; display:flex; align-items:center; gap:10px; padding:12px 10px;
+            border:0; border-radius:10px; background:transparent; color:#c62828;
+            font:600 14px 'Inter',sans-serif; text-align:left; cursor:pointer;
+        }
+        .profile-logout-button:hover{ background:rgba(198,40,40,.08); }
+        .profile-logout-button svg{ width:18px; height:18px; }
 
 
 
@@ -245,25 +260,6 @@
             transition: 0.1s ease;
         }
 
-        /* USER MENU */
-        .user-menu{
-            position: relative;
-            margin-right: 40px;
-            cursor: pointer;
-        }
-
-        .user-icon{
-            width:48px !important;
-            height:48px !important;
-            color:white;
-            margin-right: 50px;
-            transition:.2s;
-        }
-
-        .user-icon:hover{
-            transform:scale(1.05);
-        }
-
      /*==========================
         MAIN PAGE LAYOUT
      ===========================*/
@@ -301,21 +297,19 @@
                 <img src="{{ asset('finance/images/Banner Transparent.png') }}" alt="Nexora Logo">
             </a>
 
-        <!-- TOP RIGHT MENU USER -->
-    <div class="user-menu">
-    <x-heroicon-s-user-circle class="user-icon" />
-
-    <div class="dropdown-menu">
-        <a href="">Settings</a>
-
-        <hr>
-                                    <!--USE POST INSTEAD OF GET FOR SECURITY????-->
-        <form action="{{ route('logout') }}" method="POST">
-            @csrf
-            <button type="submit">Log Out</button>
-        </form>
-    </div>
-    </div>
+        <button type="button" class="profile-trigger" id="profileTrigger" aria-label="Open profile menu" aria-expanded="false">
+            <x-heroicon-s-user-circle />
+        </button>
+        <div id="profileDropdown" class="profile-dropdown" role="dialog" aria-label="Profile menu">
+            <button type="button" class="profile-dropdown-close" id="profileDropdownClose" aria-label="Close profile menu">&times;</button>
+            <div class="profile-dropdown-email">{{ session('employee_email', 'Employee') }}</div>
+            <div class="profile-dropdown-avatar"><x-heroicon-s-user-circle /></div>
+            <p class="profile-dropdown-name">Hi, {{ session('employee_name', 'User') }}!</p>
+            <form method="POST" action="{{ action([\App\Http\Controllers\AuthController::class, 'logout']) }}">
+                @csrf
+                <button type="submit" class="profile-logout-button"><x-heroicon-o-arrow-right-on-rectangle /> Log out</button>
+            </form>
+        </div>
 </header>
 
 
@@ -356,18 +350,24 @@
     // Attach the new smooth exit to your links
     // (Note: This checks if the buttons exist first, so it works safely on both pages)
 
-    const userMenu = document.querySelector(".user-menu");
-
-if (userMenu) {
-    userMenu.addEventListener("click", function (e) {
-        e.stopPropagation();
-        userMenu.classList.toggle("open");
+    const profileTrigger = document.getElementById('profileTrigger');
+    const profileDropdown = document.getElementById('profileDropdown');
+    const profileDropdownClose = document.getElementById('profileDropdownClose');
+    const closeProfileDropdown = () => {
+        profileDropdown?.classList.remove('open');
+        profileTrigger?.setAttribute('aria-expanded', 'false');
+    };
+    profileTrigger?.addEventListener('click', (event) => {
+        event.stopPropagation();
+        const open = profileDropdown?.classList.toggle('open') ?? false;
+        profileTrigger.setAttribute('aria-expanded', String(open));
     });
-
-    document.addEventListener("click", function () {
-        userMenu.classList.remove("open");
+    profileDropdownClose?.addEventListener('click', closeProfileDropdown);
+    document.addEventListener('click', (event) => {
+        if (!profileDropdown?.contains(event.target) && !profileTrigger?.contains(event.target)) {
+            closeProfileDropdown();
+        }
     });
-}
 //this part loads the content on the pain
 function loadPage(page){
     document.getElementById("contentFrame").src = page;
