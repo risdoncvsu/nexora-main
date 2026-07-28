@@ -26,12 +26,12 @@
         </div>
         <div class="kpi-tile" style="--accent:#3b82f6;">
             <div class="kpi-head">
-                <span class="kpi-label">Transfer</span>
+                <span class="kpi-label">Reservations</span>
                 <span class="kpi-icon" style="background:rgba(59,130,246,0.15);color:#3b82f6;">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8l4 4-4 4"/><path d="M7 16l-4-4 4-4"/></svg>
                 </span>
             </div>
-            <p class="kpi-value">{{ number_format($totals['transfer']) }}</p>
+            <p class="kpi-value">{{ number_format(abs($totals['reservation'])) }}</p>
         </div>
         <div class="kpi-tile" style="--accent:{{ $totals['net'] >= 0 ? '#22c55e' : '#ef4444' }};">
             <div class="kpi-head">
@@ -40,7 +40,7 @@
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>
                 </span>
             </div>
-            <p class="kpi-value" style="color:{{ $totals['net'] >= 0 ? '#4ade80' : '#f87171' }};">{{ ($totals['net'] > 0 ? '+' : '') . number_format($totals['net']) }}</p>
+            <p class="kpi-value" style="color:{{ $totals['net'] >= 0 ? '#4ade80' : '#f87171' }};">{{ number_format(abs($totals['net'])) }}</p>
         </div>
     </div>
 
@@ -61,8 +61,7 @@
                     <option value="">Type</option>
                     <option value="inbound" {{ request('type') === 'inbound' ? 'selected' : '' }}>Inbound</option>
                     <option value="outbound" {{ request('type') === 'outbound' ? 'selected' : '' }}>Outbound</option>
-                    <option value="transfer" {{ request('type') === 'transfer' ? 'selected' : '' }}>Transfer</option>
-                    <option value="adjustment" {{ request('type') === 'adjustment' ? 'selected' : '' }}>Adjustment</option>
+                    <option value="reservation" {{ request('type') === 'reservation' ? 'selected' : '' }}>Reservation</option>
                 </select>
                 <select name="warehouse" class="tb-select" onchange="document.getElementById('filters-form').submit();">
                     <option value="">Warehouses</option>
@@ -107,10 +106,10 @@
                                     <span class="mv-badge" style="background:#F0FFF5;color:#0CAE57;border:1px solid rgba(12,174,87,0.5);">Inbound</span>
                                 @elseif ($movement->type === 'outbound')
                                     <span class="mv-badge" style="background:#F0FFF5;color:#DC2626;border:1px solid rgba(220,38,38,0.5);">Outbound</span>
-                                @elseif ($movement->type === 'adjustment')
-                                    <span class="mv-badge" style="background:#F0FFF5;color:#D97706;border:1px solid rgba(217,119,6,0.5);">Adjustment</span>
+                                @elseif ($movement->type === 'reservation')
+                                    <span class="mv-badge" style="background:#F5F3FF;color:#7C3AED;border:1px solid rgba(124,58,237,0.5);">Reservation</span>
                                 @else
-                                    <span class="mv-badge" style="background:#F0FFF5;color:#3B82F6;border:1px solid rgba(59,130,246,0.5);">Transfer</span>
+                                    <span class="mv-badge" style="background:#F8FAFC;color:#64748B;border:1px solid rgba(100,116,139,0.35);">Other</span>
                                 @endif
                             </td>
                             <td class="cell-strong">{{ $movement->item?->name ?? 'N/A' }}</td>
@@ -119,7 +118,7 @@
                                 @if ($movement->type === 'inbound')
                                     <span class="mv-qty" style="color:#0CAE57;">
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg>
-                                        {{ number_format($movement->quantity) }}
+                                        {{ number_format(abs($movement->quantity)) }}
                                     </span>
                                 @elseif ($movement->type === 'outbound')
                                     <span class="mv-qty" style="color:#DC2626;">
@@ -153,7 +152,7 @@
                                 @endif
                             </td>
                             <td class="cell-muted">{{ $movement->reference ?? '-' }}</td>
-                            <td>{{ $movement->performer?->username ?? $movement->performer?->name ?? 'System' }}</td>
+                            <td>{{ trim(($movement->performer?->first_name ?? '') . ' ' . ($movement->performer?->last_name ?? '')) ?: 'System' }}</td>
                             <td class="col-r cell-muted">{{ $movement->created_at?->format('M d, Y h:i A') ?? '—' }}</td>
                         </tr>
                     @empty

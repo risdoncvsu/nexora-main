@@ -203,7 +203,7 @@ class StockTransferController extends Controller
             ->update(['last_activity_at' => $now]);
 
         StockMovement::create([
-            'type' => 'transfer',
+            'type' => 'outbound',
             'item_id' => $transfer->item_id,
             'warehouse_id' => $transfer->from_warehouse_id,
             'quantity' => $transfer->quantity,
@@ -214,7 +214,7 @@ class StockTransferController extends Controller
         ]);
 
         StockMovement::create([
-            'type' => 'transfer',
+            'type' => 'inbound',
             'item_id' => $transfer->item_id,
             'warehouse_id' => $transfer->to_warehouse_id,
             'quantity' => $transfer->quantity,
@@ -226,7 +226,7 @@ class StockTransferController extends Controller
 
         $transfer->update([
             'status' => 'approved',
-            'approved_by' => auth()->id(),
+            'approved_by' => (int) session('employee_id'),
             'approved_at' => $now,
         ]);
 

@@ -147,14 +147,6 @@
                         @error('address')<p class="nexora-modal-error">{{ $message }}</p>@enderror
                     </div>
 
-                    <div>
-                        <label class="nexora-modal-label">Status</label>
-                        <select name="status" class="nexora-modal-select" required>
-                            <option value="active" {{ old('status') === 'active' ? 'selected' : '' }}>Active</option>
-                            <option value="inactive" {{ old('status') === 'inactive' ? 'selected' : '' }}>Inactive</option>
-                        </select>
-                        @error('status')<p class="nexora-modal-error">{{ $message }}</p>@enderror
-                    </div>
                 </div>
 
                 <div class="nexora-modal-actions">

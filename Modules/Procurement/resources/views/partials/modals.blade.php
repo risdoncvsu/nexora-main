@@ -16,7 +16,7 @@
         <button type="button" id="modal-header-delete-btn" class="modal-close" title="Delete" style="display:none;" onclick="if(document.getElementById('view-modal').__row) openDeleteModal(document.getElementById('view-modal').__row)">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
-        <button class="modal-close" onclick="closeViewModal()">✕</button>
+        <button class="modal-close" onclick="closeViewModal()">âœ•</button>
       </div>
     </div>
     <div id="modal-body" style="padding:8px 0 0;"></div>
@@ -27,7 +27,6 @@
     </div>
   </div>
 </div>
-
 <!-- Edit record modal -->
 <div class="modal-overlay" id="edit-modal" onclick="if(event.target===this) closeEditModal()">
   <div class="modal-box form-modal" style="width:720px;max-width:94vw;">
@@ -36,7 +35,7 @@
         <h3 id="edit-modal-title">Edit record</h3>
         <p style="font-size:12px;color:var(--muted);margin-top:3px;">Update the selected record.</p>
       </div>
-      <button class="modal-close" onclick="closeEditModal()">✕</button>
+      <button class="modal-close" onclick="closeEditModal()">âœ•</button>
     </div>
     <form id="edit-record-form" onsubmit="saveEditRecord(event)">
       <div id="edit-modal-body"></div>
@@ -56,7 +55,7 @@
         <h3 id="delete-modal-title">Delete record</h3>
         <p style="font-size:12px;color:var(--muted);margin-top:3px;">Confirm deletion to continue.</p>
       </div>
-      <button class="modal-close" onclick="closeDeleteModal()">✕</button>
+      <button class="modal-close" onclick="closeDeleteModal()">âœ•</button>
     </div>
     <div style="font-size:13px;line-height:1.6;">
       <p>Type <b>delete</b> to confirm removing <b id="delete-modal-target">this record</b>.</p>
@@ -78,7 +77,7 @@
   <div class="modal-box" style="width:520px;">
     <div class="modal-head">
       <h3 id="track-title">Shipment tracking</h3>
-      <button class="modal-close" onclick="closeTrackModal()">✕</button>
+      <button class="modal-close" onclick="closeTrackModal()">âœ•</button>
     </div>
     <div id="track-body"></div>
     <div class="modal-actions">
@@ -100,7 +99,7 @@
         <h3>Create New Purchase Order</h3>
         <p style="font-size:12px;color:var(--muted);margin-top:3px;">Fill in the details to submit a new PO for approval.</p>
       </div>
-      <button class="modal-close" onclick="closeAddModal('po')">✕</button>
+      <button class="modal-close" onclick="closeAddModal('po')">âœ•</button>
     </div>
    
     <form id="add-po-form" onsubmit="submitAddPO(event)">
@@ -117,23 +116,24 @@
         </div>
         <div class="form-field">
           <label>Supplier <span class="req">*</span></label>
-          <select name="supplier" required>
+          <select name="supplier" id="po-supplier-field" required>
             <option value="">Select supplier...</option>
             @foreach($suppliers ?? collect() as $supplier)
               <option value="{{ $supplier->name }}">{{ $supplier->name }}</option>
             @endforeach
           </select>
+          <span class="hint" id="po-supplier-hint">Auto-filled from the requested item's supplier when creating a PO from a Request.</span>
         </div>
 
         <div class="form-field full">
           <label>Items <span class="req">*</span></label>
           <div id="po-items-rows"></div>
-          <button type="button" class="btn btn-small" style="margin-top:4px;" onclick="addPoItemRow(document.getElementById('add-po-modal'))">+ Add Item</button>
-          <span class="hint">Select a supplier first to load its categories and items.</span>
+          <button type="button" class="btn btn-small" id="po-add-item-btn" style="margin-top:4px; display:none;" onclick="addPoItemRow(document.getElementById('add-po-modal'))">+ Add Item</button>
+          <span class="hint" id="po-items-hint">Items, supplier, category, quantity, and pricing are generated automatically from the selected request.</span>
         </div>
 
         <div class="form-field">
-          <label>Total Amount (₱)</label>
+          <label>Total Amount (â‚±)</label>
           <input type="number" name="amount" value="0.00" readonly>
         </div>
         <div class="form-field">
@@ -190,14 +190,79 @@
       <input type="number" class="po-item-qty" min="1" step="1" value="1" required>
     </div>
     <div class="form-field">
-      <label>Unit Price (₱)</label>
+      <label>Unit Price (â‚±)</label>
       <input type="number" class="po-item-price" min="0" step="0.01" placeholder="0.00" readonly>
     </div>
     <div class="form-field">
       <label>Amount</label>
-      <input type="text" class="po-item-amount" value="₱0.00" readonly>
+      <input type="text" class="po-item-amount" value="â‚±0.00" readonly>
     </div>
     <button type="button" class="po-item-remove" title="Remove item" onclick="removePoItemRow(this)">×</button>
+  </div>
+</template>
+
+{{-- Template for one AUTO-GENERATED PO item row, used when the PO is created
+     from a Requisition (or a defect return). Category, Item, Qty and Unit
+     Price are all resolved automatically (matched against the supplier
+     product catalog) and locked read-only â€” there is no manual selection and
+     no remove button, since the rows always mirror the selected request. --}}
+<template id="po-item-row-auto-template">
+  <div class="po-item-row po-item-row-auto">
+    <div class="form-field">
+      <label>Category</label>
+      <input type="text" class="po-item-category" readonly>
+    </div>
+    <div class="form-field">
+      <label>Item</label>
+      <input type="text" class="po-item-name" readonly>
+    </div>
+    <div class="form-field">
+      <label>Qty <span class="req">*</span></label>
+      <input type="number" class="po-item-qty" readonly>
+    </div>
+    <div class="form-field">
+      <label>Unit Price (â‚±)</label>
+      <input type="number" class="po-item-price" readonly>
+    </div>
+    <div class="form-field">
+      <label>Amount</label>
+      <input type="text" class="po-item-amount" value="â‚±0.00" readonly>
+    </div>
+  </div>
+</template>
+
+{{-- Template for one REQUISITION-GENERATED PO item row. Supplier, Category
+     and Item are all picked manually by the user (same Category -> Item
+     cascade as the fully-manual template above) â€” only Qty is fixed from the
+     requisition. The label reminds the user which requisitioned item this
+     row is for; Unit Price still auto-resolves from the chosen Item. --}}
+<template id="po-item-row-request-template">
+  <div class="po-item-row po-item-row-request">
+    <div class="po-item-request-label"></div>
+    <div class="form-field">
+      <label>Category <span class="req">*</span></label>
+      <select class="po-item-category" required>
+        <option value="">Select category...</option>
+      </select>
+    </div>
+    <div class="form-field">
+      <label>Item <span class="req">*</span></label>
+      <select class="po-item-name" required disabled>
+        <option value="">Select item...</option>
+      </select>
+    </div>
+    <div class="form-field">
+      <label>Qty <span class="req">*</span></label>
+      <input type="number" class="po-item-qty" readonly>
+    </div>
+    <div class="form-field">
+      <label>Unit Price (â‚±)</label>
+      <input type="number" class="po-item-price" min="0" step="0.01" placeholder="0.00" readonly>
+    </div>
+    <div class="form-field">
+      <label>Amount</label>
+      <input type="text" class="po-item-amount" value="â‚±0.00" readonly>
+    </div>
   </div>
 </template>
 
@@ -209,7 +274,7 @@
         <h3>Add New Supplier</h3>
         <p style="font-size:12px;color:var(--muted);margin-top:3px;">Register a new supplier record.</p>
       </div>
-      <button class="modal-close" onclick="closeAddModal('supplier')">✕</button>
+      <button class="modal-close" onclick="closeAddModal('supplier')">âœ•</button>
     </div>
     <form id="add-supplier-form" onsubmit="submitAddSupplier(event)">
       <div class="form-grid">
@@ -266,7 +331,7 @@
         <h3>Add Product</h3>
         <p style="font-size:12px;color:var(--muted);margin-top:3px;">Add a product SKU and supply price.</p>
       </div>
-      <button class="modal-close" onclick="closeSupplierProductModal()">✕</button>
+      <button class="modal-close" onclick="closeSupplierProductModal()">âœ•</button>
     </div>
     <form id="add-supplier-product-form" onsubmit="submitSupplierProduct(event)">
       <div class="form-grid">
@@ -290,7 +355,7 @@
           <input name="productSku" readonly>
         </div>
         <div class="form-field">
-          <label>Supply price (₱) <span class="req">*</span></label>
+          <label>Supply price (â‚±) <span class="req">*</span></label>
           <input type="number" name="productPrice" min="0" step="0.01" placeholder="0.00" required>
         </div>
       </div>
@@ -310,7 +375,7 @@
         <h3>Log New Delivery</h3>
         <p style="font-size:12px;color:var(--muted);margin-top:3px;">Record an incoming shipment linked to a purchase order.</p>
       </div>
-      <button class="modal-close" onclick="closeAddModal('delivery')">✕</button>
+      <button class="modal-close" onclick="closeAddModal('delivery')">âœ•</button>
     </div>
    
     <form id="add-delivery-form" onsubmit="submitAddDelivery(event)">
@@ -340,7 +405,7 @@
 
        <div class="form-field">
           <label>Total Amount</label>
-          <input type="text" name="amount" placeholder="₱0.00" readonly>
+          <input type="text" name="amount" placeholder="â‚±0.00" readonly>
         </div>
         </div>
       <div class="form-field full">
@@ -355,7 +420,7 @@
           <select name="warehouse_id" id="delivery-warehouse-select" required>
             <option value="">Select the receiving warehouse...</option>
             @foreach($warehouses ?? collect() as $warehouse)
-              <option value="{{ $warehouse->id }}">{{ $warehouse->name }}{{ $warehouse->address ? ' — '.$warehouse->address : '' }}</option>
+              <option value="{{ $warehouse->id }}">{{ $warehouse->name }}{{ $warehouse->address ? ' â€” '.$warehouse->address : '' }}</option>
             @endforeach
           </select>
       
@@ -381,7 +446,7 @@
         <h3>Cancel Purchase Order</h3>
         <p style="font-size:12px;color:var(--muted);margin-top:3px;">This action cannot be undone.</p>
       </div>
-      <button class="modal-close" onclick="closeCancelModal()">✕</button>
+      <button class="modal-close" onclick="closeCancelModal()">âœ•</button>
     </div>
     <div style="padding:20px;text-align:center;">
       <p>Are you sure you want to cancel this Purchase Order?</p>

@@ -14,6 +14,8 @@
     tr.trow { border-bottom: 1px solid rgba(255,255,255,0.06); cursor: default; }
     tr.trow:last-child { border-bottom: none; }
     tr.trow:hover { background: rgba(255,255,255,0.04); }
+    .alert-restock-link { display:inline-flex; margin-top:10px; font-size:11px; font-weight:700; color:#1b6fc8; text-decoration:none; }
+    .alert-restock-link:hover { text-decoration:underline; }
 
     /* Fade-in transition when landing on dashboard after login */
     .responsive-grid-dashboard {
@@ -87,6 +89,9 @@
                     <span style="font-size:11px;color:#0b1e3d;">{{ number_format($onHand) }} units</span>
                     <span style="font-size:11px;color:#0b1e3d;">threshold {{ number_format($threshold) }}</span>
                 </div>
+                @if(!empty($alert['item_id']))
+                    <a href="{{ route('inventory.requests', ['item' => $alert['item_id']]) }}" class="alert-restock-link">Request stock</a>
+                @endif
             </div>
         @empty
             <p style="font-size:13px;color:#94a3b8;">No active alerts.</p>
@@ -139,10 +144,8 @@
                                     <span style="display:inline-block;padding:4px 16px;border-radius:14px;background:#F0FFF5;color:#0CAE57;border:1px solid rgba(12,174,87,0.5);font-size:12px;font-weight:500;">Inbound</span>
                                 @elseif ($movement['type'] === 'outbound')
                                     <span style="display:inline-block;padding:4px 16px;border-radius:14px;background:#FFF5F5;color:#DC2626;border:1px solid rgba(220,38,38,0.5);font-size:12px;font-weight:500;">Outbound</span>
-                                @elseif ($movement['type'] === 'adjustment')
-                                    <span style="display:inline-block;padding:4px 16px;border-radius:14px;background:#FEF3C7;color:#D97706;border:1px solid rgba(217,119,6,0.5);font-size:12px;font-weight:500;">Adjustment</span>
-                                @elseif ($movement['type'] === 'transfer')
-                                    <span style="display:inline-block;padding:4px 16px;border-radius:14px;background:#EFF6FF;color:#2563EB;border:1px solid rgba(37,99,235,0.5);font-size:12px;font-weight:500;">Transfer</span>
+                                @elseif ($movement['type'] === 'reservation')
+                                    <span style="display:inline-block;padding:4px 16px;border-radius:14px;background:#F5F3FF;color:#7C3AED;border:1px solid rgba(124,58,237,0.5);font-size:12px;font-weight:500;">Reservation</span>
                                 @else
                                     <span style="display:inline-block;padding:4px 16px;border-radius:14px;background:#E2E8F0;color:#64748B;border:1px solid rgba(100,116,139,0.5);font-size:12px;font-weight:500;">Other</span>
                                 @endif
@@ -159,22 +162,9 @@
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M19 12l-7 7-7-7"/></svg>
                                         {{ number_format(abs($movement['quantity'])) }}
                                     </span>
-                                @elseif ($movement['type'] === 'adjustment')
-                                    @if ($movement['quantity'] >= 0)
-                                        <span style="display:inline-flex;align-items:center;gap:4px;color:#0CAE57;">
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg>
-                                            {{ number_format(abs($movement['quantity'])) }}
-                                        </span>
-                                    @else
-                                        <span style="display:inline-flex;align-items:center;gap:4px;color:#DC2626;">
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M19 12l-7 7-7-7"/></svg>
-                                            {{ number_format(abs($movement['quantity'])) }}
-                                        </span>
-                                    @endif
-                                @elseif ($movement['type'] === 'transfer')
-                                    <span style="display:inline-flex;align-items:center;gap:4px;color:#2563EB;">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8l4 4-4 4"/><path d="M7 16l-4-4 4-4"/></svg>
-                                        {{ number_format($movement['quantity']) }}
+                                @elseif ($movement['type'] === 'reservation')
+                                    <span style="display:inline-flex;align-items:center;gap:4px;color:#7C3AED;">
+                                        {{ number_format(abs($movement['quantity'])) }}
                                     </span>
                                 @else
                                     <span style="display:inline-flex;align-items:center;gap:4px;color:#64748B;">
@@ -221,18 +211,6 @@
                     backgroundColor: '#ef4444',
                     borderRadius: 4,
                 },
-                {
-                    label: 'Adjustment',
-                    data: @json($trendData['adjustments']),
-                    backgroundColor: '#f59e0b',
-                    borderRadius: 4,
-                },
-                {
-                    label: 'Transfer',
-                    data: @json($trendData['transfers']),
-                    backgroundColor: '#9ca3af',
-                    borderRadius: 4,
-                }
             ]
         },
         options: {
@@ -281,8 +259,6 @@
                 trendChart.data.labels = data.labels;
                 trendChart.data.datasets[0].data = data.inbound;
                 trendChart.data.datasets[1].data = data.outbound;
-                trendChart.data.datasets[2].data = data.adjustments;
-                trendChart.data.datasets[3].data = data.transfers;
                 trendChart.update();
             });
     });

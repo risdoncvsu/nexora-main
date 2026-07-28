@@ -208,7 +208,7 @@ class StockAdjustmentController extends Controller
             'type' => $isDecrease ? 'outbound' : 'inbound',
             'item_id' => $adjustment->item_id,
             'warehouse_id' => $adjustment->warehouse_id,
-            'quantity' => $isDecrease ? -$adjustment->quantity : $adjustment->quantity,
+            'quantity' => $adjustment->quantity,
             'reference' => 'ADJ-' . now()->format('Y') . '-' . str_pad($adjustment->id, 4, '0', STR_PAD_LEFT),
             'notes' => "Adjustment #{$adjustment->id} approved: {$adjustment->type} ({$adjustment->reason})",
             'performed_by' => (int) session('employee_id'),

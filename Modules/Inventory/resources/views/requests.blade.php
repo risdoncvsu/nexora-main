@@ -4,6 +4,7 @@
 
 @push('styles')
 <style>
+    .cart-qty-fixed { display:inline-flex; min-width:48px; min-height:32px; align-items:center; justify-content:center; padding:0 10px; border-radius:7px; background:#f1f5f9; color:#475569; font-weight:700; }
     /* Status badge styles moved to the shared inventory.css (single source). */
     .type-pill { display:inline-block; padding:3px 10px; border:1px solid transparent; border-radius:9999px; font-size:10px; font-weight:700; letter-spacing:.4px; text-transform:uppercase; }
     .type-pill.type-restock { background:#F0FFF5; border-color:rgba(59,130,246,.5); color:#3B82F6; }
@@ -440,7 +441,9 @@
             var typeLabel = item.type === 'restock' ? 'RST' : 'RPL';
             html += '<tr>'
                 + '<td><span class="cart-type ' + typeClass + '">' + typeLabel + '</span>' + escapeHtml(item.part_name) + '</td>'
-                + '<td class="cart-qty-w"><div class="cart-stepper"><button type="button" onclick="adjustQty(' + i + ',-1)" tabindex="-1">−</button><input type="number" name="items[' + i + '][quantity]" value="' + item.quantity + '" min="1" onchange="updateCartQty(' + i + ',this.value)" class="cart-qty"><button type="button" onclick="adjustQty(' + i + ',1)" tabindex="-1">+</button></div></td>'
+                + '<td class="cart-qty-w">' + (item.type === 'replacement'
+                    ? '<span class="cart-qty-fixed">' + item.quantity + '</span><input type="hidden" name="items[' + i + '][quantity]" value="' + item.quantity + '">'
+                    : '<div class="cart-stepper"><button type="button" onclick="adjustQty(' + i + ',-1)" tabindex="-1">−</button><input type="number" name="items[' + i + '][quantity]" value="' + item.quantity + '" min="1" onchange="updateCartQty(' + i + ',this.value)" class="cart-qty"><button type="button" onclick="adjustQty(' + i + ',1)" tabindex="-1">+</button></div>') + '</td>'
                 + '<td><input type="text" name="items[' + i + '][notes]" value="' + escapeHtml(item.notes) + '" placeholder="Add note…" onchange="updateCartNotes(' + i + ',this.value)" class="cart-input cart-notes"></td>'
                 + '<td><button type="button" onclick="removeFromCart(' + i + ')" class="cart-remove" title="Remove item">&times;</button></td>'
                 + '</tr>';

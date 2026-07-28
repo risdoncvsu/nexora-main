@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Modules\BusinessIntelligence\Services\AI\AIRouter;
 use Modules\BusinessIntelligence\Services\AI\Contracts\AIProviderInterface;
+use Modules\BusinessIntelligence\Services\AI\PromptBuilder;
 
 class BusinessIntelligenceController
 {
@@ -57,9 +58,18 @@ class BusinessIntelligenceController
         // live model call. Falls back to metric-driven rule-based insights
         // until the first report has been generated.
         $ai = $this->cachedAiInsight($clientId) ?? [];
+        $lastSnapshot = $this->latestDashboardSnapshot($clientId);
 
         return view('bi::ai-insights', [
             'alerts' => $this->insightAlerts($metrics),
+            // Keep the overview intentionally focused: these are the four
+            // operational signals shown in the approved KPI layout.
+            'kpiOverview' => [
+                ['label' => 'Business Health', 'value' => $this->overallBusinessHealth($metrics) . '%', 'icon' => 'activity', 'tone' => 'blue'],
+                ['label' => 'AI Confidence', 'value' => $this->aiConfigured() ? 'High' : 'Standard', 'icon' => 'sparkles', 'tone' => 'purple'],
+                ['label' => 'Active Risks', 'value' => (string) count($this->riskDetection($metrics)), 'icon' => 'shield-alert', 'tone' => 'red'],
+                ['label' => 'Last Analysis', 'value' => $lastSnapshot ? $lastSnapshot['captured_at']->diffForHumans() : 'Not yet run', 'icon' => 'clock-3', 'tone' => 'green'],
+            ],
             'executiveSummary' => !empty($ai['executiveSummary']) ? $ai['executiveSummary'] : $this->executiveSummary($metrics),
             'recommendations' => !empty($ai['recommendations']) ? $ai['recommendations'] : $this->recommendations($metrics),
             'risks' => !empty($ai['risks']) ? $ai['risks'] : $this->riskDetection($metrics),
@@ -131,11 +141,13 @@ class BusinessIntelligenceController
         }
 
         try {
+            $promptBuilder = app(PromptBuilder::class);
             $answer = trim($this->aiProvider()->generate(
-                $this->aiSystemPrompt(),
-                'Client-scoped BI metrics (JSON): ' . json_encode($metrics, JSON_THROW_ON_ERROR)
-                    . "\n\nUser question: " . $validated['message'],
+                $promptBuilder->systemPrompt(),
+                $promptBuilder->chatPrompt($validated['message'], $metrics),
             )['content']);
+
+            $answer = $this->normaliseAiChatResponse($answer);
 
             if ($answer === '') {
                 return response()->json(['message' => 'AI Insights returned no answer. Please try again.'], 502);
@@ -1428,6 +1440,20 @@ class BusinessIntelligenceController
         }
     }
 
+    /**
+     * Convert provider formatting into the plain, readable format used by the
+     * in-app chat. This is deliberately a last safeguard; the prompt also
+     * tells the model not to emit Markdown emphasis.
+     */
+    private function normaliseAiChatResponse(string $answer): string
+    {
+        $answer = preg_replace('/\*\*(.*?)\*\*/s', '$1', $answer) ?? $answer;
+        $answer = preg_replace('/__(.*?)__/s', '$1', $answer) ?? $answer;
+        $answer = preg_replace('/^\s{0,3}#{1,6}\s+/m', '', $answer) ?? $answer;
+
+        return trim($answer);
+    }
+
     /** Extra drill-down data used by the updated department analytics UI. */
     private function financeAging(?int $clientId): array
     {
@@ -1615,6 +1641,56 @@ class BusinessIntelligenceController
         } catch (\Throwable) {
             return null;
         }
+    }
+
+    /**
+     * Read snapshot metadata for display only. The AI chat still receives the
+     * bounded payload from recentDashboardSnapshot(), never cross-module data.
+     *
+     * @return array{captured_at: \Carbon\CarbonInterface}|null
+     */
+    private function latestDashboardSnapshot(?int $clientId): ?array
+    {
+        if (!$clientId || !config('database.connections.business_intelligence.url')) {
+            return null;
+        }
+
+        try {
+            $snapshot = DB::connection('business_intelligence')->table('bi_snapshots')
+                ->where('client_id', $clientId)
+                ->where('source', 'live-dashboard')
+                ->select('captured_at')
+                ->first();
+
+            if (!$snapshot?->captured_at) {
+                return null;
+            }
+
+            return ['captured_at' => \Illuminate\Support\Carbon::parse($snapshot->captured_at)];
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /** @param array<string, mixed> $metrics */
+    private function overallBusinessHealth(array $metrics): int
+    {
+        $inventoryItems = max(0, (int) ($metrics['inventory_items'] ?? 0));
+        $lowStockItems = max(0, (int) ($metrics['inventory_low_stock'] ?? 0));
+        $fulfillmentOrders = max(0, (int) ($metrics['fulfillment_orders'] ?? 0));
+        $delayedOrders = max(0, (int) ($metrics['fulfillment_delayed'] ?? 0));
+        $overdueReceivables = max(0, (int) ($metrics['finance_overdue_receivables'] ?? 0));
+
+        $scores = [
+            ((float) ($metrics['revenue'] ?? 0)) > 0 ? 100 : 0,
+            ((float) ($metrics['net_profit'] ?? 0)) >= 0 ? 100 : 0,
+            $inventoryItems === 0 ? 100 : max(0, 100 - (int) round(($lowStockItems / $inventoryItems) * 100)),
+            $fulfillmentOrders === 0 ? 100 : max(0, 100 - (int) round(($delayedOrders / $fulfillmentOrders) * 100)),
+            $overdueReceivables === 0 ? 100 : 50,
+            ((int) ($metrics['manufacturing_active'] ?? 0)) > 0 ? 80 : 50,
+        ];
+
+        return (int) round(array_sum($scores) / count($scores));
     }
 
     private function recordConversationPair(int $clientId, string $userMessage, string $assistantMessage): void

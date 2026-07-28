@@ -204,7 +204,8 @@
     approved: '#1fa971',
     rejected: '#eb5757',
     cancelled: '#7c88a3',
-    completed: '#14b8a6'
+    completed: '#14b8a6',
+    delivered: '#0ea5e9'
   };
 
   function initDonutFromData(canvas, statusData){

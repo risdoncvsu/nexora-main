@@ -37,6 +37,10 @@ class PromptBuilder
         - Do not over-explain obvious information.
         - Avoid repetitive business jargon.
         - Keep replies concise unless the user asks for more detail.
+        - Use plain text only. Never use Markdown bold markers (**) or
+          underscore emphasis, headings, tables, or code fences.
+        - Use a short dash list only when listing specific records makes the
+          answer easier to scan.
 
         AVOID PHRASES SUCH AS:
 
@@ -273,6 +277,8 @@ class PromptBuilder
         - Name — Short status or answer.
 
         - Do not use bold text for item names.
+        - Never use Markdown bold markers (**) anywhere in the response.
+        - Keep names and statuses in plain text; do not add decorative labels.
         - Do not use headings for simple questions.
         - Do not use numbered lists unless ranking or priority is requested.
         - Do not write a conclusion.

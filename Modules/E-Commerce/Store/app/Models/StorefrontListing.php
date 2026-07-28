@@ -23,11 +23,19 @@ class StorefrontListing extends Model
         static::saving(function (self $listing): void {
             $clientId = (int) ($listing->client_id ?: app(EcommerceClientContext::class)->clientId());
 
-            if (! $clientId || ! DB::connection('manufacturing')->table('product_boms')
+            $manufacturing = DB::connection('manufacturing');
+            $bom = $manufacturing->table('product_boms')
                 ->where('id', $listing->bom_id)
                 ->where('client_id', $clientId)
-                ->where('status', 'active')
-                ->exists()) {
+                ->where('status', 'active');
+
+            if ($manufacturing->getSchemaBuilder()->hasColumn('product_boms', 'bom_type')) {
+                $bom->where(function ($query): void {
+                    $query->whereNull('bom_type')->orWhere('bom_type', 'prebuilt');
+                });
+            }
+
+            if (! $clientId || ! $bom->exists()) {
                 throw new \LogicException('Select an active Bill of Materials owned by this client.');
             }
         });

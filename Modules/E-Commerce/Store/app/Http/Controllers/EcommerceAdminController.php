@@ -254,7 +254,21 @@ class EcommerceAdminController extends Controller
 
     private function boms()
     {
-        return DB::connection('manufacturing')->table('product_boms')->where('client_id', app(EcommerceClientContext::class)->clientId())->where('status', 'active')->orderBy('name')->get();
+        $manufacturing = DB::connection('manufacturing');
+        $query = $manufacturing->table('product_boms')
+            ->where('client_id', app(EcommerceClientContext::class)->clientId())
+            ->where('status', 'active');
+
+        // Only finished-product BOMs belong in a storefront. Packaging BOMs
+        // describe boxes/packing materials and must never create sellable
+        // listings or Manufacturing benchmark work.
+        if ($manufacturing->getSchemaBuilder()->hasColumn('product_boms', 'bom_type')) {
+            $query->where(function ($query): void {
+                $query->whereNull('bom_type')->orWhere('bom_type', 'prebuilt');
+            });
+        }
+
+        return $query->orderBy('name')->get();
     }
 
     private function listingData(Request $request): array

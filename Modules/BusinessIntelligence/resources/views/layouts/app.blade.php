@@ -4,6 +4,15 @@
 
 <head>
     <meta charset="UTF-8">
+    <script>
+        // Apply the saved choice before styles load, preventing a light-theme
+        // flash on a dark-theme page refresh.
+        try {
+            if (localStorage.getItem('theme') === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            }
+        } catch (_) {}
+    </script>
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nexora - BI Hub</title>
@@ -270,15 +279,16 @@
             // ============================================================
             const sidebar = document.getElementById('sidebar');
             const sidebarToggle = document.getElementById('sidebarToggle');
-            const sidebarToggleIcon = document.getElementById('sidebarToggleIcon');
-
-            if (sidebar && sidebarToggle && sidebarToggleIcon) {
+            if (sidebar && sidebarToggle) {
                 const syncSidebarToggle = () => {
                     const isCollapsed = sidebar.classList.contains('collapsed');
                     const label = isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar';
+                    // lucide.createIcons() replaces the <i> element, so look
+                    // it up each time instead of retaining a stale reference.
+                    const sidebarToggleIcon = document.getElementById('sidebarToggleIcon');
                     sidebarToggle.title = label;
                     sidebarToggle.setAttribute('aria-label', label);
-                    sidebarToggleIcon.setAttribute('data-lucide', isCollapsed ? 'panel-left-open' : 'panel-left-close');
+                    sidebarToggleIcon?.setAttribute('data-lucide', isCollapsed ? 'panel-left-open' : 'panel-left-close');
                 };
 
                 // Restore saved state
@@ -293,7 +303,7 @@
                     const isCollapsed = sidebar.classList.contains('collapsed');
                     localStorage.setItem('sidebarCollapsed', isCollapsed);
                     syncSidebarToggle();
-                    lucide.createIcons();
+                    requestAnimationFrame(() => lucide.createIcons());
                 });
             }
 
@@ -528,6 +538,7 @@
 
         themeToggleBtn?.addEventListener('click', () => {
             const enableDark = document.documentElement.getAttribute('data-theme') !== 'dark';
+            document.documentElement.classList.add('bi-theme-transition');
             if (enableDark) {
                 document.documentElement.setAttribute('data-theme', 'dark');
                 localStorage.setItem('theme', 'dark');
@@ -536,6 +547,7 @@
                 localStorage.setItem('theme', 'light');
             }
             lucide.createIcons();
+            window.setTimeout(() => document.documentElement.classList.remove('bi-theme-transition'), 300);
             window.dispatchEvent(new Event('themechange'));
 
             // Update dashboard chart if it exists

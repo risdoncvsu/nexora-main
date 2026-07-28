@@ -111,7 +111,7 @@
                             <td>
                                 <span class="status-badge status-{{ $transfer->status }}">{{ ucfirst($transfer->status) }}</span>
                             </td>
-                            <td class="cell-muted">{{ $transfer->approver?->username ?? $transfer->approver?->name ?? '—' }}</td>
+                            <td class="cell-muted">{{ trim(($transfer->approver?->first_name ?? '') . ' ' . ($transfer->approver?->last_name ?? '')) ?: '—' }}</td>
                             <td class="col-r cell-muted">{{ $transfer->created_at?->format('M d, Y') ?? '—' }}</td>
                             <td>
                                 @error("trf_action_{$transfer->id}")

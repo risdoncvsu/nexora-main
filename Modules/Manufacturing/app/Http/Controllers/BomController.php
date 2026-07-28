@@ -5,6 +5,7 @@ namespace Modules\Manufacturing\Http\Controllers;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Modules\Inventory\Models\Item;
 use Modules\Manufacturing\Models\ProductBom;
 
@@ -65,13 +66,17 @@ class BomController extends Controller
             return back()->withErrors(['items' => 'Use only packaging materials for a packaging BoM, and non-packaging inventory for a prebuilt BoM.'])->withInput();
         }
 
-        DB::connection('manufacturing')->transaction(function () use ($validated, $inventoryItems): void {
-            $bom = ProductBom::create([
+        DB::connection('manufacturing')->transaction(function () use ($validated, $inventoryItems, $requestedType): void {
+            $attributes = [
                 'sku' => $validated['sku'],
                 'name' => $validated['name'],
                 'description' => $validated['description'] ?? null,
                 'status' => 'active',
-            ]);
+            ];
+            if (Schema::connection('manufacturing')->hasColumn('product_boms', 'bom_type')) {
+                $attributes['bom_type'] = $requestedType;
+            }
+            $bom = ProductBom::create($attributes);
 
             foreach ($validated['items'] as $component) {
                 $item = $inventoryItems->get($component['inventory_item_id']);

@@ -16,38 +16,24 @@
         </div>
         <div class="content-container">
 
-            {{-- System Alerts --}}
-            <div class="insight-card" id="alertsCard">
+            {{-- The approved AI Insights overview: intentionally only four KPIs. --}}
+            <section class="insight-card bi-kpi-overview-card" aria-labelledby="bi-kpi-overview-title">
                 <div class="alerts-header-row">
-                    <h3>Recent System Alerts</h3>
+                    <h3 id="bi-kpi-overview-title">Executive KPI Overview</h3>
                 </div>
-                <p style="font-size:11px; color: var(--slate-500); margin-bottom: 0.75rem;">Full details for all active
-                    alerts</p>
-                <div class="alerts-scroll-row">
-                    @forelse($alerts as $alert)
-                        <div class="alert-square alert-square-{{ $alert['type'] }}">
-                            <div class="alert-square-icon"><i data-lucide="{{ $alert['icon'] }}"></i></div>
-                            <strong>{{ $alert['title'] }}</strong>
-                            <span class="alert-square-time">{{ $alert['time'] }} • {{ $alert['priority'] }}</span>
-                            <p>{{ $alert['description'] }}</p>
-                            @if(!empty($alert['details']))
-                                <table>
-                                    @foreach($alert['details'] as $row)
-                                        <tr>
-                                            @foreach($row as $cell)
-                                                <td>{{ $cell }}</td>
-                                            @endforeach
-                                        </tr>
-                                    @endforeach
-                                </table>
-                            @endif
-                            <p class="alert-square-action">{{ $alert['action'] }}</p>
-                        </div>
-                    @empty
-                        <p style="color: var(--slate-500); font-size: 11px;">No active alerts at this time.</p>
-                    @endforelse
+                <p class="bi-kpi-overview-caption">A concise view of the current business position.</p>
+                <div class="bi-kpi-overview-grid">
+                    @foreach($kpiOverview as $kpi)
+                        <article class="kpi-card bi-kpi-overview-item bi-kpi-tone-{{ $kpi['tone'] }}">
+                            <div class="kpi-icon-container"><i data-lucide="{{ $kpi['icon'] }}"></i></div>
+                            <div>
+                                <p class="kpi-label">{{ $kpi['label'] }}</p>
+                                <p class="kpi-value">{{ $kpi['value'] }}</p>
+                            </div>
+                        </article>
+                    @endforeach
                 </div>
-            </div>
+            </section>
 
             <div class="ai-insights-grid">
                 {{-- Executive Summary --}}

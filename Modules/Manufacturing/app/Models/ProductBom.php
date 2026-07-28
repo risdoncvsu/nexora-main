@@ -12,7 +12,9 @@ class ProductBom extends Model
 
     protected $table = 'product_boms';
 
-    protected $fillable = ['sku', 'name', 'description', 'status'];
+    // Packaging BOMs are operational packing material lists, not products that
+    // can be sold or sent through the computer QC benchmark.
+    protected $fillable = ['sku', 'name', 'description', 'status', 'bom_type'];
 
     public function items(): HasMany
     {

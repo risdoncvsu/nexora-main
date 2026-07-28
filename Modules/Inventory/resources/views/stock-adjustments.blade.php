@@ -120,7 +120,7 @@
                             <td>
                                 <span class="status-badge status-{{ $adjustment->status }}">{{ ucfirst($adjustment->status) }}</span>
                             </td>
-                            <td class="cell-muted">{{ $adjustment->approver?->name ?? '—' }}</td>
+                            <td class="cell-muted">{{ trim(($adjustment->approver?->first_name ?? '') . ' ' . ($adjustment->approver?->last_name ?? '')) ?: '—' }}</td>
                             <td class="col-r cell-muted">{{ $adjustment->created_at?->format('M d, Y') ?? '—' }}</td>
                             <td>
                                 @error("adj_action_{$adjustment->id}")

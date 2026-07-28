@@ -51,8 +51,17 @@ class ErpIntegrationService
             $totalQuantity = (int) $items->sum('quantity');
             $amount = (float) $order->total;
 
+            // A packaging BOM is an operational packing list, not a customer
+            // computer build. It may support shipment preparation, but it must
+            // never generate a Manufacturing benchmark/QC work order.
+            $manufacturingItems = $items->reject(fn ($item) => $this->isPackagingBomLine($clientId, $item))->values();
+            $manufacturingProductSummary = $manufacturingItems->pluck('name')->filter()->unique()->implode(', ');
+            $manufacturingQuantity = (int) $manufacturingItems->sum('quantity');
+
             $this->createFulfillmentOrder($clientId, (string) $order->id, $customer, $productSummary, $totalQuantity, $amount, $order, $items);
-            $this->createManufacturingWorkOrder($clientId, (string) $order->id, $productSummary, $totalQuantity);
+            if ($manufacturingItems->isNotEmpty()) {
+                $this->createManufacturingWorkOrder($clientId, (string) $order->id, $manufacturingProductSummary, $manufacturingQuantity);
+            }
             $this->createProcurementRequisition($clientId, (string) $order->id, $productSummary, $totalQuantity, $amount);
             $this->createFinanceInvoice($clientId, (string) $order->id, $amount, (float) $order->shipping_fee, (string) $order->payment_status);
             $this->writeBiSnapshot($clientId);
@@ -300,7 +309,7 @@ class ErpIntegrationService
                     ]);
                     $inventory->table('stock_movements')->insert([
                         'client_id' => $clientId, 'type' => 'reservation', 'item_id' => $itemId,
-                        'warehouse_id' => $level->warehouse_id, 'quantity' => -$allocated,
+                        'warehouse_id' => $level->warehouse_id, 'quantity' => $allocated,
                         'reference' => 'ECOM-'.$orderId, 'reference_id' => $orderId,
                         'performed_by' => null, 'notes' => 'Reserved for ecommerce order', 'created_at' => now(),
                     ]);
@@ -368,7 +377,29 @@ class ErpIntegrationService
         $db = DB::connection('manufacturing');
         $id = 'WO-'.strtoupper(substr(sha1($orderId), 0, 12));
         if ($db->table('work_orders')->where('id', $id)->exists()) return;
-        $this->insertAvailable('manufacturing', 'work_orders', ['id' => $id, 'client_id' => $clientId, 'fulfillment_order_id' => $orderId, 'name' => $product ?: 'Storefront assembly', 'specs' => "Ecommerce order {$orderId}; quantity {$quantity}", 'status' => 'Pending', 'due' => now()->addDays(3)->toDateString(), 'due_date' => now()->addDays(3)->toDateString(), 'source' => 'Ecommerce '.$orderId, 'assigned' => null, 'created_at' => now(), 'updated_at' => now()]);
+        $this->insertAvailable('manufacturing', 'work_orders', ['id' => $id, 'client_id' => $clientId, 'fulfillment_order_id' => $orderId, 'name' => $product ?: 'Storefront assembly', 'specs' => "Ecommerce order {$orderId}; quantity {$quantity}", 'status' => 'Pending', 'due' => now()->addDays(3)->toDateString(), 'due_date' => now()->addDays(3)->toDateString(), 'source' => 'Ecommerce '.$orderId, 'assigned' => null, 'work_order_type' => 'production', 'created_at' => now(), 'updated_at' => now()]);
+    }
+
+    private function isPackagingBomLine(int $clientId, mixed $line): bool
+    {
+        if ((string) data_get($line, 'product_type') !== 'bom_listing') {
+            return false;
+        }
+
+        $configuration = data_get($line, 'configuration');
+        if (! is_array($configuration)) {
+            $configuration = json_decode((string) $configuration, true) ?: [];
+        }
+        $bomId = (int) ($configuration['bom_id'] ?? 0);
+        if ($bomId < 1 || ! Schema::connection('manufacturing')->hasColumn('product_boms', 'bom_type')) {
+            return false;
+        }
+
+        return DB::connection('manufacturing')->table('product_boms')
+            ->where('id', $bomId)
+            ->where('client_id', $clientId)
+            ->where('bom_type', 'packaging')
+            ->exists();
     }
 
     private function createProcurementRequisition(int $clientId, string $orderId, string $product, int $quantity, float $amount): void

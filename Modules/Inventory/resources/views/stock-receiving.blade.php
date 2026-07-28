@@ -114,7 +114,7 @@
                 <tbody id="tbodyPending">
                     @forelse ($deliveries as $delivery)
                         @php $isProcessed = $deliveryProcessed[$delivery->id] ?? false; @endphp
-                        <tr class="shipment-row" data-po-id="{{ $delivery->purchase_order_id }}" onclick="toggleItems(this)" style="{{ $isProcessed ? 'opacity:0.4;' : '' }}">
+                        <tr class="shipment-row" data-delivery-id="{{ $delivery->id }}" data-po-id="{{ $delivery->purchase_order_id }}" onclick="toggleItems(this)" style="{{ $isProcessed ? 'opacity:0.4;' : '' }}">
                             <td>
                                 <span class="expand-arrow" data-arrow="1">
                                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
@@ -176,7 +176,7 @@
                                 <span class="status-badge status-{{ $entry->status }}">{{ ucfirst($entry->status) }}</span>
                             </td>
                             <td class="cell-muted" style="font-size:12px;">
-                                <div>by {{ $entry->processor?->name ?? '—' }}</div>
+                                <div>by {{ trim(($entry->processor?->first_name ?? '') . ' ' . ($entry->processor?->last_name ?? '')) ?: '—' }}</div>
                                 <div style="font-size:11px;color:#94a3b8;">{{ $entry->processed_at?->format('M d, Y h:i A') ?? '—' }}</div>
                             </td>
                         </tr>
@@ -323,7 +323,7 @@
             document.getElementById('confirmWarehouse').textContent = warehouse;
 
             const itemsList = document.getElementById('confirmItemsList');
-            const row = document.querySelector(`tr.shipment-row[data-po-id]`);
+            const row = document.querySelector(`tr.shipment-row[data-delivery-id="${id}"]`);
             if (row) {
                 const poId = row.dataset.poId;
                 const items = deliveryItems[poId] || [];

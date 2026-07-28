@@ -15,6 +15,7 @@ use Modules\Manufacturing\Services\InventoryBridgeService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use RuntimeException;
 
 class ManufacturingController extends Controller
@@ -57,6 +58,13 @@ class ManufacturingController extends Controller
         }
 
         $this->assertCanOperateWorkOrder($order);
+
+        if ($sendToQC && $this->isPackingWorkOrder($order)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Packing-material work orders are not computer builds and cannot be sent to QC benchmarking.',
+            ], 422);
+        }
 
         DB::connection('manufacturing')->transaction(function () use ($order, $partChanges, $sendToQC, $cancelOrder) {
             $partsByPosition = $order->parts->values();
@@ -109,6 +117,13 @@ class ManufacturingController extends Controller
         }
 
         $this->assertCanOperateWorkOrder($order);
+
+        if ($this->isPackingWorkOrder($order)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Packing-material work orders are excluded from computer QC benchmarking.',
+            ], 422);
+        }
 
         if ($order->status !== 'QC Check') {
             return response()->json(['success' => false, 'message' => 'Only work orders in QC Check can be released from quality control.'], 422);
@@ -588,13 +603,20 @@ class ManufacturingController extends Controller
     // ── E-commerce intake ────────────────────────────────────────────────────
     public function receiveOrderFromEcommerce(Request $request): JsonResponse
     {
+        if (strtolower((string) $request->input('workOrderType')) === 'packing') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Packing lists must not be created as benchmarkable manufacturing work orders.',
+            ], 422);
+        }
+
         $orderDate = $request->has('orderDate')
             ? \Carbon\Carbon::parse($request->input('orderDate'))
             : now();
 
         $dueDate = (new DueDateService())->calculate($orderDate);
 
-        $order = WorkOrder::create([
+        $attributes = [
             'id'       => $request->input('id'),
             'name'     => $request->input('name'),
             'specs'    => $request->input('specs'),
@@ -604,7 +626,11 @@ class ManufacturingController extends Controller
             'fulfillment_order_id' => $request->input('fulfillmentOrderId'),
             'assigned' => $request->input('assigned'),
             'range'    => $request->input('range'),
-        ]);
+        ];
+        if (Schema::connection('manufacturing')->hasColumn('work_orders', 'work_order_type')) {
+            $attributes['work_order_type'] = 'production';
+        }
+        $order = WorkOrder::create($attributes);
 
         foreach ($request->input('parts', []) as $part) {
             $order->parts()->create([
@@ -742,6 +768,26 @@ class ManufacturingController extends Controller
         return EmployeePermissionGate::allows('manufacturing.record_quality_checks')
             || str_contains(strtolower((string) session('employee_position')), 'quality')
             || str_contains(strtolower((string) session('employee_department')), 'quality');
+    }
+
+    /**
+     * Packing lists describe operational materials, not assembled computers.
+     * Keep the check at both the status transition and benchmark submission so
+     * stale browser data cannot accidentally create a QC/rework record.
+     */
+    private function isPackingWorkOrder(WorkOrder $order): bool
+    {
+        if (strtolower((string) ($order->work_order_type ?? '')) === 'packing') {
+            return true;
+        }
+
+        $label = implode(' ', [
+            (string) $order->name,
+            (string) $order->specs,
+            (string) $order->source,
+        ]);
+
+        return (bool) preg_match('/\\b(packaging|packing\\s+(?:list|bom|materials?))\\b/i', $label);
     }
 
     /**

@@ -11,39 +11,21 @@ class RequestController extends Controller
     public function index()
     {
         try {
-            $rows = DB::connection('inventory')
+            // Keep one database row per requested item. Grouping by batch hid
+            // individual requisitions and made request numbers appear to skip.
+            $requests = DB::connection('inventory')
                 ->table('requisitions')
                 ->where('client_id', (int) session('employee_client_id'))
                 ->where('requested_by', session('employee_name'))
                 ->orderByDesc('created_at')
-                ->get();
+                ->paginate(10);
 
-            $grouped = $rows->groupBy(function ($r) {
-                preg_match('/\[batch:([^\]]+)\]/', $r->notes ?? '', $m);
-                return $m[1] ?? $r->req_id;
-            })->map(function ($group) {
-                $first = $group->first();
-                $first->quantity = $group->sum('quantity');
-                $first->item_count = $group->count();
-                $first->part_name = $group->count() > 1
-                    ? $first->part_name . ' <span class="multi-count">+' . ($group->count() - 1) . ' more</span>'
-                    : $first->part_name;
-                return $first;
-            })->values();
-
-            $total = $grouped->count();
-            $pending = $grouped->where('status', 'Pending')->count();
-
-            $perPage = 10;
-            $page = request()->get('page', 1);
-            $offset = ($page - 1) * $perPage;
-            $requests = new \Illuminate\Pagination\LengthAwarePaginator(
-                $grouped->slice($offset, $perPage)->values(),
-                $total,
-                $perPage,
-                $page,
-                ['path' => request()->url(), 'query' => request()->query()]
-            );
+            $pending = DB::connection('inventory')->table('requisitions')
+                ->where('client_id', (int) session('employee_client_id'))
+                ->where('requested_by', session('employee_name'))
+                ->where('status', 'Pending')
+                ->count();
+            $total = $requests->total();
         } catch (\Exception $e) {
             $requests = new \Illuminate\Pagination\LengthAwarePaginator([], 0, 10);
             $total = 0;

@@ -29,9 +29,9 @@ class WarehouseController extends Controller
             'name' => 'required|string|max:255',
             'address' => 'nullable|string|max:500',
             'capacity_units' => 'required|integer|min:1',
-            'status' => 'required|in:active,inactive',
         ]);
 
+        $validated['status'] = 'active';
         Warehouse::create($validated);
 
         return redirect()->route('inventory.warehouse')->with('success', 'Warehouse created successfully.');

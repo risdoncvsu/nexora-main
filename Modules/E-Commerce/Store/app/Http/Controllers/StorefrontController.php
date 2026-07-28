@@ -3,8 +3,6 @@
 namespace Modules\Ecommerce\Http\Controllers;
 
 use App\Models\Company;
-use Modules\Ecommerce\Models\CustombuiltConfig;
-use Modules\Ecommerce\Models\PrebuiltConfig;
 use Modules\Ecommerce\Models\StorefrontLayout;
 use Modules\Ecommerce\Models\StorefrontListing;
 
@@ -19,8 +17,11 @@ class StorefrontController extends Controller
             'company' => $company,
             'layout' => StorefrontLayout::publishedFor($company),
             'storefrontListings' => StorefrontListing::query()->where('status', 'active')->latest()->take(12)->get(),
-            'prebuiltPcs' => PrebuiltConfig::query()->latest()->take(6)->get(),
-            'customConfigs' => CustombuiltConfig::query()->latest()->take(4)->get(),
+            // The public storefront is driven by client-scoped BOM listings.
+            // Older standalone installs may not have prebuilt_configs or
+            // custombuilt_configs, so never query those legacy tables here.
+            'prebuiltPcs' => collect(),
+            'customConfigs' => collect(),
             'preview' => false,
         ]);
     }

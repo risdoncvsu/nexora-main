@@ -1,5 +1,4 @@
-
-  :root{
+:root{
     --navy: #0c1c3a;
     --navy-hover: #142a52;
     --navy-active: #1b3766;
@@ -111,7 +110,7 @@
   .sidebar-desc{color:#8994b3;font-size:12px;line-height:1.5;padding:0 10px;margin-bottom:22px;}
   .sidebar-title-wrap{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 10px;margin-bottom:6px;}
   .sidebar-title{margin:0;padding:0;}
-  .notif-badge{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,0.08);color:#f8b4b4;font-size:16px;animation:pulseNotif 2s infinite;cursor:pointer;border:1px solid rgba(255,255,255,0.08);position:relative;transition:background .2s ease, transform .2s ease;}
+  .notif-badge{display:none !important;}
   .notif-badge:hover{background:rgba(255,255,255,0.14);transform:translateY(-1px);}
   .notif-badge svg{width:16px;height:16px;}
   .notif-badge .nav-badge{position:absolute;top:-6px;right:-6px;min-width:20px;height:20px;padding:0 6px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;font-size:12px;background:var(--red);color:#fff;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,0.12);}
@@ -374,7 +373,7 @@
     display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:700;
     padding:4px 10px; border-radius:20px;
   }
-  .status-pill::before{ content:"●"; font-size:9px; line-height:1; }
+  .status-pill::before{ content:"â—"; font-size:9px; line-height:1; }
   .status-pill.approved{ background:var(--green-light); color:var(--green); }
   .status-pill.pending{ background:var(--orange-light); color:var(--orange); }
   .status-pill.processing{ background:var(--blue-light); color:var(--blue); }
@@ -387,9 +386,12 @@
   .status-pill.delivered{ background:var(--green-light); color:var(--green); }
   .status-pill.delayed{ background:var(--red-light); color:var(--red); }
   .status-pill.scheduled{ background:var(--purple-light); color:var(--purple); }
-  .status-pill.returnedtosupplier{ background:var(--orange-light); color:var(--orange); }
-  .status-pill.replacementintransit{ background:#f3e8ff; color:#9333ea; }
-  .status-pill.replacementreceived{ background:var(--green-light); color:var(--green); }
+  /* Defect item statuses */
+  .status-pill.open{ background:var(--orange-light); color:var(--orange); }
+  .status-pill.inreview{ background:var(--blue-light); color:var(--blue); }
+  .status-pill.resolved{ background:var(--green-light); color:var(--green); }
+  .status-pill.closed{ background:var(--gray-light); color:var(--muted); }
+  .status-pill.scrapped{ background:var(--red-light); color:var(--red); }
 
   .row-actions{ display:inline-flex; gap:14px; align-items:center; color:var(--muted); }
   .row-actions button{
@@ -933,6 +935,7 @@
   .dash-grid-3 .panel .donut-legend-dot.status-rejected{background:var(--red);}
   .dash-grid-3 .panel .donut-legend-dot.status-cancelled{background:var(--muted);}
   .dash-grid-3 .panel .donut-legend-dot.status-completed{background:var(--teal);}
+  .dash-grid-3 .panel .donut-legend-dot.status-delivered{background:var(--info);}
   .dash-grid-3 .panel .donut-legend-label{
     flex:1;
     color:var(--text);
@@ -962,7 +965,7 @@
     overflow:hidden;
     text-overflow:ellipsis;
   }
-  /* Thick horizontal bars — 5 of them should read clearly at a glance. */
+  /* Thick horizontal bars â€” 5 of them should read clearly at a glance. */
   .dash-grid-3 .panel .chart-bar-track{
     height:25px;
     background:var(--gray-light);
@@ -1049,7 +1052,7 @@
   .badge-delayed{background:var(--red-light);color:var(--red);}
 
   /* =====================================================================
-     REDESIGN PASS — refined visual layer (dashboard-led, applies site-wide
+     REDESIGN PASS â€” refined visual layer (dashboard-led, applies site-wide
      so every page keeps the same look and feel). No markup was changed;
      these rules restyle the existing classes only.
      ===================================================================== */
@@ -1068,7 +1071,7 @@
   .page-head p{ font-size:13.5px; }
 
   /* Stat cards: rounded, softer depth, color-coded top accent per position.
-     Order matches every page (metric 1–4 = primary/secondary/tertiary/quaternary),
+     Order matches every page (metric 1â€“4 = primary/secondary/tertiary/quaternary),
      so the same rule reads consistently everywhere. */
   .stat-card{
     border-radius:var(--radius-lg);
@@ -1145,7 +1148,7 @@
   }
   .dash-del-item:hover{ background:var(--bg); }
 
-  /* Accessible focus state — quality floor, not a style choice */
+  /* Accessible focus state â€” quality floor, not a style choice */
   a:focus-visible, button:focus-visible, .nav-item:focus-visible,
   .tab:focus-visible, .stat-card:focus-visible, [onclick]:focus-visible{
     outline:2px solid var(--blue); outline-offset:2px; border-radius:6px;
@@ -1182,7 +1185,7 @@
 }
 .donut-tooltip.show{ opacity:1; }
 
-/* Spend by Category — horizontal bars: label+value on top, bar below */
+/* Spend by Category â€” horizontal bars: label+value on top, bar below */
 .chart-bar-list-h{ gap:14px; }
 .chart-bar-item-h{ display:flex; flex-direction:column; gap:6px; }
 .chart-bar-item-h-top{
@@ -1198,7 +1201,7 @@
   text-decoration:none;
 }
 
-/* Supplier product editor — inline editable name/price (ported from nexora-app) */
+/* Supplier product editor â€” inline editable name/price (ported from nexora-app) */
 .product-chip-edit{ width:100%; flex:1 1 100%; border-radius:10px; padding:8px 10px; gap:10px; background:#f7fafd; }
 .product-chip-name{ flex:1; min-width:0; border:1px solid #d7dde8; border-radius:7px; padding:6px 9px; font-size:12.5px; color:var(--text); background:#fff; outline:none; }
 .product-chip-name:focus{ border-color:var(--blue); box-shadow:0 0 0 3px rgba(47,111,237,0.12); }
@@ -1208,7 +1211,7 @@
 .product-chip-price-input:focus{ border-color:var(--blue); box-shadow:0 0 0 3px rgba(47,111,237,0.12); }
 
 /* ============================================================
-   Spend by Category — vertical bar chart (dashboard panel)
+   Spend by Category â€” vertical bar chart (dashboard panel)
    ============================================================ */
 .vbar-chart{
   display:flex;
@@ -1271,7 +1274,7 @@
 .nav-badge.badge-pulse{ animation: badgePulse .4s ease; }
 
 /* ============================================================
-   PO modal — multi-item rows (Category -> Item cascading)
+   PO modal â€” multi-item rows (Category -> Item cascading)
    ============================================================ */
 .po-item-row{
   display:grid;
@@ -1296,7 +1299,46 @@
   .po-item-row{ grid-template-columns: 1fr 1fr; }
 }
 
-/* Add Product modal + editable product chip — Category field */
+/* Auto-generated PO item rows (Request/defect -> PO): no remove button, every
+   field is read-only and visually locked. */
+.po-item-row-auto{
+  grid-template-columns: 1.2fr 1.2fr 70px 110px 110px;
+}
+.po-item-row-auto .form-field input[readonly]{
+  background:#f1f5f9; color:#475569; cursor:default;
+}
+@media (max-width: 720px){
+  .po-item-row-auto{ grid-template-columns: 1fr 1fr; }
+}
+
+/* Requisition-generated PO item rows (Supplier/Category/Item picked manually;
+   only Qty is locked to the requisition). */
+.po-item-row-request{
+  grid-template-columns: 1.2fr 1.2fr 70px 110px 110px;
+}
+.po-item-row-request .po-item-request-label{
+  grid-column: 1 / -1;
+  font-size:12px;
+  font-weight:600;
+  color:var(--text);
+  margin:-2px 0 2px;
+}
+.po-item-row-request .form-field input[readonly]{
+  background:#f1f5f9; color:#475569; cursor:default;
+}
+@media (max-width: 720px){
+  .po-item-row-request{ grid-template-columns: 1fr 1fr; }
+}
+
+/* Shared "locked" state for auto-filled fields outside the item rows (e.g.
+   the PO modal's Supplier field when generated from a Request/defect). */
+.field-locked{
+  pointer-events:none;
+  background:#f1f5f9 !important;
+  color:#475569 !important;
+}
+
+/* Add Product modal + editable product chip â€” Category field */
 .product-chip-category-input{
   width:100px; border:1px solid #d7dde8; border-radius:7px; padding:6px 8px;
   font-size:11.5px; color:var(--text); background:#fff; outline:none;
@@ -1421,7 +1463,7 @@
 }
 :root[data-theme="dark"] .filter-group label,
 :root[data-theme="dark"] .filter-group > label{ color:var(--muted); }
-/* These hardcode #fff / #d7dde8 in the light theme — override explicitly. */
+/* These hardcode #fff / #d7dde8 in the light theme â€” override explicitly. */
 :root[data-theme="dark"] .filter-group input,
 :root[data-theme="dark"] .filter-group select,
 :root[data-theme="dark"] .date-range input[type="date"]{
@@ -1476,7 +1518,7 @@
 :root[data-theme="dark"] .chart-bar-track{ background:var(--gray-light); }
 
 /* ============================================================
-   Modal polish pass (#13) — spacing, hierarchy and typography.
+   Modal polish pass (#13) â€” spacing, hierarchy and typography.
    Kept additive (no change to .modal-box padding) so modals whose
    content isn't wrapped in a padded region don't lose their insets.
    ============================================================ */
@@ -1485,7 +1527,7 @@
 .modal-box .modal-head p{ font-size:12.5px; color:var(--muted); margin-top:2px; }
 .modal-box .modal-actions{ padding-top:16px; border-top:1px solid var(--border); }
 
-/* Detail cards (view modals) — softer surface, clearer heading. */
+/* Detail cards (view modals) â€” softer surface, clearer heading. */
 .detail-card{ background:var(--gray-light); border:1px solid var(--border); border-radius:12px; padding:14px 16px; }
 .detail-card h4{
   font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.5px;
@@ -1498,7 +1540,7 @@
   font-size:13px; line-height:1.55; color:var(--text);
 }
 
-/* Form fields — consistent label + control rhythm. */
+/* Form fields â€” consistent label + control rhythm. */
 .form-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px 16px; }
 .form-field{ display:flex; flex-direction:column; gap:6px; }
 .form-field.full{ grid-column:1 / -1; }
