@@ -7,6 +7,7 @@ use App\Models\ServiceTicket;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Carbon;
 
 class TicketController extends Controller
 {
@@ -43,6 +44,70 @@ class TicketController extends Controller
     public function supportIndex()
     {
         return $this->index('client', 'client_password_reset');
+    }
+
+    public function assignedIndex()
+    {
+        $tickets = ServiceTicket::query()
+            ->where('ticket_type', 'nexora_support')
+            ->where('assigned_to', Auth::id())
+            ->whereNotIn('status', ['Resolved', 'Closed'])
+            ->latest()
+            ->get();
+
+        return view('service.assigned-requests', compact('tickets'));
+    }
+
+    public function claim(ServiceTicket $ticket): RedirectResponse
+    {
+        $this->authorizePortalAccess($ticket);
+
+        if ($ticket->assigned_to && (int) $ticket->assigned_to !== (int) Auth::id()) {
+            return back()->withErrors(['ticket' => 'This request has already been assigned to another administrator.']);
+        }
+
+        $ticket->update([
+            'assigned_to' => Auth::id(),
+            'status' => $ticket->status === 'Open' ? 'In Progress' : $ticket->status,
+        ]);
+
+        return back()->with('success', 'Request assigned to you.');
+    }
+
+    public function release(ServiceTicket $ticket): RedirectResponse
+    {
+        $this->authorizePortalAccess($ticket);
+        abort_unless((int) $ticket->assigned_to === (int) Auth::id(), 403);
+
+        $ticket->update(['assigned_to' => null]);
+
+        return back()->with('success', 'Request returned to the support queue.');
+    }
+
+    public function slaReview()
+    {
+        $tickets = ServiceTicket::query()
+            ->where('ticket_type', 'nexora_support')
+            ->whereNotIn('status', ['Resolved', 'Closed'])
+            ->latest()
+            ->get()
+            ->map(function (ServiceTicket $ticket): ServiceTicket {
+                $hours = match ($ticket->priority) {
+                    'Critical' => 4,
+                    'High' => 8,
+                    'Medium' => 24,
+                    default => 72,
+                };
+                $dueAt = $ticket->created_at->copy()->addHours($hours);
+                $ticket->sla_target_hours = $hours;
+                $ticket->sla_due_at = $dueAt;
+                $ticket->sla_state = $dueAt->isPast() ? 'Breached' : 'On track';
+                $ticket->sla_remaining = max(0, (int) Carbon::now()->diffInHours($dueAt, false));
+
+                return $ticket;
+            });
+
+        return view('service.sla-review', compact('tickets'));
     }
 
     public function store(Request $request): RedirectResponse

@@ -24,10 +24,10 @@ public function index()
 
         if (!empty($ids)) {
             Role::whereIn('id', $ids)->delete();
-            return redirect()->route('users.roles')->with('success', 'Selected roles deleted successfully.');
+            return redirect()->route('admin.itsm.roles')->with('success', 'Selected roles deleted successfully.');
         }
 
-        return redirect()->route('users.roles')->with('error', 'No roles selected for deletion.');
+        return redirect()->route('admin.itsm.roles')->with('error', 'No roles selected for deletion.');
     }
 
     public function store(Request $request)
@@ -39,7 +39,7 @@ public function index()
 
         Role::create($validated);
 
-        return redirect()->route('users.roles')->with('success', 'Role created successfully.');
+        return redirect()->route('admin.itsm.roles')->with('success', 'Role created successfully.');
     }
 
     public function update(Request $request, Role $role)
@@ -51,13 +51,13 @@ public function index()
 
         $role->update($validated);
 
-        return redirect()->route('users.roles')->with('success', 'Role updated successfully.');
+        return redirect()->route('admin.itsm.roles')->with('success', 'Role updated successfully.');
     }
 
     public function destroy(Role $role)
     {
         $role->delete();
 
-        return redirect()->route('users.roles')->with('success', 'Role deleted successfully.');
+        return redirect()->route('admin.itsm.roles')->with('success', 'Role deleted successfully.');
     }
 }

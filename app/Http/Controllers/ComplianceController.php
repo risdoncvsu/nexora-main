@@ -45,7 +45,6 @@ class ComplianceController extends Controller
             'title' => 'required|string|max:255',
             'audience' => 'required|string|max:255',
             'status' => 'required|string',
-            'progress' => 'required|integer|between:0,100',
         ]);
 
         // I-set ang tamang tailwind color scheme configuration mapping base sa orihinal na structure
@@ -63,7 +62,13 @@ class ComplianceController extends Controller
             'title' => $validated['title'],
             'audience' => $validated['audience'],
             'status' => $validated['status'],
-            'progress' => $validated['progress'] . '%',
+            // Progress is system-derived from the lifecycle state.  It is not
+            // a value the user should have to calculate or type manually.
+            'progress' => match ($validated['status']) {
+                'Completed' => '100%',
+                'Active' => '50%',
+                default => '0%',
+            },
             'color' => $colorMap[$validated['status']] ?? 'bg-slate-600'
         ];
 

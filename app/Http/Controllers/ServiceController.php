@@ -3,9 +3,9 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\Role;
-use App\Models\Ticket;
 use App\Models\Article;
+use App\Models\ServiceTicket;
+use Illuminate\Support\Facades\Auth;
 
 
 class ServiceController extends Controller
@@ -13,14 +13,20 @@ class ServiceController extends Controller
 
 public function resolvedTickets()
 {
-    $resolvedTickets = Ticket::where('status', 'Resolved')->get();
+    $resolvedTickets = ServiceTicket::query()
+        ->where('company_id', Auth::user()?->company_id)
+        ->whereIn('status', ['Resolved', 'Closed'])
+        ->latest()
+        ->get();
+
     return view('service.resolvedtickets', compact('resolvedTickets'));
 }
 
 
 public function knowledgeBase()
 {
-    $articles = Article::all(); // or filter by category/status if needed
+    $articles = Article::latest()->get();
+
     return view('service.knowledgebase', compact('articles'));
 }
 

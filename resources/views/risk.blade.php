@@ -200,19 +200,14 @@
                     <input type="text" name="category" required placeholder="e.g. Infrastructure, Security" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 bg-slate-50" />
                 </div>
 
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Status</label>
-                        <select name="status" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 bg-slate-50">
-                            <option value="Unmitigated">Unmitigated</option>
-                            <option value="In Progress">In Progress</option>
-                            <option value="Mitigated">Mitigated</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Progress (%)</label>
-                        <input type="number" name="progress" min="0" max="100" value="0" required class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 bg-slate-50" />
-                    </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Status</label>
+                    <select name="status" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 bg-slate-50">
+                        <option value="Unmitigated">Unmitigated</option>
+                        <option value="In Progress">In Progress</option>
+                        <option value="Mitigated">Mitigated</option>
+                    </select>
+                    <p class="mt-1 text-xs text-slate-500">Progress is calculated automatically from the selected status.</p>
                 </div>
 
                 <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 mt-6">

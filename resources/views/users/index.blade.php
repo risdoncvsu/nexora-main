@@ -101,12 +101,14 @@
                     <nav class="space-y-6 text-xl">
                         <a href="{{ $portal === 'admin' ? route('admin.itsm.clients') : route('client.itsm.employees') }}" class="block {{ $active === 'employees' || $active === 'clients' ? 'font-extrabold' : 'font-medium hover:text-[#346DCB]' }}">All {{ $portal === 'admin' ? ucfirst($entityLabelPlural) : 'Employees' }}</a>
                         @if ($portal === 'admin')
-                            <a href="{{ route('users.pending') }}" class="block font-medium hover:text-[#346DCB]">Pending Approvals</a>
+                            <a href="{{ route('admin.itsm.pending-approvals') }}" class="block font-medium hover:text-[#346DCB]">Pending Approvals</a>
                         @else
                             <a href="{{ route('client.itsm.employees') }}" class="block font-medium hover:text-[#346DCB]">HR Sync Queue</a>
                             <a href="{{ route('client.itsm.pending-approvals') }}" class="block {{ $active === 'pending-approvals' ? 'font-extrabold text-[#346DCB]' : 'font-medium hover:text-[#346DCB]' }}">Pending Approvals</a>
                         @endif
-                        <a href="{{ route('users.roles') }}" class="block font-medium hover:text-[#346DCB]">Roles & Permissions</a>
+                        @if ($portal === 'admin')
+                            <a href="{{ route('admin.itsm.roles') }}" class="block font-medium hover:text-[#346DCB]">Roles & Permissions</a>
+                        @endif
 
                     </nav>
                 </aside>
@@ -167,7 +169,7 @@
                         @endif
 
                         <div class="mb-6 flex items-center justify-between">
-                            <h2 class="text-xl font-semibold">{{ $active === 'pending-approvals' ? 'Employee accounts awaiting your approval' : 'All ' . $entityLabelPlural }}</h2>
+                            <h2 class="text-xl font-semibold">{{ $active === 'pending-approvals' ? ($portal === 'admin' ? 'Client accounts awaiting root review' : 'Employee accounts awaiting your approval') : 'All ' . $entityLabelPlural }}</h2>
                             @if ($portal === 'admin' && $active !== 'pending-approvals')
                                 <label class="flex items-center gap-2 text-base">
                                     <input type="checkbox" id="selectAllCheckbox" class="h-5 w-5 accent-[#346DCB]">
@@ -220,11 +222,13 @@
                                             @endif
                                             <td class="px-2 py-4">{{ $user->status ?? 'Active' }}</td>
                                             <td class="px-2 py-4 text-center">
-                                                @if ($active === 'pending-approvals')
+                                                @if ($active === 'pending-approvals' && $portal === 'client')
                                                     <form method="POST" action="{{ route('client.itsm.pending-approvals.approve', ['employee' => $user->id]) }}">
                                                         @csrf
                                                         <button type="submit" class="rounded-md bg-[#346DCB] px-4 py-2 font-semibold text-white hover:bg-[#2554a3]">Approve</button>
                                                     </form>
+                                                @elseif ($active === 'pending-approvals')
+                                                    <span class="text-sm text-slate-500">Awaiting review</span>
                                                 @elseif ($portal === 'client')
                                                     <button type="button" class="edit-employee-button inline-flex items-center gap-2 rounded-md bg-[#132B52] px-4 py-2 font-semibold text-white hover:bg-[#2554a3]" aria-label="Edit {{ $user->name ?? 'employee' }}">
                                                         <span aria-hidden="true">&#9998;</span> Edit

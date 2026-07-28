@@ -161,8 +161,22 @@ class StockReceivingController extends Controller
     {
         $delivery = $this->findDeliveryForCurrentClient((int) $deliveryId);
 
-        if (! in_array($delivery->status, ['pending', 'intransit'], true)) {
-            return back()->withErrors(["del_action_{$delivery->id}" => 'This delivery has already been processed.']);
+        if ($delivery->status !== 'intransit') {
+            return back()->withErrors(["del_action_{$delivery->id}" => 'Only an in-transit shipment can be received. Log the supplier delivery in Procurement first.']);
+        }
+
+        // Procurement publishes new POs here as expected deliveries so the
+        // warehouse can plan incoming stock.  They are not physical stock yet:
+        // receiving is allowed only after Procurement approves the PO.
+        if ($delivery->purchase_order_id) {
+            $purchaseOrderStatus = DB::connection('procurement')
+                ->table('purchase_orders')
+                ->where('id', $delivery->purchase_order_id)
+                ->value('status');
+
+            if (! in_array(strtolower((string) $purchaseOrderStatus), ['approved', 'processing'], true)) {
+                return back()->withErrors(["del_action_{$delivery->id}" => 'Procurement must approve this purchase order before Inventory can receive it.']);
+            }
         }
 
         $warehouse = Warehouse::query()

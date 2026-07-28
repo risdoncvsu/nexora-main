@@ -184,7 +184,7 @@
           <div class="bg-[#0B1E3D] px-6 py-5 flex items-center gap-4">
             <textarea name="remarks" rows="1" placeholder="Enter remarks here..." class="flex-1 bg-[#0a1633] border border-[#22335f] rounded-lg px-4 py-3 text-[14px] text-slate-200 placeholder-slate-500 focus:outline-none focus:border-[#5b8def]">{{ old('remarks') }}</textarea>
 
-            <button type="submit" name="action" value="accept" class="inline-flex items-center gap-2 bg-[#1f7a4d] hover:bg-[#228a56] text-white text-[14px] font-semibold px-5 py-3 rounded-lg transition-colors whitespace-nowrap">
+            <button type="submit" name="action" value="approve" class="inline-flex items-center gap-2 bg-[#1f7a4d] hover:bg-[#228a56] text-white text-[14px] font-semibold px-5 py-3 rounded-lg transition-colors whitespace-nowrap">
               <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
               </svg>

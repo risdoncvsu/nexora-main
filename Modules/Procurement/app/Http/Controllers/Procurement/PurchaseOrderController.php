@@ -166,6 +166,39 @@ class PurchaseOrderController extends Controller
     }
 
     /**
+     * Publish a newly-created PO to Inventory's Incoming Stock screen.  This
+     * is deliberately an expected delivery, not a stock movement: Inventory
+     * receives stock only when its user approves the arrival.  Keeping the
+     * record in Procurement also means both modules share one shipment status
+     * instead of maintaining a fragile duplicate queue.
+     */
+    private function publishExpectedDelivery(int $purchaseOrderId, array $purchaseOrder, ?Warehouse $warehouse): void
+    {
+        $procurement = DB::connection('procurement');
+
+        if ($procurement->table('deliveries')->where('purchase_order_id', $purchaseOrderId)->exists()) {
+            return;
+        }
+
+        $procurement->table('deliveries')->insert([
+            'client_id' => (int) session('employee_client_id'),
+            'shipment_number' => 'SHP-PO-'.$purchaseOrderId,
+            'purchase_order_id' => $purchaseOrderId,
+            'supplier_id' => $purchaseOrder['supplier_id'],
+            'status' => 'pending',
+            'qty' => $purchaseOrder['qty'],
+            'qty_expected' => $purchaseOrder['qty'],
+            'items' => $purchaseOrder['item'],
+            'remarks' => $purchaseOrder['remarks'],
+            'delivery_date' => $purchaseOrder['expected_delivery_date'] ?? now()->toDateString(),
+            'estimated_arrival' => $purchaseOrder['expected_delivery_date'] ?? null,
+            'deliver_to_warehouse' => $warehouse?->name,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    /**
      * Purchase Orders list page (filters, sortable table, add PO modal).
      */
     public function index(Request $request)
@@ -380,6 +413,20 @@ class PurchaseOrderController extends Controller
             }
 
             DB::connection('procurement')->table('purchase_order_items')->insert($itemInsert);
+        }
+
+        // Make the approved-order handoff observable immediately.  Inventory
+        // can see this expected shipment now, but its receiving endpoint still
+        // requires the PO to be approved before it can add any stock.
+        try {
+            $this->publishExpectedDelivery($poId, $insert, $warehouse);
+        } catch (\Throwable $exception) {
+            report($exception);
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Purchase order was saved, but its Inventory incoming-delivery record could not be created. Check the Procurement delivery schema and application log.',
+            ], 500);
         }
 
         // Creating the PO moves its requisition Approved -> Processing.

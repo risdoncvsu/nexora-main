@@ -155,7 +155,19 @@ class DeliveryController extends Controller
             ]);
         }
 
-        $delivery = $this->createDeliveryWithUniqueShipmentNumber([
+        // A PO now publishes one Pending expected delivery to Inventory when
+        // it is created.  Logging the supplier shipment promotes that same
+        // record to In Transit instead of creating a second incoming row for
+        // the same PO (which previously made stock appear twice).
+        $expectedDelivery = $purchaseOrder
+            ? Delivery::query()
+                ->where('client_id', (int) session('employee_client_id'))
+                ->where('purchase_order_id', $purchaseOrder->id)
+                ->where('status', 'pending')
+                ->first()
+            : null;
+
+        $deliveryAttributes = [
             'client_id' => (int) session('employee_client_id'),
             'shipment_number' => $data['dr'],
             'purchase_order_id' => $purchaseOrder?->id,
@@ -171,7 +183,17 @@ class DeliveryController extends Controller
             // The selected warehouse's name is stored in the deliver_to_warehouse
             // column so the shipment record shows where it's being delivered.
             'deliver_to_warehouse' => $warehouse?->name,
-        ]);
+        ];
+
+        if ($expectedDelivery) {
+            // Keep the original generated shipment number as the stable
+            // cross-module reference used by Inventory stock receivings.
+            unset($deliveryAttributes['shipment_number']);
+            $expectedDelivery->update($deliveryAttributes);
+            $delivery = $expectedDelivery->refresh();
+        } else {
+            $delivery = $this->createDeliveryWithUniqueShipmentNumber($deliveryAttributes);
+        }
 
         if ($purchaseOrder) {
             // Logging a delivery moves the PO to Processing. The linked

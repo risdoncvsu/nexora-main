@@ -167,20 +167,15 @@
                     <input type="text" name="audience" required placeholder="e.g., All Staff, IT Department" class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
                 </div>
 
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Status Type</label>
-                        <select name="status" required class="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white font-semibold">
-                            <option value="Active">Active</option>
-                            <option value="Urgent">Urgent</option>
-                            <option value="Completed">Completed</option>
-                            <option value="Pending Review">Pending Review</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Progress Percentage</label>
-                        <input type="number" name="progress" min="0" max="100" required placeholder="e.g., 75" class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
-                    </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Status Type</label>
+                    <select name="status" required class="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white font-semibold">
+                        <option value="Active">Active</option>
+                        <option value="Urgent">Urgent</option>
+                        <option value="Completed">Completed</option>
+                        <option value="Pending Review">Pending Review</option>
+                    </select>
+                    <p class="mt-1 text-xs text-slate-500">Progress is calculated automatically from the selected status.</p>
                 </div>
 
                 <div class="flex items-center justify-end gap-3 border-t border-slate-100 pt-5 mt-6">

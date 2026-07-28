@@ -265,9 +265,25 @@ class UserController extends Controller
         return $this->employees();
     }
 
- public function pending()
-{
-    $pendingUsers = User::where('status', 'pending')->get();
-    return view('users.pending', compact('pendingUsers'));
-}
+    public function pending()
+    {
+        // Root-side pending approvals are company registrations/onboarding
+        // records, not HR employees (those belong to the client's own ITSM
+        // Pending Approvals screen).  Rendering the shared client table here
+        // used to query an obsolete users.status column and caused a 500.
+        $companies = Company::with('adminUser')
+            ->where('status', 'Pending')
+            ->latest()
+            ->get();
+
+        return view('users.index', [
+            'users' => $companies,
+            'portal' => 'admin',
+            'active' => 'pending-approvals',
+            'title' => 'Pending Client Approvals',
+            'entityLabel' => 'client',
+            'entityLabelPlural' => 'clients',
+            'primaryIdLabel' => 'Client ID',
+        ]);
+    }
 }

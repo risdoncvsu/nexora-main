@@ -54,14 +54,14 @@
                     <nav class="space-y-6 text-xl">
                         @if ($portal === 'admin')
                             <a href="{{ route('admin.itsm.service-desk') }}" class="block font-extrabold">Nexora Support Queue</a>
-                            <a href="#" class="block font-medium hover:text-[#346DCB]">Assigned Requests</a>
-                            <a href="#" class="block font-medium hover:text-[#346DCB]">Knowledge Base</a>
-                            <a href="#" class="block font-medium hover:text-[#346DCB]">SLA Review</a>
+                            <a href="{{ route('admin.itsm.service-desk.assigned') }}" class="block font-medium hover:text-[#346DCB]">Assigned Requests</a>
+                            <a href="{{ route('admin.itsm.service-desk.knowledge-base') }}" class="block font-medium hover:text-[#346DCB]">Knowledge Base</a>
+                            <a href="{{ route('admin.itsm.service-desk.sla-review') }}" class="block font-medium hover:text-[#346DCB]">SLA Review</a>
                         @else
                             <a href="{{ route('client.itsm.service-desk') }}" class="block {{ $ticketType === 'erp_module' ? 'font-extrabold' : 'font-medium hover:text-[#346DCB]' }}">Module Ticket Dashboard</a>
                             <a href="{{ route('client.itsm.service-desk.support') }}" class="block {{ $ticketType === 'client_password_reset' ? 'font-extrabold' : 'font-medium hover:text-[#346DCB]' }}">Account Recovery</a>
-                            <a href="#" class="block font-medium hover:text-[#346DCB]">Resolved Tickets</a>
-                            <a href="#" class="block font-medium hover:text-[#346DCB]">Knowledge Base</a>
+                            <a href="{{ route('client.itsm.service-desk.resolvedtickets') }}" class="block font-medium hover:text-[#346DCB]">Resolved Tickets</a>
+                            <a href="{{ route('client.itsm.service-desk.knowledgebase') }}" class="block font-medium hover:text-[#346DCB]">Knowledge Base</a>
                         @endif
                     </nav>
                 </aside>
@@ -162,6 +162,19 @@
                                             <td class="py-4">{{ $ticket->status }}</td>
                                             @if ($canUpdateTicket)
                                                 <td class="py-4 text-right">
+                                                    @if ($portal === 'admin' && ! in_array($ticket->status, ['Resolved', 'Closed'], true))
+                                                        @if ((int) $ticket->assigned_to === (int) auth()->id())
+                                                            <span class="mr-2 rounded-md bg-blue-50 px-3 py-1 text-xs font-semibold text-[#346DCB]">Assigned to you</span>
+                                                        @elseif (! $ticket->assigned_to)
+                                                            <form method="POST" action="{{ route('admin.itsm.service-desk.claim', $ticket) }}" class="mr-2 inline">
+                                                                @csrf
+                                                                @method('PATCH')
+                                                                <button type="submit" class="rounded-md bg-[#346DCB] px-3 py-1 font-semibold text-white hover:bg-[#2554a3]">Claim</button>
+                                                            </form>
+                                                        @else
+                                                            <span class="mr-2 text-xs font-semibold text-slate-500">Assigned</span>
+                                                        @endif
+                                                    @endif
                                                     @if ($canProcessPasswordResets && $ticket->category === 'Password Reset' && $ticket->status !== 'Resolved')
                                                         <details class="mb-2 text-left">
                                                             <summary class="cursor-pointer rounded-md bg-[#346DCB] px-3 py-1 text-center font-semibold text-white hover:bg-[#2554a3]">Set temporary password</summary>

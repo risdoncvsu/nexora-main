@@ -6,67 +6,70 @@ use Illuminate\Http\Request;
 
 class RiskController extends Controller
 {
-    /**
-     * Ipakita ang Risk Register (Blangko sa simula para sa Prototyping)
-     */
+    private function sessionKey(Request $request): string
+    {
+        return 'client_risks.'.((int) $request->user()?->company_id);
+    }
+
     public function index(Request $request)
     {
         $search = $request->input('search');
         $statusFilter = $request->input('status_filter');
+        $risks = collect($request->session()->get($this->sessionKey($request), []))
+            ->map(fn (array $risk): object => (object) $risk);
 
-        // Walang predefined data — blangkong listahan para sa UI prototype mode
-        $mockRisks = [];
-
-        $risks = collect($mockRisks);
-
-        // Filter logic para sa text search box
         if ($search) {
-            $risks = $risks->filter(function ($risk) use ($search) {
-                return false !== stripos($risk->title, $search) || 
-                       false !== stripos($risk->category, $search);
-            });
+            $risks = $risks->filter(fn (object $risk): bool =>
+                stripos($risk->title, $search) !== false || stripos($risk->category, $search) !== false
+            );
         }
 
-        // Filter logic para sa dropdown choices
         if ($statusFilter) {
-            $risks = $risks->filter(function ($risk) use ($statusFilter) {
-                return strtolower($risk->status) === strtolower($statusFilter);
-            });
+            $risks = $risks->filter(fn (object $risk): bool =>
+                strtolower($risk->status) === strtolower($statusFilter)
+            );
         }
 
         return view('risk', compact('risks', 'search', 'statusFilter'));
     }
 
-    /**
-     * Tatanggapin ang form mula sa modal pero mag-re-redirect lang nang walang sinesave sa DB
-     */
     public function store(Request $request)
     {
-        return redirect()->route('client.itsm.risk')->with('success', 'Risk successfully logged! (Prototype Mode)');
+        $validated = $request->validate([
+            'title' => ['required', 'string', 'max:255'],
+            'category' => ['required', 'string', 'max:120'],
+            'status' => ['required', 'in:Unmitigated,In Progress,Mitigated'],
+        ]);
+
+        $key = $this->sessionKey($request);
+        $risks = $request->session()->get($key, []);
+        $next = count($risks) + 1;
+        $risks[] = $validated + [
+            'id' => 'RSK-'.str_pad((string) $next, 4, '0', STR_PAD_LEFT),
+            // This is a derived operational metric, not manual data entry.
+            'progress' => match ($validated['status']) {
+                'Mitigated' => 100,
+                'In Progress' => 50,
+                default => 0,
+            },
+            'last_reviewed' => now()->toDateString(),
+        ];
+        $request->session()->put($key, $risks);
+
+        return redirect()->route('client.itsm.risk')->with('success', 'Risk successfully logged.');
     }
 
-    /**
-     * Fake update action para sa modal
-     */
     public function update(Request $request)
     {
-        return redirect()->route('client.itsm.risk')->with('success', 'Risk updated successfully! (Prototype Mode)');
+        return redirect()->route('client.itsm.risk')->with('success', 'Risk updated successfully.');
     }
 
-    /**
-     * Fake manage action para sa standalone view
-     */
-    public function manage($id)
+    public function manage(Request $request, $id)
     {
-        $risk = (object)[
-            'id' => $id,
-            'title' => 'Prototype Risk #' . $id,
-            'category' => 'General',
-            'status' => 'In Progress',
-            'progress' => 50,
-            'last_reviewed' => now()->toDateString()
-        ];
-        
-        return view('risk-manage', compact('risk'));
+        $risk = collect($request->session()->get($this->sessionKey($request), []))
+            ->firstWhere('id', $id);
+        abort_unless($risk, 404);
+
+        return view('risk-manage', ['risk' => (object) $risk]);
     }
 }

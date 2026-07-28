@@ -421,9 +421,9 @@
             <!-- LEFT SIDEBAR -->
             <aside class="rounded-[1.875rem] bg-white p-8 text-slate-950">
                 <nav class="space-y-6 text-xl">
-                    <a href="{{ route('users.index') }}" class="block font-medium hover:text-[#346DCB]">All Employees</a>
-                    <a href="{{ route('users.pending') }}" class="block font-medium hover:text-[#346DCB]">Pending Approvals</a>
-                    <a href="{{ route('users.roles') }}" class="block font-extrabold hover:text-[#346DCB]">Roles & Permissions</a>
+                    <a href="{{ route('admin.itsm.clients') }}" class="block font-medium hover:text-[#346DCB]">All Clients</a>
+                    <a href="{{ route('admin.itsm.pending-approvals') }}" class="block font-medium hover:text-[#346DCB]">Pending Approvals</a>
+                    <a href="{{ route('admin.itsm.roles') }}" class="block font-extrabold hover:text-[#346DCB]">Roles & Permissions</a>
                 </nav>
             </aside>
 

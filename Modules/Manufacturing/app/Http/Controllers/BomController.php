@@ -14,7 +14,19 @@ class BomController extends Controller
     {
         return view('manufacturing::boms.index', [
             'boms' => ProductBom::with('items')->latest()->get(),
-            'inventoryItems' => Item::query()->orderBy('name')->get(['id', 'sku', 'name']),
+            // Inventory owns the physical quantities.  Read its live
+            // client-scoped catalogue and annotate each item with the stock
+            // available for production instead of copying a second catalogue
+            // into Manufacturing.
+            'inventoryItems' => Item::query()
+                ->leftJoin('stock_levels as stock_levels', 'stock_levels.item_id', '=', 'items.id')
+                ->select([
+                    'items.id', 'items.sku', 'items.name',
+                    DB::raw('COALESCE(SUM(stock_levels.stock - COALESCE(stock_levels.reserved_quantity, 0)), 0) as available_quantity'),
+                ])
+                ->groupBy('items.id', 'items.sku', 'items.name')
+                ->orderBy('items.name')
+                ->get(),
         ]);
     }
 

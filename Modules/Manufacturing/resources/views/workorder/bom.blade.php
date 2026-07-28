@@ -2,7 +2,17 @@
     // Single source of truth for Bills of Materials (prebuilts). Loaded here so the
     // Work Orders → BoM tab is self-contained within the dashboard shell.
     $boms           = \Modules\Manufacturing\Models\ProductBom::with('items')->latest()->get();
-    $inventoryItems = \Modules\Inventory\Models\Item::with('category')->orderBy('name')->get(['id', 'sku', 'name', 'category_id'])
+    // Read the live, client-scoped Inventory catalogue.  The available count
+    // makes it clear that BOM components are references to physical Inventory
+    // items, not a separate Manufacturing-only product list.
+    $inventoryItems = \Modules\Inventory\Models\Item::with('category')
+        ->leftJoin('stock_levels as stock_levels', 'stock_levels.item_id', '=', 'items.id')
+        ->select([
+            'items.id', 'items.sku', 'items.name', 'items.category_id',
+            \Illuminate\Support\Facades\DB::raw('COALESCE(SUM(stock_levels.stock - COALESCE(stock_levels.reserved_quantity, 0)), 0) as available_quantity'),
+        ])
+        ->groupBy('items.id', 'items.sku', 'items.name', 'items.category_id')
+        ->orderBy('items.name')->get()
         // Packaging/packing materials are not PC components — keep them out of BoMs.
         ->reject(function ($i) {
             $cat = strtolower((string) optional($i->category)->name);
@@ -16,7 +26,7 @@
         'id'       => $item->id,
         'sku'      => $item->sku,
         'name'     => $item->name,
-        'label'    => trim($item->sku.' · '.$item->name),
+        'label'    => trim($item->sku.' · '.$item->name).' (Available: '.((int) $item->available_quantity).')',
         'category' => optional($item->category)->name ?? '',
     ])->values();
 @endphp

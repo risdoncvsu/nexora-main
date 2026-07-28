@@ -68,6 +68,14 @@ Route::middleware('auth')->group(function () {
 
         Route::get('/service-desk', [TicketController::class, 'index'])->defaults('portal', 'admin')->name('service-desk');
         Route::patch('/service-desk/{ticket}', [TicketController::class, 'update'])->name('service-desk.update');
+        Route::get('/service-desk/assigned', [TicketController::class, 'assignedIndex'])->name('service-desk.assigned');
+        Route::patch('/service-desk/{ticket}/claim', [TicketController::class, 'claim'])->name('service-desk.claim');
+        Route::patch('/service-desk/{ticket}/release', [TicketController::class, 'release'])->name('service-desk.release');
+        Route::get('/service-desk/knowledge-base', [KnowledgeBaseController::class, 'index'])->name('service-desk.knowledge-base');
+        Route::post('/service-desk/knowledge-base', [KnowledgeBaseController::class, 'store'])->name('service-desk.knowledge-base.store');
+        Route::get('/service-desk/sla-review', [TicketController::class, 'slaReview'])->name('service-desk.sla-review');
+        Route::get('/pending-approvals', [UserController::class, 'pending'])->name('pending-approvals');
+        Route::get('/roles-permissions', [RolesAndPermissionController::class, 'index'])->name('roles');
     });
 
     // ==========================================
@@ -89,6 +97,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/service-desk/support', [TicketController::class, 'supportIndex'])->name('service-desk.support');
         Route::post('/service-desk/support', [TicketController::class, 'store'])->name('service-desk.support.store');
         Route::post('/service-desk/support/{ticket}/reset-password', [PasswordResetController::class, 'process'])->name('service-desk.support.reset-password');
+        Route::get('/service-desk/resolved-tickets', [ServiceController::class, 'resolvedTickets'])->name('service-desk.resolvedtickets');
+        Route::get('/service-desk/knowledge-base', [ServiceController::class, 'knowledgeBase'])->name('service-desk.knowledgebase');
         
         // ==========================================
         // COMPLIANCE MODULE ROUTES
@@ -138,6 +148,9 @@ Route::get('/', function () {
 
 
 
+// Legacy root-admin URLs are retained for bookmarked pages, but must never be
+// reachable by an unauthenticated user or a client system administrator.
+Route::middleware(['auth', 'root.admin'])->group(function () {
 Route::get('/users/index', function () {
     return view('users.index');
 })->name('users.index');
@@ -172,6 +185,7 @@ Route::post('/approvals/bulk-handle', [ApprovalController::class, 'bulkHandle'])
 
 Route::get('/service/knowledge-base', [ServiceController::class, 'knowledgeBase'])
     ->name('service.knowledgebase');
+});
 
 
 Route::get('/client/itsm/service-desk/resolved-tickets', [ServiceController::class, 'resolvedTickets'])

@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 #[Fillable([
     'company_id',
     'created_by',
+    'assigned_to',
     'ticket_no',
     'ticket_type',
     'requester',
@@ -27,5 +28,10 @@ class ServiceTicket extends Model
     public function company()
     {
         return $this->belongsTo(Company::class);
+    }
+
+    public function assignee()
+    {
+        return $this->belongsTo(User::class, 'assigned_to');
     }
 }

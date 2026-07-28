@@ -170,14 +170,19 @@ class LeaveRequestController extends Controller
 
     private function ensureHrPermission(string $permission): void
     {
-        if (session('employee_role') === 'admin') {
+        $profile = EmployeeAccessProfile::query()
+            ->where('company_id', (int) session('employee_client_id'))
+            ->where('employee_id', (int) session('employee_id'))
+            ->first();
+
+        // A saved access profile is an explicit restriction, including for an
+        // HR manager.  The legacy admin role remains a safe fallback only for
+        // managers that have never been configured in ITSM.
+        if (! $profile && session('employee_role') === 'admin') {
             return;
         }
 
-        $permissions = EmployeeAccessProfile::query()
-            ->where('company_id', (int) session('employee_client_id'))
-            ->where('employee_id', (int) session('employee_id'))
-            ->value('access_permissions') ?? [];
+        $permissions = $profile?->access_permissions ?? [];
 
         if (is_string($permissions)) {
             $permissions = json_decode($permissions, true) ?: [];

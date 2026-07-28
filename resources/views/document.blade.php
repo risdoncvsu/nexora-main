@@ -225,17 +225,11 @@
                         class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500" />
                 </div>
 
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="space-y-1.5">
-                        <label class="text-xs font-bold uppercase tracking-wider text-slate-500">Linked Reference ID</label>
-                        <input type="text" name="linked_id" required placeholder="e.g. DOC-842" 
-                            class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500" />
-                    </div>
-                    <div class="space-y-1.5">
-                        <label class="text-xs font-bold uppercase tracking-wider text-slate-500">Classification</label>
-                        <input type="text" name="classification" required placeholder="e.g. Confidential / Internal" 
-                            class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500" />
-                    </div>
+                <div class="space-y-1.5">
+                    <label class="text-xs font-bold uppercase tracking-wider text-slate-500">Classification</label>
+                    <input type="text" name="classification" required placeholder="e.g. Confidential / Internal"
+                        class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                    <p class="text-[11px] text-slate-400">The document reference number is generated automatically.</p>
                 </div>
 
                 <div class="space-y-1.5">

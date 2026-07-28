@@ -7,6 +7,13 @@ use App\Models\Article;
 
 class KnowledgeBaseController extends Controller
 {
+    public function index()
+    {
+        return view('service.admin-knowledge-base', [
+            'articles' => Article::latest()->get(),
+        ]);
+    }
+
     public function store(Request $request)
     {
         // validate input
@@ -15,13 +22,15 @@ class KnowledgeBaseController extends Controller
             'category' => 'required|string|max:100',
             'target_module' => 'nullable|string|max:100',
             'author_name' => 'required|string|max:100',
+            'content' => 'required|string',
         ]);
 
         // save to database
         Article::create($validated);
 
         // redirect back with success message
-        return redirect()->back()->with('success', 'Article published successfully!');
+        return redirect()->route('admin.itsm.service-desk.knowledge-base')
+            ->with('success', 'Article published successfully!');
     }
    public function knowledgeBase()
 {
@@ -31,5 +40,4 @@ class KnowledgeBaseController extends Controller
 
 
 }
-
 

@@ -31,7 +31,7 @@
     </div>
 </main>
 <script>
-const inventory = @json($inventoryItems->map(fn($item)=>['id'=>$item->id,'label'=>trim($item->sku.' · '.$item->name)])->values());
+const inventory = @json($inventoryItems->map(fn($item)=>['id'=>$item->id,'label'=>trim($item->sku.' · '.$item->name).' (Available: '.((int) $item->available_quantity).')'])->values());
 let componentIndex = 0;
 function addComponent(){const i=componentIndex++;const options=inventory.map(x=>`<option value="${x.id}">${x.label}</option>`).join('');document.getElementById('components').insertAdjacentHTML('beforeend',`<div class="line"><select name="items[${i}][inventory_item_id]" required><option value="">Select inventory item</option>${options}</select><input type="number" name="items[${i}][quantity_required]" value="1" min="1" required><button type="button" class="secondary" onclick="this.parentElement.remove()">×</button></div>`)}
 addComponent();

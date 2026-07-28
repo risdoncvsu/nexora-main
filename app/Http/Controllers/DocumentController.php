@@ -38,7 +38,9 @@ class DocumentController extends Controller
         $needsSignOff = count(array_filter($baseDocs, fn($d) => ($d['status'] ?? '') === 'Needs Sign-Off'));
         $lapsedCount = count(array_filter($baseDocs, fn($d) => ($d['status'] ?? '') === 'Lapsed'));
 
-        return view('Document', [
+        // Deployment runs on Linux, where view filenames are case-sensitive.
+        // The actual template is `resources/views/document.blade.php`.
+        return view('document', [
             'documents' => $documents,
             'currentFilter' => $currentFilter,
             'totalStored' => $totalStored,
@@ -54,7 +56,7 @@ class DocumentController extends Controller
     {
         $validated = $request->validate([
             'details' => 'required|string',
-            'linked_id' => 'required|string',
+            'linked_id' => 'nullable|string',
             'classification' => 'required|string',
             'status' => 'required|string|in:Active,Needs Sign-Off,Lapsed'
         ]);
@@ -62,6 +64,7 @@ class DocumentController extends Controller
         $currentDocs = session('stored_documents', []);
         
         $validated['id'] = count($currentDocs) + 1;
+        $validated['linked_id'] = $validated['linked_id'] ?: sprintf('DOC-%04d', $validated['id']);
         $currentDocs[] = $validated;
         
         session(['stored_documents' => $currentDocs]);

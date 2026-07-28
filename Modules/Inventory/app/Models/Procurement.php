@@ -111,7 +111,10 @@ class Procurement extends Model
             }
 
             $cleanName = trim(preg_replace('/\s*@\s*.*$/', '', $poItem->name));
-            $categories = $supplierProduct?->categories ?? null;
+            // PO rows contain the selected category even when the supplier
+            // catalogue has no matching product yet.  Prefer that live PO
+            // value so Inventory creates the correct category on receipt.
+            $categories = $poItem->category ?? $supplierProduct?->categories ?? null;
 
             return (object) [
                 'item_name' => $cleanName,

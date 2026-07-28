@@ -15,10 +15,10 @@ class Article extends Model
         'category',
         'target_module',
         'author_name',
+        'content',
         'view_count',
         'status',
     ];
 
     
 }
-
