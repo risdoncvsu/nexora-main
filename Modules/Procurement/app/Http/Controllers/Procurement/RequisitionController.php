@@ -27,7 +27,7 @@ class RequisitionController extends Controller
         return $query;
     }
 
-    /** Inventory defect feed for Procurement's Defect Items sub-tab. */
+    /** Inventory defect feed retained for API compatibility. */
     public function defects(Request $request)
     {
         return response()->json(
@@ -280,6 +280,30 @@ class RequisitionController extends Controller
             }
         }
 
+        // Defect replacements share this work queue with regular purchase
+        // requisitions. Inventory remains the source of truth for defect
+        // status and stock; this only normalises records for the shared UI.
+        foreach ($this->defectsForCurrentClient($request)->get() as $defect) {
+            $requisitions->push((object) [
+                'id' => $defect->id,
+                'requisition_number' => sprintf('DEF-%06d', $defect->id),
+                'item' => $defect->part_name,
+                'qty' => $defect->quantity,
+                'department' => 'Inventory',
+                'requested_by' => $defect->created_by ?: 'Inventory',
+                'priority' => 'Defect',
+                'status' => $defect->status ?: 'Open',
+                'request_date' => optional($defect->created_at)->toDateString(),
+                'notes' => $defect->description,
+                'created_at' => $defect->created_at,
+                'updated_at' => $defect->updated_at,
+                'source_connection' => 'inventory_defect',
+                'record_type' => 'defect',
+                'status_authoritative' => true,
+                'defect_source' => $defect->source ?: 'Inventory',
+            ]);
+        }
+
         $requisitions = $requisitions->sortByDesc('created_at')->values();
         $requisitionRefs = $requisitions->pluck('requisition_number')->filter()->all();
 
@@ -308,6 +332,10 @@ class RequisitionController extends Controller
         }
 
         $requisitions = $requisitions->map(function ($req) use ($purchaseOrders) {
+            if (($req->record_type ?? null) === 'defect') {
+                return $req;
+            }
+
             $ref = $req->requisition_number;
             $po = $purchaseOrders->get($ref);
 
@@ -350,6 +378,10 @@ class RequisitionController extends Controller
         $requisitions = $requisitions->reject(function ($req) {
             $status = strtolower(trim((string) ($req->status ?? 'pending')));
             $poStatus = strtolower(trim((string) ($req->po_status ?? '')));
+
+            if (($req->record_type ?? null) === 'defect') {
+                return in_array($status, ['rejected', 'replacement received'], true);
+            }
 
             return in_array($status, ['delivered', 'completed', 'rejected', 'cancelled'], true)
                 || in_array($poStatus, ['delivered', 'completed', 'rejected', 'cancelled'], true);

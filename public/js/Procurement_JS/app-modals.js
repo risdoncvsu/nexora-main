@@ -39,6 +39,7 @@
     return `<span class="status-pill ${cls}">${htmlEscape(raw)}</span>`;
   }
   function getTableType(row){
+    if(row?.dataset?.recordType === 'defect') return 'defect';
     const id = row?.closest('table')?.id;
     return ({'po-table':'po','suppliers-table':'supplier','requisitions-table':'req','invoices-table':'invoice','deliveries-table':'delivery','defect-items-table':'defect'})[id] || '';
   }
@@ -248,8 +249,7 @@
       if(!response.ok) throw new Error(payload.message || `Defect update failed (${response.status})`);
       return payload;
     }).then(payload => {
-      row.dataset.status = String(payload.defect_status || '').toLowerCase().replace(/\s+/g, '-');
-      if(row.children[5]) row.children[5].innerHTML = statusPill(payload.defect_status);
+      updateRowStatus(row, payload.defect_status || 'Open');
       closeViewModal();
       showToast(payload.message || `${row.dataset.defectNo} updated.`, 'ok');
     }).catch(error => showToast(error.message || 'Unable to update this defect item.', 'no'));
@@ -303,6 +303,22 @@
       const ship = textFrom(row.children[0]);
       return {type, key:ship, title:`Shipment · ${ship}`, ship, po:textFrom(row.children[1]), supplier:supplierNameFromCell(row.children[2]), stage:row.dataset.stage || '0', status:textFrom(row.children[4]), date:textFrom(row.children[5]), note:row.dataset.note || 'Shipment tracking entry.', carrier:row.dataset.carrier || 'Assigned carrier'};
     }
+    if(type === 'defect' && row.dataset.recordType === 'defect'){
+      const defectNo = row.dataset.defectNo || textFrom(row.children[0]);
+      return {
+        type,
+        key: defectNo,
+        title: `Defect - ${defectNo}`,
+        defectNo,
+        part: row.dataset.part || textFrom(row.children[1]),
+        qty: Number(row.dataset.qty || textFrom(row.children[2]) || 0),
+        description: row.dataset.description || '',
+        reportedBy: row.dataset.reportedBy || '',
+        status: row.dataset.statusLabel || 'Open',
+        source: row.dataset.source || 'Inventory',
+        date: row.dataset.date || textFrom(row.children[7]),
+      };
+    }
     if(type === 'defect'){
       return {type, key:row.dataset.defectNo || textFrom(row.children[0]), title:`Defect · ${row.dataset.defectNo || textFrom(row.children[0])}`, defectNo:row.dataset.defectNo || textFrom(row.children[0]), part:row.dataset.part || textFrom(row.children[1]), qty:Number(row.dataset.qty || textFrom(row.children[2]) || 0), description:row.dataset.description || textFrom(row.children[3]), reportedBy:row.dataset.reportedBy || textFrom(row.children[4]), status:textFrom(row.children[5]), source:row.dataset.source || 'Inventory', date:row.dataset.date || textFrom(row.children[6])};
     }
@@ -346,7 +362,8 @@
   function updateRowStatus(row, status){
     const type = getTableType(row);
     row.dataset.status = String(status || '').toLowerCase().replace(/\s+/g,'-');
-    const pillCell = type === 'delivery' ? row.children[5] : (type === 'invoice' ? row.children[4] : (type === 'po' || type === 'defect' ? row.children[5] : row.children[6]));
+    row.dataset.statusLabel = String(status || '');
+    const pillCell = type === 'delivery' ? row.children[5] : (type === 'invoice' ? row.children[4] : (type === 'po' ? row.children[5] : (type === 'defect' ? (row.closest('table')?.id === 'requisitions-table' ? row.children[6] : row.children[5]) : row.children[6])));
     if(pillCell) pillCell.innerHTML = statusPill(status);
   }
   function renderViewRecord(row){

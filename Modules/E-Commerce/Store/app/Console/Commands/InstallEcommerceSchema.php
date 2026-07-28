@@ -33,6 +33,14 @@ class InstallEcommerceSchema extends Command
 
         // Repair older deployed schemas whose migration ledger predates
         // client-scoped storefront orders.
-        return $this->call('ecommerce:ensure-client-columns');
+        $exitCode = $this->call('ecommerce:ensure-client-columns');
+
+        if ($exitCode !== self::SUCCESS) {
+            return $exitCode;
+        }
+
+        // Safe to run on every deployment: it only creates missing layout
+        // records and client storefront slugs, never replaces a saved layout.
+        return $this->call('ecommerce:backfill-storefronts');
     }
 }

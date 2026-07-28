@@ -9,6 +9,7 @@ use Modules\Ecommerce\Support\EcommerceClientContext;
 use Modules\Ecommerce\Console\Commands\EnsureEcommerceClientColumns;
 use Modules\Ecommerce\Console\Commands\AssignEcommerceCatalogToClient;
 use Modules\Ecommerce\Console\Commands\BackfillEcommerceOrderLinks;
+use Modules\Ecommerce\Console\Commands\BackfillStorefrontLayouts;
 use Modules\Ecommerce\Console\Commands\InstallEcommerceSchema;
 use Modules\Ecommerce\Services\ListingAvailabilityService;
 
@@ -22,6 +23,7 @@ class EcommerceServiceProvider extends ServiceProvider
             EnsureEcommerceClientColumns::class,
             AssignEcommerceCatalogToClient::class,
             BackfillEcommerceOrderLinks::class,
+            BackfillStorefrontLayouts::class,
             InstallEcommerceSchema::class,
         ]);
     }

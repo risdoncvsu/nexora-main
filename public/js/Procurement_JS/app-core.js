@@ -188,18 +188,6 @@
     }
   });
 
-  // Requisitions page tabs: "Requests" (the requisition table) and
-  // "Defect Items" (placeholder table, built out later).
-  function switchReqTab(tab, el){
-    document.querySelectorAll('#req-tabs .tab').forEach(t => t.classList.remove('active'));
-    if(el) el.classList.add('active');
-    const requests = document.getElementById('req-tab-requests');
-    const defects = document.getElementById('req-tab-defects');
-    if(requests) requests.classList.toggle('hidden', tab !== 'requests');
-    if(defects) defects.classList.toggle('hidden', tab !== 'defects');
-    if(tab === 'defects' && typeof loadDefectItems === 'function') loadDefectItems();
-  }
-
   function animateDashboard(){
     // Bars grow
     document.querySelectorAll('#dash-category-bars .bar').forEach(b => { b.style.height = '0px'; });

@@ -12,15 +12,8 @@
 
       <div class="page-head">
         <h1>Requisitions</h1>
-        <p>All purchase requisitions</p>
+        <p>All purchase and defect requisitions</p>
       </div>
-
-      <div class="filter-tabs" id="req-tabs" style="margin-bottom:16px;">
-        <div class="tab active" data-req-tab="requests" onclick="switchReqTab('requests', this)">Requests</div>
-        <div class="tab" data-req-tab="defects" onclick="switchReqTab('defects', this)">Defect Items</div>
-      </div>
-
-      <div id="req-tab-requests">
 
       <div class="status-chart" id="requisition-status-chart">
         <div class="status-chart-item pending" data-status="pending" style="background:linear-gradient(135deg,#fff3e0,#ffe0b2);border-color:#ff9800;" onclick="filterByStatus('requisitions-table', 'pending', this)">
@@ -119,7 +112,7 @@
           </thead>
           <tbody>
             @forelse($requisitions as $req)
-              <tr data-id="{{ $req->id ?? '' }}" data-source="{{ $req->source_connection ?? '' }}" data-status="{{ strtolower(str_replace(' ', '', $req->status ?? 'Pending')) }}" data-date="{{ $req->request_date }}" data-uom="{{ $req->uom ?? 'pcs' }}" data-notes="{{ $req->notes ?? '' }}" data-po="{{ isset($req->po_number) ? $req->po_number : '' }}" data-has-po="{{ isset($req->po_number) && $req->po_number ? '1' : '0' }}">
+              <tr data-id="{{ $req->id ?? '' }}" data-record-type="{{ $req->record_type ?? 'requisition' }}" data-source="{{ $req->source_connection ?? '' }}" data-status="{{ strtolower(str_replace(' ', '', $req->status ?? 'Pending')) }}" data-status-label="{{ $req->status ?? 'Pending' }}" data-date="{{ $req->request_date }}" data-uom="{{ $req->uom ?? 'pcs' }}" data-notes="{{ $req->notes ?? '' }}" data-po="{{ isset($req->po_number) ? $req->po_number : '' }}" data-has-po="{{ isset($req->po_number) && $req->po_number ? '1' : '0' }}" data-defect-no="{{ ($req->record_type ?? null) === 'defect' ? $req->requisition_number : '' }}" data-part="{{ ($req->record_type ?? null) === 'defect' ? $req->item : '' }}" data-qty="{{ $req->qty ?? '' }}" data-description="{{ ($req->record_type ?? null) === 'defect' ? $req->notes : '' }}" data-reported-by="{{ ($req->record_type ?? null) === 'defect' ? $req->requested_by : '' }}">
                 <td><a class="po-link">{{ $req->requisition_number }}</a></td>
                 <td>{{ $req->item }}</td>
                 <td>{{ $req->qty }}</td>
@@ -152,8 +145,9 @@
         </div>
       </div>
 
-      </div>{{-- /#req-tab-requests --}}
-
+      {{-- Defects are rendered in the shared requisitions table above. The old
+          standalone table remains inactive for cached browser compatibility. --}}
+      @if (false)
       <div id="req-tab-defects" class="hidden">
         <div class="panel">
           <div class="table-toolbar">
@@ -186,5 +180,6 @@
           </table>
         </div>
       </div>{{-- /#req-tab-defects --}}
+      @endif
     </section>
 @endsection
