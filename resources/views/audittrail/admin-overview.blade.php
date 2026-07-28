@@ -20,29 +20,33 @@
             ]"
         />
 
-        <main class="relative flex-1 p-4 sm:p-6">
+        <main class="relative flex-1 overflow-hidden p-4 sm:p-6">
             <img src="{{ asset('images/nexora-icon.png') }}" alt="" class="pointer-events-none absolute left-1/2 top-1/2 w-[64rem] -translate-x-1/2 -translate-y-1/2 opacity-10 blur-sm">
-            <div class="relative z-10 mx-auto max-w-[1760px] space-y-6">
-                <section>
+            <div class="relative z-10 space-y-6">
+                <section class="rounded-[1.875rem] bg-white/90 px-5 py-5 text-slate-950 shadow-sm sm:px-8 sm:py-6">
                     <p class="text-xs font-bold uppercase tracking-wider text-[#346DCB]">Root administration</p>
                     <h1 class="mt-1 text-3xl font-bold sm:text-4xl">Audit Trail</h1>
-                    <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-600">Select a client to inspect its full activity trail. The global feed below intentionally contains errors only, so routine activity from every company does not overwhelm troubleshooting.</p>
+                    <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-600">Choose a client workspace to troubleshoot its activity. The global list below is deliberately limited to errors, keeping routine activity out of the root-admin view.</p>
                 </section>
 
                 <section class="rounded-[1.875rem] bg-white p-5 text-slate-950 shadow-xl sm:p-8">
                     <div class="mb-5 flex flex-wrap items-end justify-between gap-3">
-                        <div><h2 class="text-xl font-bold">Client audit workspaces</h2><p class="mt-1 text-sm text-slate-500">Each tile opens only that client’s complete audit history.</p></div>
+                        <div><h2 class="text-xl font-bold">Client audit workspaces</h2><p class="mt-1 text-sm text-slate-500">Select a company to view its complete activity history.</p></div>
                         <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">{{ $companyCards->count() }} clients</span>
                     </div>
-                    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+
+                    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                         @forelse ($companyCards as $company)
-                            <a href="{{ route('admin.itsm.audit-trail', ['client_id' => $company->id]) }}" class="group rounded-2xl border border-slate-200 bg-slate-50 p-5 transition hover:-translate-y-0.5 hover:border-[#346DCB] hover:bg-blue-50/50 hover:shadow-lg">
+                            <a href="{{ route('admin.itsm.audit-trail', ['client_id' => $company->id]) }}" class="group rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#346DCB] hover:shadow-md">
                                 <div class="flex items-start justify-between gap-3">
-                                    <div><p class="text-lg font-bold text-slate-950">{{ $company->name }}</p><p class="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-400">CL-{{ str_pad((string) $company->id, 5, '0', STR_PAD_LEFT) }} · {{ $company->status ?: 'Active' }}</p></div>
-                                    <span class="rounded-full px-2.5 py-1 text-xs font-bold {{ $company->error_count > 0 ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700' }}">{{ $company->error_count }} {{ Str::plural('error', $company->error_count) }}</span>
+                                    <div class="min-w-0"><p class="truncate text-base font-bold text-slate-950">{{ $company->name }}</p><p class="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-400">CL-{{ str_pad((string) $company->id, 5, '0', STR_PAD_LEFT) }} &middot; {{ $company->status ?: 'Active' }}</p></div>
+                                    <span class="shrink-0 rounded-full px-2.5 py-1 text-xs font-bold {{ $company->error_count > 0 ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700' }}">{{ $company->error_count }} {{ $company->error_count === 1 ? 'error' : 'errors' }}</span>
                                 </div>
-                                <dl class="mt-5 grid grid-cols-2 gap-3 border-t border-slate-200 pt-4 text-sm"><div><dt class="text-xs font-medium text-slate-500">Recorded activity</dt><dd class="mt-1 font-bold text-slate-900">{{ number_format($company->activity_count) }}</dd></div><div><dt class="text-xs font-medium text-slate-500">Latest activity</dt><dd class="mt-1 font-semibold text-slate-700">{{ $company->last_activity?->format('M j, H:i T') ?: 'No records yet' }}</dd></div></dl>
-                                <p class="mt-5 text-sm font-bold text-[#346DCB]">Open full trail →</p>
+                                <div class="mt-4 grid grid-cols-2 gap-3 border-t border-slate-100 pt-4">
+                                    <div><p class="text-xs font-medium text-slate-500">Activity</p><p class="mt-1 text-xl font-extrabold text-[#132B52]">{{ number_format($company->activity_count) }}</p></div>
+                                    <div><p class="text-xs font-medium text-slate-500">Latest record</p><p class="mt-1 truncate text-xs font-semibold text-slate-700">{{ $company->last_activity?->format('M j, H:i T') ?: 'No records' }}</p></div>
+                                </div>
+                                <p class="mt-4 text-sm font-bold text-[#346DCB]">Inspect trail &rarr;</p>
                             </a>
                         @empty
                             <p class="col-span-full py-10 text-center text-sm text-slate-500">No client companies are available yet.</p>
