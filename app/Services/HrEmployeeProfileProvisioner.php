@@ -346,6 +346,7 @@ class HrEmployeeProfileProvisioner
             'name' => trim(($employee->first_name ?? '') . ' ' . ($employee->last_name ?? '')),
             'email' => $employee->email ?? null,
             'department' => $employee->department ?? null,
+            'position' => $employee->position ?? null,
             'status' => $employee->approval_status ?? 'Active',
         ];
     }

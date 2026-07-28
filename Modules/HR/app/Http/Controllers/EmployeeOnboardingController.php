@@ -174,13 +174,12 @@ class EmployeeOnboardingController extends Controller
                 ->with('error', 'Your onboarding session expired. Please start again.');
         }
 
+        // The current onboarding UI uses one consolidated acknowledgement for
+        // the policy pack. The old standalone flow still expected six hidden
+        // policy fields, which made this step fail even when the visible box
+        // was checked.
         $request->validate([
-            'policy_1' => 'accepted',
-            'policy_2' => 'accepted',
-            'policy_3' => 'accepted',
-            'policy_4' => 'accepted',
-            'policy_5' => 'accepted',
-            'policy_6' => 'accepted',
+            'policy_agreement' => ['accepted'],
         ]);
 
         $clientId = (int) session('employee_client_id');

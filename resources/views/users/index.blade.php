@@ -13,6 +13,7 @@
         ]
         : [
             ['label' => 'Employee Management', 'route' => route('client.itsm.employees'), 'key' => 'employees'],
+            ['label' => 'Access Control', 'route' => route('client.itsm.access-control.index'), 'key' => 'access-control'],
             ['label' => 'Service Desk', 'route' => route('client.itsm.service-desk'), 'key' => 'service-desk'],
             ['label' => 'Compliance Tracking', 'route' => route('client.itsm.compliance'), 'key' => 'compliance'],
             ['label' => 'Risk Management', 'route' => route('client.itsm.risk'), 'key' => 'risk'],
@@ -47,6 +48,7 @@
                         @else
                             <a href="{{ route('client.itsm.employees') }}" class="block font-medium hover:text-[#346DCB]">HR Sync Queue</a>
                             <a href="{{ route('client.itsm.pending-approvals') }}" class="block {{ $active === 'pending-approvals' ? 'font-extrabold text-[#346DCB]' : 'font-medium hover:text-[#346DCB]' }}">Pending Approvals</a>
+                            <a href="{{ route('client.itsm.access-control.index') }}" class="block font-medium hover:text-[#346DCB]">Access Control</a>
                         @endif
                         <a href="{{ route('users.roles') }}" class="block font-medium hover:text-[#346DCB]">Roles & Permissions</a>
 
