@@ -48,9 +48,6 @@
                         <button class="flex flex-1 items-center justify-center gap-2 border-b-4 border-[#132B52] pb-3.5 text-[#132B52]">
                             <i data-lucide="clipboard-check" class="h-4.5 w-4.5"></i> Compliance Requirements
                         </button>
-                        <a href="{{ route('client.itsm.audit') }}" class="flex flex-1 items-center justify-center gap-2 border-b-4 border-transparent pb-3.5 hover:border-slate-300 hover:text-slate-800 transition">
-                            <i data-lucide="shield-alert" class="h-4.5 w-4.5"></i> Audits & Inspections
-                        </a>
                         <a href="{{ route('client.itsm.permit') }}" class="flex flex-1 items-center justify-center gap-2 border-b-4 border-transparent pb-3.5 hover:border-slate-300 hover:text-slate-800 transition">
                             <i data-lucide="file-badge" class="h-4.5 w-4.5"></i> Permits & Licenses
                         </a>
@@ -126,7 +123,7 @@
                                         </span>
                                     </div>
                                     <!-- View Action Button -->
-                                    <button class="w-full rounded-md border border-slate-950 py-1.5 text-xs font-bold tracking-wide transition hover:bg-slate-950 hover:text-white">
+                                    <button type="button" onclick='showRequirement(@json($item))' class="w-full rounded-md border border-slate-950 py-1.5 text-xs font-bold tracking-wide transition hover:bg-slate-950 hover:text-white">
                                         View
                                     </button>
                                 </div>
@@ -156,11 +153,16 @@
                 </button>
             </div>
 
-            <form action="{{ route('client.itsm.compliance.store') }}" method="POST" class="mt-5 space-y-4">
+            <form action="{{ route('client.itsm.compliance.store') }}" method="POST" enctype="multipart/form-data" class="mt-5 space-y-4">
                 @csrf
                 <div>
                     <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Requirement Title</label>
                     <input type="text" name="title" required placeholder="e.g., Data Privacy Enforcement" class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Course or supporting file <span class="normal-case font-medium">(optional)</span></label>
+                    <input type="file" name="course_file" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm" />
                 </div>
 
                 <div>
@@ -188,6 +190,17 @@
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <div id="requirementViewModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/60 p-4">
+        <div class="w-full max-w-md rounded-2xl bg-white p-6 text-slate-900 shadow-2xl">
+            <div class="flex items-start justify-between gap-4 border-b border-slate-200 pb-4">
+                <div><h3 id="requirementViewTitle" class="text-xl font-bold"></h3><p id="requirementViewAudience" class="mt-1 text-sm text-slate-500"></p></div>
+                <button type="button" onclick="closeRequirementView()" class="text-xl text-slate-500 hover:text-slate-900">&times;</button>
+            </div>
+            <dl class="mt-5 grid grid-cols-2 gap-4 text-sm"><div><dt class="text-slate-500">Status</dt><dd id="requirementViewStatus" class="font-semibold"></dd></div><div><dt class="text-slate-500">Progress</dt><dd id="requirementViewProgress" class="font-semibold"></dd></div></dl>
+            <a id="requirementViewFile" target="_blank" rel="noopener" class="mt-6 hidden rounded-full bg-[#1A73E8] px-5 py-2 text-center text-sm font-bold text-white hover:bg-blue-700">Open attached course</a>
         </div>
     </div>
    
@@ -223,6 +236,21 @@
             modal.classList.remove('opacity-0', 'pointer-events-none');
             modalContainer.classList.remove('scale-95');
             modalContainer.classList.add('scale-100');
+        }
+
+        function showRequirement(item) {
+            document.getElementById('requirementViewTitle').textContent = item.title || 'Compliance requirement';
+            document.getElementById('requirementViewAudience').textContent = item.audience || 'No audience specified';
+            document.getElementById('requirementViewStatus').textContent = item.status || 'Not set';
+            document.getElementById('requirementViewProgress').textContent = item.progress || '0%';
+            const file = document.getElementById('requirementViewFile');
+            if (item.file_url) { file.href = item.file_url; file.classList.remove('hidden'); } else { file.classList.add('hidden'); }
+            document.getElementById('requirementViewModal').classList.remove('hidden');
+            document.getElementById('requirementViewModal').classList.add('flex');
+        }
+        function closeRequirementView() {
+            document.getElementById('requirementViewModal').classList.add('hidden');
+            document.getElementById('requirementViewModal').classList.remove('flex');
         }
 
         function closeModal() {

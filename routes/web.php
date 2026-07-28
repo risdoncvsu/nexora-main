@@ -105,7 +105,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/service-desk/support', [TicketController::class, 'supportIndex'])->name('service-desk.support');
         Route::post('/service-desk/support', [TicketController::class, 'store'])->name('service-desk.support.store');
         Route::post('/service-desk/support/{ticket}/reset-password', [PasswordResetController::class, 'process'])->name('service-desk.support.reset-password');
-        Route::get('/service-desk/resolved-tickets', [ServiceController::class, 'resolvedTickets'])->name('service-desk.resolvedtickets');
+        // The ticket dashboard already exposes resolved status. Keep old bookmarks working
+        // without keeping a second, error-prone Resolved Tickets screen in the client UI.
+        Route::get('/service-desk/resolved-tickets', fn () => redirect()->route('client.itsm.service-desk'))->name('service-desk.resolvedtickets');
         Route::get('/service-desk/knowledge-base', [ServiceController::class, 'knowledgeBase'])->name('service-desk.knowledgebase');
         
         // ==========================================
@@ -113,12 +115,15 @@ Route::middleware('auth')->group(function () {
         // ==========================================
         Route::get('/compliance', [ComplianceController::class, 'index'])->name('compliance');
         Route::post('/compliance/store', [ComplianceController::class, 'store'])->name('compliance.store');
+        Route::get('/compliance/files/{path}', [ComplianceController::class, 'file'])->where('path', '.*')->name('compliance.file');
         
-        Route::get('/audit', [AuditController::class, 'index'])->name('audit');
-        Route::post('/audit', [AuditController::class, 'index'])->name('audit.store');
+        // Audits are captured in the client audit trail. Redirect legacy URLs there.
+        Route::get('/audit', fn () => redirect()->route('client.itsm.audit-trail'))->name('audit');
+        Route::post('/audit', fn () => redirect()->route('client.itsm.audit-trail'))->name('audit.store');
         
         Route::get('/permit', [PermitController::class, 'index'])->name('permit');
         Route::post('/permit', [PermitController::class, 'index'])->name('permit.store');
+        Route::get('/permit/files/{path}', [PermitController::class, 'file'])->where('path', '.*')->name('permit.file');
         
         Route::get('/risk-assessment', [RiskAssController::class, 'index'])->name('risk.assessment');
         Route::post('/risk-assessment/store', [RiskAssController::class, 'store'])->name('risk.assessment.store');
@@ -126,6 +131,7 @@ Route::middleware('auth')->group(function () {
         // BOUND TO CONTROLLER: Connected to DocumentController for functional filtering, search, and dynamic layout
         Route::get('/documents', [DocumentController::class, 'index'])->name('document');
         Route::post('/documents/store', [DocumentController::class, 'store'])->name('document.store');
+        Route::get('/documents/files/{path}', [DocumentController::class, 'file'])->where('path', '.*')->name('document.file');
 
         // Risk Management (Risk Register)
         Route::get('/risk', [RiskController::class, 'index'])->name('risk');
@@ -196,7 +202,7 @@ Route::get('/service/knowledge-base', [ServiceController::class, 'knowledgeBase'
 });
 
 
-Route::get('/client/itsm/service-desk/resolved-tickets', [ServiceController::class, 'resolvedTickets'])
+Route::get('/client/itsm/service-desk/resolved-tickets', fn () => redirect()->route('client.itsm.service-desk'))
     ->name('client.itsm.service-desk.resolvedtickets');
 
 Route::get('/client/itsm/service-desk/knowledge-base', [ServiceController::class, 'knowledgeBase'])

@@ -9,7 +9,7 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
-<body class="min-h-screen bg-[#1B365D] font-sans text-white" x-data="{ openUploadModal: false }">
+<body class="min-h-screen bg-[#1B365D] font-sans text-white" x-data="{ openUploadModal: false, renewId: null, title: '', issuer: '', expiryDate: '', status: 'Active' }">
     <div class="flex min-h-screen flex-col">
         <x-itsm-header
             :home-route="route('client.itsm.employees')"
@@ -37,9 +37,6 @@
                     <div class="flex w-full border-b border-slate-300/80 bg-white pt-4 text-sm font-semibold text-slate-500">
                         <a href="{{ route('client.itsm.compliance') }}" class="flex flex-1 items-center justify-center gap-2 border-b-4 border-transparent pb-3.5 hover:text-slate-800 transition">
                             <i data-lucide="clipboard-check" class="h-4.5 w-4.5"></i> Compliance Requirements
-                        </a>
-                        <a href="{{ route('client.itsm.audit') }}" class="flex flex-1 items-center justify-center gap-2 border-b-4 border-transparent pb-3.5 hover:text-slate-800 transition">
-                            <i data-lucide="shield-alert" class="h-4.5 w-4.5"></i> Audits & Inspections
                         </a>
                         <a href="{{ route('client.itsm.permit') }}" class="flex flex-1 items-center justify-center gap-2 border-b-4 border-[#132B52] pb-3.5 text-[#132B52]">
                             <i data-lucide="file-badge" class="h-4.5 w-4.5"></i> Permits & Licenses
@@ -135,10 +132,12 @@
                                             </div>
                                             
                                             <div class="grid grid-cols-2 gap-3 pt-2">
-                                                <button class="rounded-md border border-slate-950 py-1.5 text-xs font-bold transition hover:bg-slate-950 hover:text-white">
-                                                    View File
-                                                </button>
-                                                <button class="rounded-md border border-slate-950 py-1.5 text-xs font-bold transition hover:bg-slate-950 hover:text-white">
+                                                @if (!empty($permit['file_path']))
+                                                    <a href="{{ $permit['file_url'] }}" target="_blank" rel="noopener" class="rounded-md border border-slate-950 py-1.5 text-center text-xs font-bold transition hover:bg-slate-950 hover:text-white">View File</a>
+                                                @else
+                                                    <button type="button" onclick="alert('No file was attached to this permit.')" class="rounded-md border border-slate-300 py-1.5 text-xs font-bold text-slate-500 transition hover:bg-slate-100">No File</button>
+                                                @endif
+                                                <button type="button" @click="renewId = {{ (int) ($permit['id'] ?? 0) }}; title = @js($permit['title']); issuer = @js($permit['issuer']); expiryDate = @js($permit['expiry_date'] ?? ''); status = 'Active'; openUploadModal = true" class="rounded-md border border-slate-950 py-1.5 text-xs font-bold transition hover:bg-slate-950 hover:text-white">
                                                     Renew
                                                 </button>
                                             </div>
@@ -158,33 +157,38 @@
     <div x-show="openUploadModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" x-cloak>
         <div @click.outside="openUploadModal = false" class="w-full max-w-lg rounded-2xl bg-[#C9D6E4] p-6 shadow-2xl text-slate-900 border border-slate-300">
             <div class="flex items-center justify-between border-b border-slate-400/40 pb-3 mb-4">
-                <h3 class="text-xl font-bold text-[#132B52]">Upload Compliance Permit</h3>
+                <h3 class="text-xl font-bold text-[#132B52]" x-text="renewId ? 'Renew Compliance Permit' : 'Upload Compliance Permit'"></h3>
                 <button @click="openUploadModal = false" class="text-slate-600 hover:text-slate-950 font-bold text-lg">&times;</button>
             </div>
             
-            <form method="POST" action="{{ route('client.itsm.permit') }}" class="space-y-4">
+            <form method="POST" action="{{ route('client.itsm.permit') }}" enctype="multipart/form-data" class="space-y-4">
                 @csrf
+                <input type="hidden" name="renew_id" x-model="renewId">
                 <div>
                     <label class="block text-xs font-bold text-slate-700 mb-1">Permit Title</label>
-                    <input type="text" name="title" required placeholder="e.g. Health Sanitation License" class="w-full rounded-lg border border-slate-300 bg-white/90 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-950" />
+                    <input type="text" name="title" x-model="title" required placeholder="e.g. Health Sanitation License" class="w-full rounded-lg border border-slate-300 bg-white/90 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-950" />
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-slate-700 mb-1">Issuing Authority</label>
-                    <input type="text" name="issuer" required placeholder="e.g. City Health Dept Office" class="w-full rounded-lg border border-slate-300 bg-white/90 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-950" />
+                    <input type="text" name="issuer" x-model="issuer" required placeholder="e.g. City Health Dept Office" class="w-full rounded-lg border border-slate-300 bg-white/90 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-950" />
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-slate-700 mb-1">Expiration Date</label>
-                        <input type="date" name="expiry_date" required class="w-full rounded-lg border border-slate-300 bg-white/90 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-950" />
+                        <input type="date" name="expiry_date" x-model="expiryDate" required class="w-full rounded-lg border border-slate-300 bg-white/90 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-950" />
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-slate-700 mb-1">Initial Status</label>
-                        <select name="status" class="w-full rounded-lg border border-slate-300 bg-white/90 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-950">
+                        <select name="status" x-model="status" class="w-full rounded-lg border border-slate-300 bg-white/90 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-950">
                             <option value="Active">Active</option>
                             <option value="Expiring Soon">Expiring Soon</option>
                             <option value="Expired">Expired</option>
                         </select>
                     </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Permit file <span class="font-medium">(optional)</span></label>
+                    <input type="file" name="permit_file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" class="w-full rounded-lg border border-slate-300 bg-white/90 px-3 py-2 text-sm text-slate-950" />
                 </div>
                 
                 <div class="flex justify-end gap-3 border-t border-slate-400/40 pt-4 mt-6">

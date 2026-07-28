@@ -112,7 +112,7 @@
     <div class="flex min-h-screen flex-col">
         <x-itsm-header
             :home-route="$portal === 'admin' ? route('admin.itsm.registration') : route('client.itsm.employees')"
-            :active="$active"
+            :active="$portal === 'client' && $active === 'pending-approvals' ? 'employees' : $active"
             :nav-items="$navItems"
         />
 
@@ -126,7 +126,6 @@
                         @if ($portal === 'admin')
                             <a href="{{ route('admin.itsm.pending-approvals') }}" class="block {{ $active === 'pending-approvals' ? 'font-extrabold text-[#346DCB]' : 'font-medium hover:text-[#346DCB]' }}">Pending Approvals</a>
                         @else
-                            <a href="{{ route('client.itsm.employees') }}" class="block font-medium hover:text-[#346DCB]">HR Sync Queue</a>
                             <a href="{{ route('client.itsm.pending-approvals') }}" class="block {{ $active === 'pending-approvals' ? 'font-extrabold text-[#346DCB]' : 'font-medium hover:text-[#346DCB]' }}">Pending Approvals</a>
                         @endif
                         @if ($portal === 'admin')
@@ -142,7 +141,6 @@
 
                         <div class="flex flex-wrap items-center gap-3 sm:gap-4">
                             <label class="flex min-w-0 flex-1 items-center gap-3 rounded-full bg-slate-200 px-4 py-3 text-base text-slate-500 sm:flex-none sm:px-6 sm:text-xl">
-                                <span>Search</span>
                                 <input type="search" id="tableSearch" aria-label="Search {{ $entityLabelPlural }}" placeholder="Search {{ $entityLabelPlural }}" class="min-w-0 flex-1 border-0 bg-transparent text-base text-slate-900 outline-none sm:w-48 sm:flex-none sm:text-xl">
                             </label>
 

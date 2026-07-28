@@ -50,9 +50,6 @@
                         <a href="{{ route('client.itsm.compliance') }}" class="flex flex-1 items-center justify-center gap-2 border-b-4 border-transparent pb-3.5 hover:text-slate-800 transition">
                             <i data-lucide="clipboard-check" class="h-4.5 w-4.5"></i> Compliance Requirements
                         </a>
-                        <a href="{{ route('client.itsm.audit') }}" class="flex flex-1 items-center justify-center gap-2 border-b-4 border-transparent pb-3.5 hover:border-slate-300 hover:text-slate-800 transition">
-                            <i data-lucide="shield-alert" class="h-4.5 w-4.5"></i> Audits & Inspections
-                        </a>
                         <a href="{{ route('client.itsm.permit') }}" class="flex flex-1 items-center justify-center gap-2 border-b-4 border-transparent pb-3.5 hover:text-slate-800 transition">
                             <i data-lucide="file-badge" class="h-4.5 w-4.5"></i> Permits & Licenses
                         </a>

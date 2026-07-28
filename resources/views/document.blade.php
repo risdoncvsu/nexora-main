@@ -41,9 +41,6 @@
                         <a href="{{ route('client.itsm.compliance') }}" class="flex flex-1 items-center justify-center gap-2 border-b-4 border-transparent pb-3.5 hover:text-slate-800 transition">
                             <i data-lucide="clipboard-check" class="h-4.5 w-4.5"></i> Compliance Requirements
                         </a>
-                        <a href="{{ route('client.itsm.audit') }}" class="flex flex-1 items-center justify-center gap-2 border-b-4 border-transparent pb-3.5 hover:text-slate-800 transition">
-                            <i data-lucide="shield-alert" class="h-4.5 w-4.5"></i> Audits & Inspections
-                        </a>
                         <a href="{{ route('client.itsm.permit') }}" class="flex flex-1 items-center justify-center gap-2 border-b-4 border-transparent pb-3.5 hover:text-slate-800 transition">
                             <i data-lucide="file-badge" class="h-4.5 w-4.5"></i> Permits & Licenses
                         </a>
@@ -177,8 +174,12 @@
                                                         </span>
                                                     </td>
                                                     <td class="px-6 py-4 border-b border-slate-100">
-                                                        <button class="text-slate-400 hover:text-slate-600 px-1"><i data-lucide="eye" class="h-4 w-4"></i></button>
-                                                        <button class="text-slate-400 hover:text-slate-600 px-1"><i data-lucide="download" class="h-4 w-4"></i></button>
+                                                        @if (!empty($doc['file_path']))
+                                                            <a href="{{ $doc['file_url'] }}" target="_blank" rel="noopener" class="inline-block px-1 text-slate-400 hover:text-slate-600" title="View file"><i data-lucide="eye" class="h-4 w-4"></i></a>
+                                                            <a href="{{ $doc['file_url'] }}?download=1" class="inline-block px-1 text-slate-400 hover:text-slate-600" title="Download file"><i data-lucide="download" class="h-4 w-4"></i></a>
+                                                        @else
+                                                            <span class="text-[10px] text-slate-400">No file</span>
+                                                        @endif
                                                     </td>
                                                 </tr>
                                             @endforeach
@@ -218,12 +219,17 @@
                 </button>
             </div>
             
-            <form action="{{ route('client.itsm.document.store') }}" method="POST" class="p-8 space-y-5">
+            <form action="{{ route('client.itsm.document.store') }}" method="POST" enctype="multipart/form-data" class="p-8 space-y-5">
                 @csrf
                 <div class="space-y-1.5">
                     <label class="text-xs font-bold uppercase tracking-wider text-slate-500">Document Details / Title</label>
                     <input type="text" name="details" required placeholder="e.g. ISO 27001 Compliance Audit Certification" 
                         class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                </div>
+
+                <div class="space-y-1.5">
+                    <label class="text-xs font-bold uppercase tracking-wider text-slate-500">File <span class="normal-case font-medium">(optional)</span></label>
+                    <input type="file" name="document_file" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs text-slate-800" />
                 </div>
 
                 <div class="space-y-1.5">

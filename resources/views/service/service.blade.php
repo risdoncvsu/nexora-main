@@ -62,7 +62,6 @@
                         @else
                             <a href="{{ route('client.itsm.service-desk') }}" class="block {{ $ticketType === 'erp_module' ? 'font-extrabold' : 'font-medium hover:text-[#346DCB]' }}">Module Ticket Dashboard</a>
                             <a href="{{ route('client.itsm.service-desk.support') }}" class="block {{ $ticketType === 'client_password_reset' ? 'font-extrabold' : 'font-medium hover:text-[#346DCB]' }}">Account Recovery</a>
-                            <a href="{{ route('client.itsm.service-desk.resolvedtickets') }}" class="block font-medium hover:text-[#346DCB]">Resolved Tickets</a>
                             <a href="{{ route('client.itsm.service-desk.knowledgebase') }}" class="block font-medium hover:text-[#346DCB]">Knowledge Base</a>
                         @endif
                     </nav>

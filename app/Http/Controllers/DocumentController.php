@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class DocumentController extends Controller
 {
@@ -13,6 +14,7 @@ class DocumentController extends Controller
     {
         // Fetch session dataset if modifications were made, otherwise stick to an empty placeholder
         $documents = session('stored_documents', []);
+        $documents = is_array($documents) ? array_values(array_filter($documents, 'is_array')) : [];
 
         // Dynamic Filtering
         $currentFilter = $request->query('filter', 'All');
@@ -32,8 +34,17 @@ class DocumentController extends Controller
             });
         }
 
+        $documents = array_map(function (array $document) {
+            if (!empty($document['file_path'])) {
+                $document['file_url'] = route('client.itsm.document.file', ['path' => $document['file_path']]);
+            }
+
+            return $document;
+        }, $documents);
+
         // Compute Metric Strip Totals based on base session data
         $baseDocs = session('stored_documents', []);
+        $baseDocs = is_array($baseDocs) ? array_values(array_filter($baseDocs, 'is_array')) : [];
         $totalStored = count($baseDocs);
         $needsSignOff = count(array_filter($baseDocs, fn($d) => ($d['status'] ?? '') === 'Needs Sign-Off'));
         $lapsedCount = count(array_filter($baseDocs, fn($d) => ($d['status'] ?? '') === 'Lapsed'));
@@ -58,17 +69,37 @@ class DocumentController extends Controller
             'details' => 'required|string',
             'linked_id' => 'nullable|string',
             'classification' => 'required|string',
-            'status' => 'required|string|in:Active,Needs Sign-Off,Lapsed'
+            'status' => 'required|string|in:Active,Needs Sign-Off,Lapsed',
+            'document_file' => 'nullable|file|mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg|max:10240',
         ]);
 
         $currentDocs = session('stored_documents', []);
+        $currentDocs = is_array($currentDocs) ? array_values(array_filter($currentDocs, 'is_array')) : [];
         
         $validated['id'] = count($currentDocs) + 1;
         $validated['linked_id'] = $validated['linked_id'] ?: sprintf('DOC-%04d', $validated['id']);
+        unset($validated['document_file']);
+        if ($request->hasFile('document_file')) {
+            $validated['file_path'] = $request->file('document_file')->store('compliance/documents', 'public');
+        }
         $currentDocs[] = $validated;
         
         session(['stored_documents' => $currentDocs]);
 
         return redirect()->route('client.itsm.document')->with('success', 'Document registered successfully.');
+    }
+
+    /** Serve an attachment only when it belongs to the active user's session data. */
+    public function file(Request $request, string $path)
+    {
+        $allowed = collect(session('stored_documents', []))->contains(
+            fn ($document) => is_array($document) && ($document['file_path'] ?? null) === $path
+        );
+
+        abort_unless($allowed && Storage::disk('public')->exists($path), 404);
+
+        return $request->boolean('download')
+            ? Storage::disk('public')->download($path)
+            : Storage::disk('public')->response($path);
     }
 }
