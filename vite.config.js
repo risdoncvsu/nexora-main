@@ -18,9 +18,6 @@ export default defineConfig({
                 'Modules/E-Commerce/Store/resources/js/Common/TailwindConfig.js',
                 'Modules/E-Commerce/Store/resources/js/Common/Navbar.js',
                 'Modules/E-Commerce/Store/resources/js/HomePage/Homepage.js',
-                'Modules/E-Commerce/Store/resources/js/Pages/BuildOverview/BuildOverview.js',
-                'Modules/E-Commerce/Store/resources/js/Pages/BuildPc/BuildPc.js',
-                'Modules/E-Commerce/Store/resources/js/Pages/Configurator/Configurator.js',
                 'Modules/E-Commerce/Store/resources/js/Pages/Search/Search.js'
             ],
             refresh: true,
