@@ -28,8 +28,6 @@
             </button>
 
             <div class="invisible absolute right-0 top-12 z-50 w-[200px] translate-y-[-10px] overflow-hidden rounded-lg bg-white opacity-0 shadow-2xl transition data-[open=true]:visible data-[open=true]:translate-y-0 data-[open=true]:opacity-100" data-user-menu-dropdown>
-                <a href="#" class="block border-b border-slate-200 px-5 py-4 text-sm font-semibold text-[#0B1E3D] transition hover:bg-slate-100 hover:text-[#1B6FC8]">My Profile</a>
-                <a href="#" class="block border-b border-slate-200 px-5 py-4 text-sm font-semibold text-[#0B1E3D] transition hover:bg-slate-100 hover:text-[#1B6FC8]">System Settings</a>
                 <a href="{{ route('login') }}" class="block px-5 py-4 text-sm font-semibold text-[#DC2626] transition hover:bg-slate-100">Log Out</a>
             </div>
         </div>

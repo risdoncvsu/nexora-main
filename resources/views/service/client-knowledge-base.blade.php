@@ -21,44 +21,43 @@
             ]"
         />
 
-        <main class="relative flex-1 p-6">
+        <main class="relative flex-1 p-4 sm:p-6">
             <img src="{{ asset('images/nexora-icon.png') }}" alt="" class="pointer-events-none absolute left-1/2 top-1/2 w-[64rem] -translate-x-1/2 -translate-y-1/2 opacity-10 blur-sm">
-            <section class="relative z-10 mx-auto grid max-w-[1760px] gap-6 lg:grid-cols-[16rem_1fr]">
-                <aside class="h-fit rounded-[2rem] bg-white p-6 text-slate-900 shadow-2xl">
-                    <p class="mb-4 text-xs font-extrabold uppercase tracking-[0.16em] text-slate-400">Service desk</p>
-                    <nav class="space-y-2 text-sm font-semibold">
-                        <a href="{{ route('client.itsm.service-desk') }}" class="flex items-center gap-3 rounded-xl px-4 py-3 text-slate-600 transition hover:bg-slate-50 hover:text-slate-900">Support tickets</a>
-                        <a href="{{ route('client.itsm.service-desk.support') }}" class="flex items-center gap-3 rounded-xl px-4 py-3 text-slate-600 transition hover:bg-slate-50 hover:text-slate-900">Request support</a>
-                        <a href="{{ route('client.itsm.service-desk.knowledgebase') }}" class="flex items-center gap-3 rounded-xl bg-slate-100 px-4 py-3 font-bold text-[#132B52]">Knowledge Base</a>
+            <section class="relative z-10 mx-auto grid min-h-[calc(100vh-10rem)] max-w-[1760px] grid-cols-1 gap-6 xl:grid-cols-[22rem_minmax(0,1fr)]">
+                <aside class="rounded-[1.875rem] bg-white p-5 text-slate-950 shadow-xl sm:p-8">
+                    <nav class="flex flex-wrap gap-x-6 gap-y-3 text-base sm:text-xl xl:block xl:space-y-6">
+                        <a href="{{ route('client.itsm.service-desk') }}" class="block font-medium text-slate-700 transition hover:text-[#346DCB]">Module Ticket Dashboard</a>
+                        <a href="{{ route('client.itsm.service-desk.support') }}" class="block font-medium text-slate-700 transition hover:text-[#346DCB]">Account Recovery</a>
+                        <a href="{{ route('client.itsm.service-desk.knowledgebase') }}" class="block font-extrabold text-[#346DCB]">Knowledge Base</a>
                     </nav>
                 </aside>
 
                 <div class="space-y-6">
-                    <section class="rounded-[2rem] bg-[#DDE4EC] px-8 py-7 text-slate-950 shadow-sm">
-                        <p class="text-sm font-bold uppercase tracking-wide text-[#346DCB]">Nexora Service Desk</p>
-                        <h1 class="mt-2 text-4xl font-bold tracking-tight">Knowledge Base</h1>
+                    <section class="rounded-[1.875rem] bg-white/90 px-5 py-5 text-slate-950 shadow-sm sm:px-8 sm:py-6">
+                        <p class="text-xs font-bold uppercase tracking-wider text-[#346DCB]">Company admin portal</p>
+                        <h1 class="mt-1 text-3xl font-bold sm:text-4xl">Knowledge Base</h1>
                         <p class="mt-2 text-sm text-slate-600">Published guides and answers from your Nexora support team.</p>
                     </section>
 
-                    <section class="overflow-hidden rounded-[2rem] bg-white text-slate-900 shadow-2xl">
-                        <div class="flex items-center justify-between border-b border-slate-100 px-8 py-5">
+                    <section class="overflow-hidden rounded-[1.875rem] bg-white text-slate-900 shadow-xl">
+                        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-5 sm:px-8">
                             <h2 class="text-xl font-bold">Available articles</h2>
                             <span class="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-[#346DCB]">{{ $articles->count() }} published</span>
                         </div>
                         <div class="divide-y divide-slate-100">
                             @forelse ($articles as $article)
-                                <article class="px-8 py-6">
+                                <article class="px-5 py-6 sm:px-8">
                                     <div class="flex flex-wrap items-start justify-between gap-3">
                                         <div>
                                             <h3 class="text-lg font-bold text-slate-950">{{ $article->title }}</h3>
-                                            <p class="mt-1 text-xs font-semibold text-slate-500">{{ $article->category }} · {{ $article->target_module ?: 'General' }} · {{ $article->author_name }}</p>
+                                            <p class="mt-1 text-xs font-semibold text-slate-500">{{ $article->category }} &middot; {{ $article->target_module ?: 'General' }} &middot; {{ $article->author_name }}</p>
                                         </div>
                                         <time class="text-xs font-medium text-slate-400">{{ optional($article->created_at)->format('M j, Y') }}</time>
                                     </div>
                                     <p class="mt-4 whitespace-pre-line text-sm leading-6 text-slate-700">{{ $article->content ?: 'No additional article content was provided.' }}</p>
                                 </article>
                             @empty
-                                <div class="px-8 py-16 text-center text-sm text-slate-500">No knowledge-base articles have been published yet.</div>
+                                <div class="px-5 py-16 text-center text-sm text-slate-500 sm:px-8">No knowledge-base articles have been published yet.</div>
                             @endforelse
                         </div>
                     </section>

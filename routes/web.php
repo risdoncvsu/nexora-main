@@ -82,7 +82,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/service-desk/sla-review', [TicketController::class, 'slaReview'])->name('service-desk.sla-review');
         Route::get('/pending-approvals', [UserController::class, 'pending'])->name('pending-approvals');
         Route::get('/roles-permissions', [RolesAndPermissionController::class, 'index'])->name('roles');
-        Route::get('/audit-trail', [AuditTrailController::class, 'index'])->name('audit-trail');
+        Route::get('/audit-trail', [AuditTrailController::class, 'rootIndex'])->name('audit-trail');
         Route::get('/audit-trail/export', [AuditTrailController::class, 'export'])->name('audit-trail.export');
     });
 
@@ -133,7 +133,7 @@ Route::middleware('auth')->group(function () {
         // BOUND TO CONTROLLER: Connected to DocumentController for functional filtering, search, and dynamic layout
         Route::get('/documents', [DocumentController::class, 'index'])->name('document');
         Route::post('/documents/store', [DocumentController::class, 'store'])->name('document.store');
-        Route::get('/documents/files/{path}', [DocumentController::class, 'file'])->where('path', '.*')->name('document.file');
+        Route::get('/documents/{document}/file', [DocumentController::class, 'file'])->name('document.file');
 
         // Risk Management (Risk Register)
         Route::get('/risk', [RiskController::class, 'index'])->name('risk');

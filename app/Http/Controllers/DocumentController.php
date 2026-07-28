@@ -23,7 +23,7 @@ class DocumentController extends Controller
                 'classification' => $document->classification,
                 'status' => $document->status,
                 'file_path' => $document->file_path,
-                'file_url' => $document->file_path ? route('client.itsm.document.file', ['path' => $document->id]) : null,
+                'file_url' => $document->file_path ? route('client.itsm.document.file', ['document' => $document->id]) : null,
             ]);
 
         return view('document', [
@@ -56,9 +56,9 @@ class DocumentController extends Controller
         return redirect()->route('client.itsm.document')->with('success', 'Document registered successfully.');
     }
 
-    public function file(Request $request, string $path)
+    public function file(Request $request, ComplianceDocument $document)
     {
-        $document = ComplianceDocument::query()->whereKey((int) $path)->where('company_id', (int) $request->user()->company_id)->firstOrFail();
+        abort_unless((int) $document->company_id === (int) $request->user()->company_id, 404);
         abort_unless($document->file_path && Storage::disk('public')->exists($document->file_path), 404);
 
         return $request->boolean('download') ? Storage::disk('public')->download($document->file_path) : Storage::disk('public')->response($document->file_path);

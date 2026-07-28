@@ -12,10 +12,19 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AuditTrailController extends Controller
 {
+    public function rootIndex(Request $request)
+    {
+        // Keep the root route explicit: it must always render the root
+        // troubleshooting experience rather than the client audit page.
+        $request->attributes->set('audit_portal', 'admin');
+
+        return $this->index($request);
+    }
+
     public function index(Request $request)
     {
         $this->validateFilters($request);
-        $portal = $request->routeIs('admin.*') ? 'admin' : 'client';
+        $portal = $request->attributes->get('audit_portal', $request->routeIs('admin.*') ? 'admin' : 'client');
         if (! Schema::hasTable('erp_audit_logs')) {
             if ($portal === 'admin') {
                 return $this->rootOverview();
