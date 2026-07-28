@@ -315,6 +315,7 @@
         value="{{ old('phone', $step1Data['phone'] ?? '') }}"
         inputmode="numeric"
         class="w-[200px] h-[28px] bg-[#0d1730] text-white text-sm rounded px-3 py-2 outline-none focus:ring-1 focus:ring-blue-500" />
+    <input type="hidden" name="phone_dial_code" id="phone_dial_code" value="{{ old('phone_dial_code', $clientPhonePrefix ?? '') }}" />
 
   </div>
 </div>
@@ -613,7 +614,9 @@ const nationalityTrigger = document.getElementById('nationality_trigger');
 const nationalityDisplay = document.getElementById('nationality_display');
 const nationalityDropdown = document.getElementById('nationality_dropdown');
 const nationalityValue = document.getElementById('nationality_value');
-const initialNationality = @json(old('nationality', $step1Data['nationality'] ?? ''));
+const clientDefaultDialCode = @json($clientPhonePrefix ?? '');
+const initialNationality = @json(old('nationality', $step1Data['nationality'] ?? ($clientNationality ?? '')));
+const phoneDialCodeInput = document.getElementById('phone_dial_code');
 
 function renderNationalityOptions() {
     nationalityDropdown.innerHTML = nationalities.map(n => `
@@ -641,6 +644,7 @@ function renderNationalityOptions() {
             nationalityDropdown.classList.add('hidden');
 
             document.getElementById('phone_code_text').textContent = dial;
+            phoneDialCodeInput.value = dial;
             document.getElementById('phone_code_text').classList.remove('text-slate-300');
             document.getElementById('phone_code_text').classList.add('text-white');
 
@@ -678,9 +682,15 @@ if (initialNationality) {
         `;
         nationalityValue.value = selectedNationality.name;
         document.getElementById('phone_code_text').textContent = selectedNationality.dial;
+        phoneDialCodeInput.value = selectedNationality.dial;
         document.getElementById('phone_code_text').classList.remove('text-slate-300');
         document.getElementById('phone_code_text').classList.add('text-white');
     }
+} else if (clientDefaultDialCode) {
+    document.getElementById('phone_code_text').textContent = clientDefaultDialCode;
+    document.getElementById('phone_code_text').classList.remove('text-slate-300');
+    document.getElementById('phone_code_text').classList.add('text-white');
+    phoneDialCodeInput.value = clientDefaultDialCode;
 }
 
 // Approximate max local-number digit lengths (excluding country/dial code) per country.

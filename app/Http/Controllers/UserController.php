@@ -105,6 +105,7 @@ class UserController extends Controller
             'entityLabel' => 'client',
             'entityLabelPlural' => 'clients',
             'primaryIdLabel' => 'Client ID',
+            'clientLocales' => config('client_locales.countries', []),
         ]);
     }
 

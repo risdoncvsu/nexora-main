@@ -5,6 +5,8 @@
     $entityLabel = $entityLabel ?? ($portal === 'admin' ? 'client' : 'employee');
     $entityLabelPlural = $entityLabelPlural ?? ($portal === 'admin' ? 'clients' : 'employees');
     $primaryIdLabel = $primaryIdLabel ?? ($portal === 'admin' ? 'Client ID' : 'Employee ID');
+    $clientLocales = $clientLocales ?? config('client_locales.countries', []);
+    $clientTimezones = collect($clientLocales)->pluck('timezone')->filter()->unique()->values();
     $accessRoleLabels = [
         'department_employee' => 'Department Employee',
         'department_manager' => 'Department Manager',
@@ -224,6 +226,8 @@
                                             data-admin-name="{{ $portal === 'admin' ? e($user->admin_name) : '' }}"
                                             data-company-email="{{ $portal === 'admin' ? e($user->company_email) : '' }}"
                                             data-phone-no="{{ $portal === 'admin' ? e($user->phone_no) : '' }}"
+                                            data-country-code="{{ $portal === 'admin' ? e($user->country_code ?? 'OTHER') : '' }}"
+                                            data-timezone="{{ $portal === 'admin' ? e($user->timezone ?? 'UTC') : '' }}"
                                             data-industry="{{ $portal === 'admin' ? e($user->industry) : '' }}"
                                             data-status="{{ e($user->status ?? 'Active') }}"
                                             data-username="{{ $portal === 'client' ? e($user->username ?? '') : '' }}"
@@ -302,6 +306,24 @@
                         <label class="block">
                             <span class="mb-2 block text-sm font-semibold">Phone No.</span>
                             <input type="text" name="phone_no" id="edit_phone_no" class="h-11 w-full rounded border border-slate-300 px-3">
+                        </label>
+
+                        <label class="block">
+                            <span class="mb-2 block text-sm font-semibold">Country / Region</span>
+                            <select name="country_code" id="edit_country_code" class="h-11 w-full rounded border border-slate-300 px-3">
+                                @foreach ($clientLocales as $code => $locale)
+                                    <option value="{{ $code }}">{{ $locale['name'] }} ({{ $locale['dial_code'] ?: 'no default prefix' }})</option>
+                                @endforeach
+                            </select>
+                        </label>
+
+                        <label class="block">
+                            <span class="mb-2 block text-sm font-semibold">Client Time Zone</span>
+                            <select name="timezone" id="edit_timezone" class="h-11 w-full rounded border border-slate-300 px-3">
+                                @foreach ($clientTimezones as $timezone)
+                                    <option value="{{ $timezone }}">{{ $timezone }}</option>
+                                @endforeach
+                            </select>
                         </label>
 
                         <label class="block">
@@ -427,6 +449,7 @@
 
     <script>
         const portal = @json($portal);
+        const clientLocales = @json($clientLocales);
         const updateUrlTemplate = @json($portal === 'admin'
             ? route('admin.itsm.clients.update', ['company' => '__ID__'])
             : route('client.itsm.employees.update', ['employee' => '__ID__']));
@@ -521,6 +544,8 @@
                 setField('edit_admin_name', row.dataset.adminName);
                 setField('edit_company_email', row.dataset.companyEmail);
                 setField('edit_phone_no', row.dataset.phoneNo);
+                setField('edit_country_code', row.dataset.countryCode || 'OTHER');
+                setField('edit_timezone', row.dataset.timezone || 'UTC');
                 setField('edit_industry', row.dataset.industry);
                 setField('edit_admin_password', '');
                 setField('edit_admin_password_confirmation', '');
@@ -545,6 +570,13 @@
             editModal.classList.remove('hidden');
             editModal.classList.add('flex');
         }
+
+        document.getElementById('edit_country_code')?.addEventListener('change', function () {
+            const locale = clientLocales[this.value] || {};
+            const phone = document.getElementById('edit_phone_no');
+            if (phone && (!phone.value.trim() || /^\+\d+\s*$/.test(phone.value))) phone.value = locale.dial_code || '';
+            setField('edit_timezone', locale.timezone || 'UTC');
+        });
 
         function openDeleteModal(row) {
             if (!deleteModal || !deleteForm) return;

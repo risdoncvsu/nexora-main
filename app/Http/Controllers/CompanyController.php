@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class CompanyController extends Controller
 {
@@ -27,8 +28,11 @@ class CompanyController extends Controller
             'industry' => ['required', 'string', 'max:100'],
             'company_email' => ['required', 'email', 'max:255', 'unique:companies,company_email'],
             'phone_no' => ['nullable', 'string', 'max:50'],
+            'country_code' => ['required', 'string', Rule::in(array_keys(config('client_locales.countries', [])))],
+            'timezone' => ['required', 'timezone'],
             'admin_name' => ['required', 'string', 'max:255'],
         ]);
+        $validated = $this->applyLocaleDefaults($validated);
 
         $baseUsername = $this->buildAdminUsername($validated['company_name'], $validated['admin_name']);
         $username = $this->uniqueUsername($baseUsername);
@@ -68,10 +72,13 @@ class CompanyController extends Controller
             'industry' => ['required', 'string', 'max:100'],
             'company_email' => ['required', 'email', 'max:255', 'unique:companies,company_email,' . $company->id],
             'phone_no' => ['nullable', 'string', 'max:50'],
+            'country_code' => ['required', 'string', Rule::in(array_keys(config('client_locales.countries', [])))],
+            'timezone' => ['required', 'timezone'],
             'admin_name' => ['required', 'string', 'max:255'],
             'status' => ['required', 'string', 'max:50'],
             'admin_password' => ['nullable', 'string', 'min:8', 'confirmed'],
         ]);
+        $validated = $this->applyLocaleDefaults($validated);
 
         $companyValues = collect($validated)->except([
             'admin_password',
@@ -176,5 +183,20 @@ class CompanyController extends Controller
         }
 
         return $candidate;
+    }
+
+    /** Apply the selected country prefix without duplicating a prefix already typed by the user. */
+    private function applyLocaleDefaults(array $validated): array
+    {
+        $validated['country_code'] = strtoupper($validated['country_code']);
+        $locale = config('client_locales.countries.'.$validated['country_code'], []);
+        $prefix = (string) ($locale['dial_code'] ?? '');
+        $phone = trim((string) ($validated['phone_no'] ?? ''));
+
+        if ($phone !== '' && $prefix !== '' && ! str_starts_with(str_replace([' ', '-'], '', $phone), $prefix)) {
+            $validated['phone_no'] = $prefix.' '.$phone;
+        }
+
+        return $validated;
     }
 }

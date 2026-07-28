@@ -15,6 +15,12 @@ class EmployeeOnboardingController extends Controller
     public function step1()
     {
         $step1 = session('step1', []);
+        $clientId = (int) session('employee_client_id');
+        $company = $clientId > 0 ? Company::find($clientId) : null;
+        $clientCountryCode = strtoupper((string) ($company?->country_code ?? ''));
+        $clientLocale = config('client_locales.countries.'.$clientCountryCode, []);
+        $clientPhonePrefix = (string) ($clientLocale['dial_code'] ?? '');
+        $clientNationality = self::nationalityForCountry($clientCountryCode);
         $companyEmailPreview = null;
 
         if (! empty($step1['first_name']) && ! empty($step1['last_name'])) {
@@ -26,7 +32,9 @@ class EmployeeOnboardingController extends Controller
 
         $companyEmailDomain = self::companyEmailDomain();
 
-        return view('employees.onboarding.step1', compact('step1', 'companyEmailPreview', 'companyEmailDomain'));
+        return view('employees.onboarding.step1', compact(
+            'step1', 'companyEmailPreview', 'companyEmailDomain', 'clientCountryCode', 'clientPhonePrefix', 'clientNationality'
+        ));
     }
 
     public function storeStep1(Request $request)
@@ -43,8 +51,12 @@ class EmployeeOnboardingController extends Controller
             Rule::unique('hr.employees', 'email')->where('client_id', $clientId),
         ],
         'profile_picture' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+        'phone' => 'nullable|string|max:20',
+        'phone_dial_code' => ['nullable', 'string', 'max:8', 'regex:/^\+?[0-9]+$/'],
     ]);
 
+    // Keep the local part in the onboarding session. The complete E.164-like
+    // number is assembled only when the employee is finally created.
     $data = $request->except('profile_picture');
 
     if ($request->hasFile('profile_picture')) {
@@ -211,7 +223,10 @@ class EmployeeOnboardingController extends Controller
         'marital_status' => $step1['marital_status'] ?? null,
         'nationality' => $step1['nationality'] ?? null,
         'address' => $step1['address'] ?? null,
-        'phone' => $step1['phone'] ?? null,
+        'phone' => $this->normalisePhone(
+            (string) ($step1['phone_dial_code'] ?? $this->clientDialCode($clientId)),
+            (string) ($step1['phone'] ?? '')
+        ),
         'email' => $step1['email'],
         'profile_picture' => $step1['profile_picture'] ?? null,
         'department' => $step2['department'],
@@ -251,6 +266,36 @@ class EmployeeOnboardingController extends Controller
         }
 
         return view('employees.onboarding.success', compact('employee'));
+    }
+
+    private function clientDialCode(int $clientId): string
+    {
+        $countryCode = strtoupper((string) Company::query()->whereKey($clientId)->value('country_code'));
+
+        return (string) config('client_locales.countries.'.$countryCode.'.dial_code', '');
+    }
+
+    private function normalisePhone(string $dialCode, string $localNumber): ?string
+    {
+        $localDigits = preg_replace('/\D+/', '', $localNumber) ?: '';
+        $dialDigits = preg_replace('/\D+/', '', $dialCode) ?: '';
+
+        if ($localDigits === '') {
+            return null;
+        }
+
+        return $dialDigits === '' ? $localDigits : '+'.$dialDigits.$localDigits;
+    }
+
+    private static function nationalityForCountry(string $countryCode): ?string
+    {
+        return [
+            'PH' => 'Filipino', 'US' => 'American', 'GB' => 'British', 'CA' => 'Canadian', 'AU' => 'Australian',
+            'JP' => 'Japanese', 'CN' => 'Chinese', 'HK' => 'Chinese', 'KR' => 'South Korean', 'IN' => 'Indian',
+            'ID' => 'Indonesian', 'MY' => 'Malaysian', 'SG' => 'Singaporean', 'TH' => 'Thai', 'VN' => 'Vietnamese',
+            'DE' => 'German', 'FR' => 'French', 'MX' => 'Mexican', 'BR' => 'Brazilian', 'AE' => 'Emirati',
+            'SA' => 'Saudi Arabian', 'NZ' => 'New Zealander',
+        ][$countryCode] ?? null;
     }
 
     /**

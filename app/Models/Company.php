@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\Storage;
     'industry',
     'company_email',
     'phone_no',
+    'country_code',
+    'timezone',
     'admin_name',
     'status',
     'admin_user_id',

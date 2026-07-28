@@ -369,8 +369,8 @@
                    <div class="mb-[15px]">
     <div class="relative w-[837px] pr-[430px]">
         <label class="absolute top-[3px] left-[16.5px] text-[9px] font-semibold text-[#6B7280] pointer-events-none z-[2]">Phone Number</label>
-        <input type="text" name="phone" id="phone" value="{{ old('phone', $employee->phone) }}"
-            maxlength="11" inputmode="numeric" pattern="\d{11}"
+        <input type="tel" name="phone" id="phone" value="{{ old('phone', $employee->phone) }}"
+            maxlength="16" inputmode="tel" pattern="\+?[0-9]{1,15}"
             class="w-full h-10 box-border py-3 px-2.5 pt-3 pl-[-38px] bg-[#0B1E3D] text-white border-0 shadow-[0_4px_8px_rgba(0,0,0,.35)] rounded-[10px] text-[11px] outline-none text-center focus:border-[#5D8CFF] focus:shadow-[0_0_0_2px_rgba(93,140,255,.2)] placeholder:text-[#8FA6D8]"
             @if(! $canManageEmployee) disabled @endif>
     </div>
@@ -744,22 +744,13 @@
     });
 
     /* =========================================================
-       PHONE NUMBER: digits only, max 11
+       PHONE NUMBER: international format, maximum 15 digits
     ========================================================= */
     const phoneInput = document.getElementById("phone");
-    phoneInput.addEventListener("input", function () {
-        this.value = this.value.replace(/\D/g, "").slice(0, 11);
-    });
-    phoneInput.addEventListener("keypress", function (e) {
-        if (!/[0-9]/.test(e.key)) {
-            e.preventDefault();
-        }
-    });
-    phoneInput.addEventListener("paste", function (e) {
-        const pasted = (e.clipboardData || window.clipboardData).getData("text");
-        if (!/^\d+$/.test(pasted)) {
-            e.preventDefault();
-        }
+    phoneInput?.addEventListener("input", function () {
+        const startsWithPlus = this.value.trim().startsWith('+');
+        const digits = this.value.replace(/\D/g, "").slice(0, 15);
+        this.value = startsWithPlus ? '+' + digits : digits;
     });
 
     /* =========================================================

@@ -38,7 +38,7 @@
                     <div>
                         <p class="text-xs font-bold uppercase tracking-wider text-[#346DCB]">{{ $isRoot ? 'Root administration' : 'Client administration' }}</p>
                         <h1 class="mt-1 text-3xl font-bold sm:text-4xl">Audit Trail</h1>
-                        <p class="mt-1 text-sm text-slate-600">Search, inspect, and export recorded ERP activity.</p>
+                        <p class="mt-1 text-sm text-slate-600">Search, inspect, and export recorded ERP activity. Times are shown in each client's configured timezone.</p>
                     </div>
                     <div class="flex flex-wrap items-center gap-3">
                         <form method="GET" action="{{ route($indexRoute) }}" class="flex flex-wrap items-center gap-2">
@@ -100,7 +100,7 @@
                                             'module' => $log->module,
                                             'category' => $log->category,
                                             'httpStatus' => $log->http_status,
-                                            'timestamp' => $log->created_at?->format('M d, Y H:i'),
+                                            'timestamp' => $log->created_at?->format('M d, Y H:i T'),
                                             'details' => $log->details,
                                         ], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
                                     @endphp
@@ -112,7 +112,7 @@
                                         <td class="px-4 py-4"><span class="rounded-full px-3 py-1 text-xs font-semibold {{ $log->category === 'Error' ? 'bg-red-50 text-red-700' : ($log->category === 'User action' ? 'bg-violet-50 text-violet-700' : 'bg-emerald-50 text-emerald-700') }}">{{ $log->category }}</span></td>
                                         <td class="px-4 py-4"><span class="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-[#346DCB]">{{ str_replace('.', ' ', $log->event) }}</span></td>
                                         <td class="px-4 py-4 font-semibold {{ ($log->http_status ?? 200) >= 400 ? 'text-red-700' : 'text-emerald-700' }}">{{ $log->http_status ?? '—' }}</td>
-                                        <td class="whitespace-nowrap px-4 py-4 text-slate-500">{{ $log->created_at?->format('M d, Y H:i') }}</td>
+                                        <td class="whitespace-nowrap px-4 py-4 text-slate-500">{{ $log->created_at?->format('M d, Y H:i T') }}</td>
                                         <td class="px-4 py-4 text-center"><button type="button" class="audit-details rounded-full bg-[#EBF1FA] px-4 py-2 text-xs font-bold text-[#346DCB] transition hover:bg-[#346DCB] hover:text-white" data-log="{{ $detailPayload }}">Details</button></td>
                                     </tr>
                                 @empty

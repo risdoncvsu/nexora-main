@@ -1,3 +1,9 @@
+@php
+    $clientLocales = $clientLocales ?? config('client_locales.countries', []);
+    $clientTimezones = collect($clientLocales)->pluck('timezone')->filter()->unique()->values();
+    $selectedCountry = old('country_code', 'PH');
+    $selectedTimezone = old('timezone', $clientLocales[$selectedCountry]['timezone'] ?? 'UTC');
+@endphp
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -58,7 +64,25 @@
 
                     <label class="block">
                         <span class="mb-2 block text-sm font-light text-white">Phone No.</span>
-                        <input type="text" name="phone_no" value="{{ old('phone_no') }}" placeholder="Type here.." class="h-11 w-full rounded-sm border-0 bg-white px-4 text-sm text-slate-900 outline-none placeholder:italic placeholder:text-slate-400">
+                        <input type="text" name="phone_no" id="phone_no" value="{{ old('phone_no') }}" placeholder="Select a country to prefill its dial code" class="h-11 w-full rounded-sm border-0 bg-white px-4 text-sm text-slate-900 outline-none placeholder:italic placeholder:text-slate-400">
+                    </label>
+
+                    <label class="block">
+                        <span class="mb-2 block text-sm font-light text-white">Country / Region</span>
+                        <select name="country_code" id="country_code" required class="h-11 w-full rounded-sm border-0 bg-white px-4 text-sm text-slate-900 outline-none">
+                            @foreach ($clientLocales as $code => $locale)
+                                <option value="{{ $code }}" @selected($selectedCountry === $code)>{{ $locale['name'] }} ({{ $locale['dial_code'] ?: 'no default prefix' }})</option>
+                            @endforeach
+                        </select>
+                    </label>
+
+                    <label class="block">
+                        <span class="mb-2 block text-sm font-light text-white">Client Time Zone</span>
+                        <select name="timezone" id="timezone" required class="h-11 w-full rounded-sm border-0 bg-white px-4 text-sm text-slate-900 outline-none">
+                            @foreach ($clientTimezones as $timezone)
+                                <option value="{{ $timezone }}" @selected($selectedTimezone === $timezone)>{{ $timezone }}</option>
+                            @endforeach
+                        </select>
                     </label>
 
                     <label class="block md:col-span-2 md:max-w-[calc(50%-1rem)]">
@@ -73,5 +97,24 @@
             </section>
         </main>
     </div>
+    <script>
+        const clientLocales = @json($clientLocales);
+        const countryField = document.getElementById('country_code');
+        const phoneField = document.getElementById('phone_no');
+        const timezoneField = document.getElementById('timezone');
+        let autoPhonePrefix = '';
+
+        const applyCountryLocale = () => {
+            const locale = clientLocales[countryField.value] || {};
+            const prefix = locale.dial_code || '';
+            if (!phoneField.value.trim() || phoneField.value.trim() === autoPhonePrefix) {
+                phoneField.value = prefix;
+                autoPhonePrefix = prefix;
+            }
+            if (locale.timezone) timezoneField.value = locale.timezone;
+        };
+        countryField?.addEventListener('change', applyCountryLocale);
+        if (!phoneField.value.trim()) applyCountryLocale();
+    </script>
 </body>
 </html>

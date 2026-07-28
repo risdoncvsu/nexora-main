@@ -62,7 +62,7 @@ Route::middleware('auth')->group(function () {
     // ==========================================
     Route::middleware('root.admin')->prefix('admin/itsm')->name('admin.itsm.')->group(function () {
         Route::get('/registration', function () {
-            return view('dashboard');
+            return view('dashboard', ['clientLocales' => config('client_locales.countries', [])]);
         })->name('registration');
 
         Route::post('/registration', [CompanyController::class, 'store'])->name('registration.store');

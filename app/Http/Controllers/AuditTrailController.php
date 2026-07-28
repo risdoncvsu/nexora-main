@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Company;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
@@ -35,7 +36,10 @@ class AuditTrailController extends Controller
             ->paginate(20)
             ->withQueryString();
 
-        $logs->getCollection()->transform(fn (object $log): object => $this->presentLog($log));
+        $timezones = $this->clientTimezones($logs->getCollection());
+        $logs->getCollection()->transform(
+            fn (object $log): object => $this->presentLog($log, $timezones[(int) $log->client_id] ?? config('app.timezone', 'UTC'))
+        );
 
         return view('audittrail.index', compact('portal', 'logs', 'modules'));
     }
@@ -59,8 +63,9 @@ class AuditTrailController extends Controller
             $this->logsQuery($request, $portal)
                 ->orderBy('id')
                 ->chunkById(200, function ($logs) use ($handle): void {
+                    $timezones = $this->clientTimezones($logs);
                     foreach ($logs as $log) {
-                        $log = $this->presentLog($log);
+                        $log = $this->presentLog($log, $timezones[(int) $log->client_id] ?? config('app.timezone', 'UTC'));
                         fputcsv($handle, [
                             'LOG-'.str_pad((string) $log->id, 6, '0', STR_PAD_LEFT),
                             $log->client_id,
@@ -70,7 +75,7 @@ class AuditTrailController extends Controller
                             $log->event,
                             $log->module,
                             $log->http_status,
-                            $log->created_at?->format('Y-m-d H:i:s'),
+                            $log->created_at?->format('Y-m-d H:i:s T'),
                             json_encode($log->details),
                         ]);
                     }
@@ -122,18 +127,27 @@ class AuditTrailController extends Controller
             default => null,
         };
 
-        if ($from = $request->input('from')) {
-            $query->whereDate('created_at', '>=', $from);
-        }
-
-        if ($to = $request->input('to')) {
-            $query->whereDate('created_at', '<=', $to);
+        if ($portal === 'client' && ($request->filled('from') || $request->filled('to'))) {
+            $timezone = $this->clientTimezone((int) $request->user()->company_id);
+            if ($from = $request->input('from')) {
+                $query->where('created_at', '>=', Carbon::parse($from, $timezone)->startOfDay()->utc());
+            }
+            if ($to = $request->input('to')) {
+                $query->where('created_at', '<=', Carbon::parse($to, $timezone)->endOfDay()->utc());
+            }
+        } else {
+            if ($from = $request->input('from')) {
+                $query->whereDate('created_at', '>=', $from);
+            }
+            if ($to = $request->input('to')) {
+                $query->whereDate('created_at', '<=', $to);
+            }
         }
 
         return $query;
     }
 
-    private function presentLog(object $log): object
+    private function presentLog(object $log, string $timezone): object
     {
         $details = is_string($log->details ?? null)
             ? json_decode($log->details, true) ?: []
@@ -146,7 +160,8 @@ class AuditTrailController extends Controller
         $log->category = $log->event === 'request.error' || str_contains($log->event, 'failed')
             ? 'Error'
             : (str_starts_with($log->event, 'action.') ? 'User action' : 'ERP event');
-        $log->created_at = isset($log->created_at) ? Carbon::parse($log->created_at) : null;
+        $log->timezone = in_array($timezone, timezone_identifiers_list(), true) ? $timezone : config('app.timezone', 'UTC');
+        $log->created_at = isset($log->created_at) ? Carbon::parse($log->created_at, 'UTC')->setTimezone($log->timezone) : null;
 
         return $log;
     }
@@ -160,5 +175,30 @@ class AuditTrailController extends Controller
             'from' => ['nullable', 'date'],
             'to' => ['nullable', 'date', 'after_or_equal:from'],
         ]);
+    }
+
+    /** @return array<int, string> */
+    private function clientTimezones(iterable $logs): array
+    {
+        $clientIds = collect($logs)->pluck('client_id')->filter()->map(fn ($id) => (int) $id)->unique()->values();
+
+        if ($clientIds->isEmpty()) {
+            return [];
+        }
+
+        return Company::query()
+            ->whereIn('id', $clientIds)
+            ->pluck('timezone', 'id')
+            ->map(fn ($timezone) => is_string($timezone) && in_array($timezone, timezone_identifiers_list(), true) ? $timezone : config('app.timezone', 'UTC'))
+            ->all();
+    }
+
+    private function clientTimezone(int $clientId): string
+    {
+        $timezone = Company::query()->whereKey($clientId)->value('timezone');
+
+        return is_string($timezone) && in_array($timezone, timezone_identifiers_list(), true)
+            ? $timezone
+            : config('app.timezone', 'UTC');
     }
 }
