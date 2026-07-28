@@ -1,5 +1,6 @@
 @php
     $isRoot = $portal === 'admin';
+    $isCompanyAudit = $isRoot && isset($selectedClient) && $selectedClient;
     $indexRoute = $isRoot ? 'admin.itsm.audit-trail' : 'client.itsm.audit-trail';
     $exportRoute = $isRoot ? 'admin.itsm.audit-trail.export' : 'client.itsm.audit-trail.export';
     $navItems = $isRoot
@@ -37,11 +38,12 @@
                 <section class="flex flex-col gap-4 rounded-[2rem] bg-white/90 px-5 py-5 text-slate-950 sm:px-8 sm:py-7 xl:flex-row xl:items-center xl:justify-between">
                     <div>
                         <p class="text-xs font-bold uppercase tracking-wider text-[#346DCB]">{{ $isRoot ? 'Root administration' : 'Client administration' }}</p>
-                        <h1 class="mt-1 text-3xl font-bold sm:text-4xl">Audit Trail</h1>
-                        <p class="mt-1 text-sm text-slate-600">Search, inspect, and export recorded ERP activity. Times are shown in each client's configured timezone.</p>
+                        <h1 class="mt-1 text-3xl font-bold sm:text-4xl">{{ $isCompanyAudit ? $selectedClient->company_name.' Troubleshooting Trail' : 'Audit Trail' }}</h1>
+                        <p class="mt-1 text-sm text-slate-600">{{ $isCompanyAudit ? 'Full audit activity for this selected client. Times use the client’s configured timezone.' : 'Search, inspect, and export recorded ERP activity. Times are shown in each client’s configured timezone.' }}</p>
                     </div>
                     <div class="flex flex-wrap items-center gap-3">
                         <form method="GET" action="{{ route($indexRoute) }}" class="flex flex-wrap items-center gap-2">
+                            @if ($isCompanyAudit)<input type="hidden" name="client_id" value="{{ $selectedClient->id }}">@endif
                             <label class="flex min-w-0 flex-1 items-center rounded-full bg-slate-200 px-4 py-3 sm:w-56 sm:flex-none">
                                 <input type="search" name="search" value="{{ request('search') }}" placeholder="Search actions or modules" aria-label="Search audit logs" class="min-w-0 flex-1 border-0 bg-transparent text-sm text-slate-900 outline-none">
                             </label>
@@ -61,6 +63,7 @@
                             <input type="date" name="to" value="{{ request('to') }}" aria-label="To date" class="rounded-full bg-slate-200 px-4 py-3 text-sm text-slate-700 outline-none">
                             <button type="submit" class="rounded-full border border-[#346DCB] px-4 py-3 text-sm font-semibold text-[#346DCB] transition hover:bg-blue-50">Filter</button>
                         </form>
+                        @if ($isCompanyAudit)<a href="{{ route('admin.itsm.audit-trail') }}" class="rounded-full border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100">All clients</a>@endif
                         <a href="{{ route($exportRoute, request()->query()) }}" class="rounded-full bg-[#346DCB] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#2554a3]">Export CSV</a>
                     </div>
                 </section>
@@ -68,8 +71,8 @@
                 <section class="rounded-[2rem] bg-white p-5 text-slate-950 shadow-xl sm:p-8">
                     <div class="mb-6 flex items-center justify-between gap-4">
                         <div>
-                            <h2 class="text-lg font-bold">System Logs &amp; Activities</h2>
-                            <p class="text-sm text-slate-500">{{ $isRoot ? 'All client activity' : 'Activity for your company only' }}</p>
+                            <h2 class="text-lg font-bold">{{ $isCompanyAudit ? 'Client logs & activities' : 'System Logs & Activities' }}</h2>
+                            <p class="text-sm text-slate-500">{{ $isCompanyAudit ? 'Troubleshooting history for '.$selectedClient->company_name : ($isRoot ? 'All client activity' : 'Activity for your company only') }}</p>
                         </div>
                         <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">{{ $logs->total() }} records</span>
                     </div>
@@ -79,7 +82,7 @@
                             <thead class="bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500">
                                 <tr>
                                     <th class="px-4 py-4">Log ID</th>
-                                    @if ($isRoot)<th class="px-4 py-4">Client</th>@endif
+                                    @if ($isRoot && ! $isCompanyAudit)<th class="px-4 py-4">Client</th>@endif
                                     <th class="px-4 py-4">Actor</th>
                                     <th class="px-4 py-4">Department</th>
                                     <th class="px-4 py-4">Category</th>
@@ -106,7 +109,7 @@
                                     @endphp
                                     <tr class="border-t border-slate-100 transition hover:bg-slate-50">
                                         <td class="whitespace-nowrap px-4 py-4 font-semibold text-slate-900">LOG-{{ str_pad((string) $log->id, 6, '0', STR_PAD_LEFT) }}</td>
-                                        @if ($isRoot)<td class="px-4 py-4">CL-{{ str_pad((string) $log->client_id, 5, '0', STR_PAD_LEFT) }}</td>@endif
+                                        @if ($isRoot && ! $isCompanyAudit)<td class="px-4 py-4">CL-{{ str_pad((string) $log->client_id, 5, '0', STR_PAD_LEFT) }}</td>@endif
                                         <td class="px-4 py-4">{{ $log->actor }}</td>
                                         <td class="px-4 py-4">{{ $log->department }}</td>
                                         <td class="px-4 py-4"><span class="rounded-full px-3 py-1 text-xs font-semibold {{ $log->category === 'Error' ? 'bg-red-50 text-red-700' : ($log->category === 'User action' ? 'bg-violet-50 text-violet-700' : 'bg-emerald-50 text-emerald-700') }}">{{ $log->category }}</span></td>
@@ -116,7 +119,7 @@
                                         <td class="px-4 py-4 text-center"><button type="button" class="audit-details rounded-full bg-[#EBF1FA] px-4 py-2 text-xs font-bold text-[#346DCB] transition hover:bg-[#346DCB] hover:text-white" data-log="{{ $detailPayload }}">Details</button></td>
                                     </tr>
                                 @empty
-                                    <tr><td colspan="{{ $isRoot ? 9 : 8 }}" class="px-4 py-12 text-center text-slate-400">No audit records match these filters.</td></tr>
+                                    <tr><td colspan="{{ $isRoot && ! $isCompanyAudit ? 9 : 8 }}" class="px-4 py-12 text-center text-slate-400">No audit records match these filters.</td></tr>
                                 @endforelse
                             </tbody>
                         </table>

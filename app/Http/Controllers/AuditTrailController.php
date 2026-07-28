@@ -17,6 +17,10 @@ class AuditTrailController extends Controller
         $this->validateFilters($request);
         $portal = $request->routeIs('admin.*') ? 'admin' : 'client';
         if (! Schema::hasTable('erp_audit_logs')) {
+            if ($portal === 'admin') {
+                return $this->rootOverview();
+            }
+
             $modules = collect();
             $logs = new LengthAwarePaginator([], 0, 20, max(1, (int) $request->input('page', 1)), [
                 'path' => $request->url(),
@@ -24,6 +28,13 @@ class AuditTrailController extends Controller
             ]);
 
             return view('audittrail.index', compact('portal', 'logs', 'modules'));
+        }
+
+        // Root administrators start with a compact troubleshooting overview,
+        // not a combined stream of every client's routine actions. Selecting a
+        // client tile deliberately opens that client's full audit history.
+        if ($portal === 'admin' && ! $request->filled('client_id')) {
+            return $this->rootOverview();
         }
 
         $modules = $this->scopedLogsQuery($request, $portal)
@@ -41,7 +52,11 @@ class AuditTrailController extends Controller
             fn (object $log): object => $this->presentLog($log, $timezones[(int) $log->client_id] ?? config('app.timezone', 'UTC'))
         );
 
-        return view('audittrail.index', compact('portal', 'logs', 'modules'));
+        $selectedClient = $portal === 'admin'
+            ? Company::query()->find((int) $request->input('client_id'))
+            : null;
+
+        return view('audittrail.index', compact('portal', 'logs', 'modules', 'selectedClient'));
     }
 
     public function export(Request $request): StreamedResponse
@@ -91,6 +106,8 @@ class AuditTrailController extends Controller
 
         if ($portal === 'client') {
             $query->where('client_id', (int) $request->user()->company_id);
+        } elseif ($request->filled('client_id')) {
+            $query->where('client_id', (int) $request->input('client_id'));
         }
 
         return $query;
@@ -174,7 +191,59 @@ class AuditTrailController extends Controller
             'module' => ['nullable', 'string', 'max:100'],
             'from' => ['nullable', 'date'],
             'to' => ['nullable', 'date', 'after_or_equal:from'],
+            'client_id' => ['nullable', 'integer', 'exists:companies,id'],
         ]);
+    }
+
+    private function rootOverview()
+    {
+        $summaries = collect();
+        $errors = collect();
+
+        if (Schema::hasTable('erp_audit_logs')) {
+            $summaries = DB::table('erp_audit_logs')
+                ->selectRaw("client_id, COUNT(*) as activity_count, MAX(created_at) as last_activity, SUM(CASE WHEN event = 'request.error' OR event LIKE '%failed%' THEN 1 ELSE 0 END) as error_count")
+                ->where('client_id', '>', 0)
+                ->groupBy('client_id')
+                ->get()
+                ->keyBy('client_id');
+
+            $errors = DB::table('erp_audit_logs')
+                ->where('client_id', '>', 0)
+                ->where(function ($query): void {
+                    $query->where('event', 'request.error')->orWhere('event', 'like', '%failed%');
+                })
+                ->latest('created_at')
+                ->limit(25)
+                ->get();
+        }
+
+        $companies = Company::query()->orderBy('company_name')->get();
+        $companyNames = $companies->pluck('company_name', 'id');
+        $timezones = $this->clientTimezones($errors);
+        $errors->transform(function (object $log) use ($companyNames, $timezones): object {
+            $log = $this->presentLog($log, $timezones[(int) $log->client_id] ?? config('app.timezone', 'UTC'));
+            $log->company_name = $companyNames[(int) $log->client_id] ?? 'Unknown client';
+
+            return $log;
+        });
+
+        $companyCards = $companies->map(function (Company $company) use ($summaries): object {
+            $summary = $summaries->get($company->id);
+
+            return (object) [
+                'id' => $company->id,
+                'name' => $company->company_name,
+                'status' => $company->status,
+                'activity_count' => (int) ($summary->activity_count ?? 0),
+                'error_count' => (int) ($summary->error_count ?? 0),
+                'last_activity' => isset($summary->last_activity)
+                    ? Carbon::parse($summary->last_activity, 'UTC')->setTimezone($this->clientTimezone((int) $company->id))
+                    : null,
+            ];
+        });
+
+        return view('audittrail.admin-overview', compact('companyCards', 'errors'));
     }
 
     /** @return array<int, string> */

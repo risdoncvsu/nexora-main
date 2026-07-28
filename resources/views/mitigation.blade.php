@@ -8,8 +8,8 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <script src="https://unpkg.com/lucide@latest"></script>
 </head>
-<body class="h-screen overflow-hidden bg-[#1B365D] font-sans text-white">
-    <div class="flex h-full flex-col">
+<body class="min-h-screen bg-[#1B365D] font-sans text-white">
+    <div class="flex min-h-screen flex-col">
         <!-- Main Application Header -->
         <x-itsm-header
             :home-route="route('client.itsm.employees')"
@@ -24,14 +24,14 @@
         />
 
         <!-- Main Workspace Container -->
-        <main class="relative flex-1 overflow-hidden px-8 py-6 xl:px-12">
+        <main class="relative flex-1 overflow-hidden p-4 sm:p-6">
             <!-- Background Watermark brand logo -->
-            <img src="{{ asset('images/nexora-icon.png') }}" alt="" class="pointer-events-none absolute left-1/2 top-1/2 w-[72rem] -translate-x-1/2 -translate-y-1/2 opacity-5 blur-sm">
+            <img src="{{ asset('images/nexora-icon.png') }}" alt="" class="pointer-events-none absolute left-1/2 top-1/2 w-[64rem] -translate-x-1/2 -translate-y-1/2 opacity-10 blur-sm">
 
-            <div class="relative z-10 mx-auto flex w-full max-w-[1760px] gap-6 items-stretch h-[calc(100vh-120px)]">
+            <div class="relative z-10 mx-auto grid min-h-[calc(100vh-10rem)] w-full max-w-[1760px] grid-cols-1 gap-6 xl:grid-cols-[22rem_minmax(0,1fr)]">
                 
                 <!-- Left Sidebar Navigation Panel -->
-                <aside class="w-[22rem] shrink-0 rounded-[2rem] bg-white p-6 shadow-2xl text-slate-900 flex flex-col justify-between h-full">
+                <aside class="w-[22rem] rounded-[1.875rem] bg-white p-5 text-slate-900 shadow-xl sm:p-8">
                     <div class="flex flex-col gap-2 font-semibold text-sm text-slate-600">
                         <a href="{{ route('client.itsm.risk') }}" class="flex items-center gap-3 rounded-xl px-4 py-3 hover:bg-slate-50 hover:text-slate-900 transition">
                             <i data-lucide="file-text" class="h-4.5 w-4.5"></i> Risk Register
@@ -49,15 +49,15 @@
                 </aside>
 
                 <!-- Right Side Console Viewspace -->
-                <section class="flex-1 flex flex-col gap-5 h-full overflow-hidden">
+                <section class="flex min-w-0 flex-col gap-6">
                     
                     <!-- Content Title Header Box -->
-                    <div class="rounded-[2rem] bg-[#DDE4EC] px-10 py-5 text-slate-950 shadow-sm shrink-0">
+                    <div class="rounded-[1.875rem] bg-white/90 px-5 py-5 text-slate-950 shadow-sm sm:px-8 sm:py-6">
                         <h1 class="text-4xl font-bold tracking-tight">Risk Management</h1>
                     </div>
 
                     <!-- Inner Console Container Workspace -->
-                    <div class="flex flex-col flex-1 overflow-hidden rounded-[2rem] bg-[#C9D6E4] shadow-2xl text-slate-900">
+                    <div class="flex flex-col flex-1 overflow-hidden rounded-[1.875rem] bg-white p-5 shadow-xl text-slate-900 sm:p-8">
                         
                         <!-- Inner Canvas Workspace -->
                         <div class="flex flex-col flex-1 overflow-hidden px-6 py-5 space-y-4">
