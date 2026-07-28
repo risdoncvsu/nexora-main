@@ -64,7 +64,7 @@
         .page-wrapper {
             position: relative;
             min-height: calc(100vh - 100px);
-            padding: 24px 32px;
+            padding: 1rem;
             display: flex;
             flex-direction: column;
             overflow: hidden;
@@ -384,20 +384,20 @@
 
         /* Responsive Breakpoints */
         @media (max-width: 1024px) {
-            .relative.grid {
+            .page-wrapper .relative.grid {
                 grid-template-columns: 1fr !important;
             }
-            aside {
+            .page-wrapper aside {
                 padding: 24px !important;
             }
-            nav {
+            .page-wrapper aside nav {
                 display: flex;
                 flex-direction: row;
                 justify-content: space-around;
                 space-y-0: cubic-bezier(0, 0, 0, 0) !important;
                 gap: 16px;
             }
-            nav a {
+            .page-wrapper aside nav a {
                 margin: 0 !important;
             }
         }
@@ -418,14 +418,14 @@
         <img src="{{ asset('images/nexora-icon.png') }}" alt="" class="bg-watermark">
 
         <!-- 1. INTEGRATED SIDEBAR GRID SYSTEM -->
-        <div class="relative z-10 grid min-h-[calc(100vh-10rem)] grid-cols-[22rem_1fr] gap-6">
+        <div class="relative z-10 grid min-h-[calc(100vh-10rem)] grid-cols-1 gap-6 xl:grid-cols-[22rem_minmax(0,1fr)]">
             
             <!-- LEFT SIDEBAR -->
-            <aside class="rounded-[1.875rem] bg-white p-8 text-slate-950">
-                <nav class="space-y-6 text-xl">
-                    <a href="{{ route('admin.itsm.clients') }}" class="block font-medium hover:text-[#346DCB]">All Clients</a>
-                    <a href="{{ route('admin.itsm.pending-approvals') }}" class="block font-medium hover:text-[#346DCB]">Pending Approvals</a>
-                    <a href="{{ route('admin.itsm.roles') }}" class="block font-extrabold hover:text-[#346DCB]">Roles & Permissions</a>
+            <aside class="self-start min-h-[calc(100vh-10rem)] rounded-[1.875rem] bg-white p-5 text-slate-950 sm:p-8">
+                <nav class="flex flex-wrap gap-x-6 gap-y-3 text-base sm:text-xl xl:block xl:space-y-6">
+                    <a href="{{ route('admin.itsm.clients') }}" class="block font-medium text-slate-700 hover:text-[#346DCB]">All Clients</a>
+                    <a href="{{ route('admin.itsm.pending-approvals') }}" class="block font-medium text-slate-700 hover:text-[#346DCB]">Pending Approvals</a>
+                    <a href="{{ route('admin.itsm.roles') }}" class="block font-extrabold text-slate-950">Roles & Permissions</a>
                 </nav>
             </aside>
 

@@ -28,25 +28,10 @@
             <!-- Subtle background watermark brand logo -->
             <img src="{{ asset('images/nexora-icon.png') }}" alt="" class="pointer-events-none absolute left-1/2 top-1/2 w-[64rem] -translate-x-1/2 -translate-y-1/2 opacity-10 blur-sm">
 
-            <div class="relative z-10 mx-auto grid min-h-[calc(100vh-10rem)] w-full max-w-[1760px] grid-cols-1 gap-6 xl:grid-cols-[22rem_minmax(0,1fr)]">
+            <div class="relative z-10 grid min-h-[calc(100vh-10rem)] grid-cols-1 gap-6 xl:grid-cols-[22rem_minmax(0,1fr)]">
                 
                 <!-- Left Sidebar Navigation Panel -->
-                <aside class="w-[22rem] rounded-[1.875rem] bg-white p-5 text-slate-900 shadow-xl sm:p-8">
-                    <div class="flex flex-col gap-2 font-semibold text-sm text-slate-600">
-                        <a href="{{ route('client.itsm.risk') }}" class="flex items-center gap-3 rounded-xl bg-slate-100 px-4 py-3 text-[#132B52] font-bold transition">
-                            <i data-lucide="file-text" class="h-4.5 w-4.5"></i> Risk Register
-                        </a>
-                        <a href="{{ route('client.itsm.risk.mitigation') }}" class="flex items-center gap-3 rounded-xl px-4 py-3 hover:bg-slate-50 hover:text-slate-900 transition">
-                            <i data-lucide="list-checks" class="h-4.5 w-4.5"></i> Mitigation Plans
-                        </a>
-                        <a href="{{ route('client.itsm.risk.incident') }}" class="flex items-center gap-3 rounded-xl px-4 py-3 hover:bg-slate-50 hover:text-slate-900 transition">
-                            <i data-lucide="alert-circle" class="h-4.5 w-4.5"></i> Incident Report
-                        </a>
-                        <a href="{{ route('client.itsm.risk.analytics') }}" class="flex items-center gap-3 rounded-xl px-4 py-3 hover:bg-slate-50 hover:text-slate-900 transition">
-                            <i data-lucide="bar-chart-3" class="h-4.5 w-4.5"></i> Risk Analytics
-                        </a>
-                    </div>
-                </aside>
+                <x-risk-sidebar section="register" />
 
                 <!-- Right Side Console Viewspace -->
                 <section class="flex min-w-0 flex-col gap-6">

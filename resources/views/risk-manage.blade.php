@@ -24,15 +24,8 @@
 
         <main class="relative flex-1 overflow-hidden p-4 sm:p-6">
             <img src="{{ asset('images/nexora-icon.png') }}" alt="" class="pointer-events-none absolute left-1/2 top-1/2 w-[64rem] -translate-x-1/2 -translate-y-1/2 opacity-10 blur-sm">
-            <div class="relative z-10 mx-auto grid min-h-[calc(100vh-10rem)] max-w-[1760px] grid-cols-1 gap-6 xl:grid-cols-[22rem_minmax(0,1fr)]">
-                <aside class="rounded-[1.875rem] bg-white p-5 text-slate-900 shadow-xl sm:p-8">
-                    <nav class="space-y-2 text-sm font-semibold text-slate-600">
-                        <a href="{{ route('client.itsm.risk') }}" class="flex items-center gap-3 rounded-xl bg-slate-100 px-4 py-3 font-bold text-[#132B52]"><i data-lucide="file-text" class="h-4 w-4"></i>Risk Register</a>
-                        <a href="{{ route('client.itsm.risk.mitigation') }}" class="flex items-center gap-3 rounded-xl px-4 py-3 transition hover:bg-slate-50 hover:text-slate-900"><i data-lucide="list-checks" class="h-4 w-4"></i>Mitigation Plans</a>
-                        <a href="{{ route('client.itsm.risk.incident') }}" class="flex items-center gap-3 rounded-xl px-4 py-3 transition hover:bg-slate-50 hover:text-slate-900"><i data-lucide="alert-circle" class="h-4 w-4"></i>Incident Report</a>
-                        <a href="{{ route('client.itsm.risk.analytics') }}" class="flex items-center gap-3 rounded-xl px-4 py-3 transition hover:bg-slate-50 hover:text-slate-900"><i data-lucide="bar-chart-3" class="h-4 w-4"></i>Risk Analytics</a>
-                    </nav>
-                </aside>
+            <div class="relative z-10 grid min-h-[calc(100vh-10rem)] grid-cols-1 gap-6 xl:grid-cols-[22rem_minmax(0,1fr)]">
+                <x-risk-sidebar section="register" />
 
                 <section class="min-w-0 space-y-6">
                     <div class="rounded-[1.875rem] bg-white/90 px-5 py-5 text-slate-950 shadow-sm sm:px-8 sm:py-6"><p class="text-xs font-bold uppercase tracking-wider text-[#346DCB]">Risk Management</p><h1 class="mt-1 text-3xl font-bold sm:text-4xl">Manage Risk</h1><p class="mt-2 text-sm text-slate-600">Update the owner, mitigation progress, and review schedule for this record.</p></div>
