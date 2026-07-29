@@ -10,6 +10,7 @@ export default defineConfig({
                 'resources/css/app.css', 
                 'resources/js/app.js',
                 'Modules/E-Commerce/Store/resources/css/liquidglass.css',
+                'Modules/E-Commerce/Store/resources/css/preloader.css',
                 'Modules/E-Commerce/Store/resources/js/app.js',
                 'Modules/E-Commerce/Store/resources/js/bootstrap.js',
                 'Modules/E-Commerce/Store/resources/js/Category/Category.js',
