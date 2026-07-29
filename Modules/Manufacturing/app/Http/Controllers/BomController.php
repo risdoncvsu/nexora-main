@@ -20,7 +20,10 @@ class BomController extends Controller
             // available for production instead of copying a second catalogue
             // into Manufacturing.
             'inventoryItems' => Item::query()
-                ->leftJoin('stock_levels as stock_levels', 'stock_levels.item_id', '=', 'items.id')
+                ->leftJoin('stock_levels as stock_levels', function ($join): void {
+                    $join->on('stock_levels.item_id', '=', 'items.id')
+                        ->on('stock_levels.client_id', '=', 'items.client_id');
+                })
                 ->select([
                     'items.id', 'items.sku', 'items.name',
                     DB::raw('COALESCE(SUM(stock_levels.stock - COALESCE(stock_levels.reserved_quantity, 0)), 0) as available_quantity'),

@@ -30,7 +30,7 @@ class CheckLowStock extends Command
             $rows = DB::connection('inventory')
                 ->table('stock_levels as sl')
                 ->join('items as i', 'sl.item_id', '=', 'i.id')
-                ->select('sl.id as stock_level_id', 'sl.item_id', 'sl.warehouse_id', 'sl.stock', 'i.name as item_name', 'i.sku')
+                ->select('sl.id as stock_level_id', 'sl.item_id', 'sl.warehouse_id', 'sl.stock', 'i.name as item_name', 'i.sku', 'i.client_id')
                 ->where('sl.stock', '<', $threshold)
                 ->get();
         } catch (\Exception $e) {
@@ -43,7 +43,7 @@ class CheckLowStock extends Command
             $count++;
             DB::connection('procurement')->table('low_stock_alerts')->updateOrInsert(
                 ['external_item_id' => $r->stock_level_id, 'warehouse_id' => $r->warehouse_id],
-                ['sku' => $r->sku, 'item_name' => $r->item_name, 'stock' => $r->stock, 'threshold' => $threshold, 'updated_at' => now()]
+                ['sku' => $r->sku, 'item_name' => $r->item_name, 'stock' => $r->stock, 'threshold' => $threshold, 'client_id' => $r->client_id, 'updated_at' => now()]
             );
         }
 

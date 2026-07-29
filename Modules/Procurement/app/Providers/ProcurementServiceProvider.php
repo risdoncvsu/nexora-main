@@ -79,6 +79,7 @@ class ProcurementServiceProvider extends ServiceProvider
                     ->table('stock_levels as sl')
                     ->join('items as i', 'sl.item_id', '=', 'i.id')
                     ->where('sl.stock', '<', 5)
+                    ->where('i.client_id', $clientId)
                     ->orderBy('sl.stock', 'asc')
                     ->select('sl.stock', 'sl.reorder_threshold', 'i.name as item_name', 'i.sku')
                     ->limit(5)

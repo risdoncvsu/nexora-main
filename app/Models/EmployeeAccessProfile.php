@@ -11,9 +11,11 @@ class EmployeeAccessProfile extends Model
         'employee_id',
         'access_role',
         'access_permissions',
+        'module_access',
     ];
 
     protected $casts = [
         'access_permissions' => 'array',
+        'module_access' => 'array',
     ];
 }

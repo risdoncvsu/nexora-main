@@ -44,6 +44,7 @@ class Item extends Model
         return $query->whereIn('items.id', function ($sq) {
             $sq->select('item_id')
                 ->from('stock_levels')
+                ->whereColumn('stock_levels.client_id', 'items.client_id')
                 ->groupBy('item_id')
                 ->havingRaw('COALESCE(SUM(stock - reserved_quantity), 0) <= 0');
         });
@@ -54,6 +55,7 @@ class Item extends Model
         return $query->whereIn('items.id', function ($sq) {
             $sq->select('item_id')
                 ->from('stock_levels')
+                ->whereColumn('stock_levels.client_id', 'items.client_id')
                 ->whereRaw('COALESCE(stock - reserved_quantity, 0) <= reorder_threshold')
                 ->whereRaw('COALESCE(stock - reserved_quantity, 0) > 0')
                 ->where('reorder_threshold', '>', 0)
@@ -61,6 +63,7 @@ class Item extends Model
         })->whereIn('items.id', function ($sq) {
             $sq->select('item_id')
                 ->from('stock_levels')
+                ->whereColumn('stock_levels.client_id', 'items.client_id')
                 ->groupBy('item_id')
                 ->havingRaw('COALESCE(SUM(stock - reserved_quantity), 0) > 0');
         });
@@ -71,11 +74,13 @@ class Item extends Model
         return $query->whereIn('items.id', function ($sq) {
             $sq->select('item_id')
                 ->from('stock_levels')
+                ->whereColumn('stock_levels.client_id', 'items.client_id')
                 ->groupBy('item_id')
                 ->havingRaw('COALESCE(SUM(stock - reserved_quantity), 0) > 0');
         })->whereNotIn('items.id', function ($sq) {
             $sq->select('item_id')
                 ->from('stock_levels')
+                ->whereColumn('stock_levels.client_id', 'items.client_id')
                 ->whereRaw('COALESCE(stock - reserved_quantity, 0) <= reorder_threshold')
                 ->whereRaw('COALESCE(stock - reserved_quantity, 0) > 0')
                 ->where('reorder_threshold', '>', 0)

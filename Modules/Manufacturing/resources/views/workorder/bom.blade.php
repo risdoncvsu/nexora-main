@@ -8,7 +8,10 @@
     // makes it clear that BOM components are references to physical Inventory
     // items, not a separate Manufacturing-only product list.
     $allInventoryItems = \Modules\Inventory\Models\Item::with('category')
-        ->leftJoin('stock_levels as stock_levels', 'stock_levels.item_id', '=', 'items.id')
+        ->leftJoin('stock_levels as stock_levels', function ($join): void {
+            $join->on('stock_levels.item_id', '=', 'items.id')
+                ->on('stock_levels.client_id', '=', 'items.client_id');
+        })
         ->select([
             'items.id', 'items.sku', 'items.name', 'items.category_id',
             \Illuminate\Support\Facades\DB::raw('COALESCE(SUM(stock_levels.stock - COALESCE(stock_levels.reserved_quantity, 0)), 0) as available_quantity'),
@@ -25,7 +28,10 @@
     // Prebuilt as plain PHP so the JSON is emitted with {!! !!} — avoids Blade's
     // @json directive choking on the multi-line closure. Consumed by bom.js.
     $allInventoryItems = \Modules\Inventory\Models\Item::with('category')
-        ->leftJoin('stock_levels as stock_levels', 'stock_levels.item_id', '=', 'items.id')
+        ->leftJoin('stock_levels as stock_levels', function ($join): void {
+            $join->on('stock_levels.item_id', '=', 'items.id')
+                ->on('stock_levels.client_id', '=', 'items.client_id');
+        })
         ->select([
             'items.id', 'items.sku', 'items.name', 'items.category_id',
             \Illuminate\Support\Facades\DB::raw('COALESCE(SUM(stock_levels.stock - COALESCE(stock_levels.reserved_quantity, 0)), 0) as available_quantity'),
