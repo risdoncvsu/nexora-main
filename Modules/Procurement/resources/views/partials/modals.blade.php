@@ -16,7 +16,7 @@
         <button type="button" id="modal-header-delete-btn" class="modal-close" title="Delete" style="display:none;" onclick="if(document.getElementById('view-modal').__row) openDeleteModal(document.getElementById('view-modal').__row)">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
-        <button class="modal-close" onclick="closeViewModal()">âœ•</button>
+        <button class="modal-close" onclick="closeViewModal()">&times;</button>
       </div>
     </div>
     <div id="modal-body" style="padding:8px 0 0;"></div>
@@ -35,7 +35,7 @@
         <h3 id="edit-modal-title">Edit record</h3>
         <p style="font-size:12px;color:var(--muted);margin-top:3px;">Update the selected record.</p>
       </div>
-      <button class="modal-close" onclick="closeEditModal()">âœ•</button>
+      <button class="modal-close" onclick="closeEditModal()">&times;</button>
     </div>
     <form id="edit-record-form" onsubmit="saveEditRecord(event)">
       <div id="edit-modal-body"></div>
@@ -55,7 +55,7 @@
         <h3 id="delete-modal-title">Delete record</h3>
         <p style="font-size:12px;color:var(--muted);margin-top:3px;">Confirm deletion to continue.</p>
       </div>
-      <button class="modal-close" onclick="closeDeleteModal()">âœ•</button>
+      <button class="modal-close" onclick="closeDeleteModal()">&times;</button>
     </div>
     <div style="font-size:13px;line-height:1.6;">
       <p>Type <b>delete</b> to confirm removing <b id="delete-modal-target">this record</b>.</p>
@@ -77,7 +77,7 @@
   <div class="modal-box" style="width:520px;">
     <div class="modal-head">
       <h3 id="track-title">Shipment tracking</h3>
-      <button class="modal-close" onclick="closeTrackModal()">âœ•</button>
+      <button class="modal-close" onclick="closeTrackModal()">&times;</button>
     </div>
     <div id="track-body"></div>
     <div class="modal-actions">
@@ -99,7 +99,7 @@
         <h3>Create New Purchase Order</h3>
         <p style="font-size:12px;color:var(--muted);margin-top:3px;">Fill in the details to submit a new PO for approval.</p>
       </div>
-      <button class="modal-close" onclick="closeAddModal('po')">âœ•</button>
+      <button class="modal-close" onclick="closeAddModal('po')">&times;</button>
     </div>
    
     <form id="add-po-form" onsubmit="submitAddPO(event)">
@@ -133,7 +133,7 @@
         </div>
 
         <div class="form-field">
-          <label>Total Amount (â‚±)</label>
+          <label>Total Amount (₱)</label>
           <input type="number" name="amount" value="0.00" readonly>
         </div>
         <div class="form-field">
@@ -190,12 +190,12 @@
       <input type="number" class="po-item-qty" min="1" step="1" value="1" required>
     </div>
     <div class="form-field">
-      <label>Unit Price (â‚±)</label>
+      <label>Unit Price (₱)</label>
       <input type="number" class="po-item-price" min="0" step="0.01" placeholder="0.00" readonly>
     </div>
     <div class="form-field">
       <label>Amount</label>
-      <input type="text" class="po-item-amount" value="â‚±0.00" readonly>
+      <input type="text" class="po-item-amount" value="₱0.00" readonly>
     </div>
     <button type="button" class="po-item-remove" title="Remove item" onclick="removePoItemRow(this)">×</button>
   </div>
@@ -221,12 +221,12 @@
       <input type="number" class="po-item-qty" readonly>
     </div>
     <div class="form-field">
-      <label>Unit Price (â‚±)</label>
+      <label>Unit Price (₱)</label>
       <input type="number" class="po-item-price" readonly>
     </div>
     <div class="form-field">
       <label>Amount</label>
-      <input type="text" class="po-item-amount" value="â‚±0.00" readonly>
+      <input type="text" class="po-item-amount" value="₱0.00" readonly>
     </div>
   </div>
 </template>
@@ -256,12 +256,12 @@
       <input type="number" class="po-item-qty" readonly>
     </div>
     <div class="form-field">
-      <label>Unit Price (â‚±)</label>
+      <label>Unit Price (₱)</label>
       <input type="number" class="po-item-price" min="0" step="0.01" placeholder="0.00" readonly>
     </div>
     <div class="form-field">
       <label>Amount</label>
-      <input type="text" class="po-item-amount" value="â‚±0.00" readonly>
+      <input type="text" class="po-item-amount" value="₱0.00" readonly>
     </div>
   </div>
 </template>
@@ -274,7 +274,7 @@
         <h3>Add New Supplier</h3>
         <p style="font-size:12px;color:var(--muted);margin-top:3px;">Register a new supplier record.</p>
       </div>
-      <button class="modal-close" onclick="closeAddModal('supplier')">âœ•</button>
+      <button class="modal-close" onclick="closeAddModal('supplier')">&times;</button>
     </div>
     <form id="add-supplier-form" onsubmit="submitAddSupplier(event)">
       <div class="form-grid">
@@ -331,7 +331,7 @@
         <h3>Add Product</h3>
         <p style="font-size:12px;color:var(--muted);margin-top:3px;">Add a product SKU and supply price.</p>
       </div>
-      <button class="modal-close" onclick="closeSupplierProductModal()">âœ•</button>
+      <button class="modal-close" onclick="closeSupplierProductModal()">&times;</button>
     </div>
     <form id="add-supplier-product-form" onsubmit="submitSupplierProduct(event)">
       <div class="form-grid">
@@ -355,7 +355,7 @@
           <input name="productSku" readonly>
         </div>
         <div class="form-field">
-          <label>Supply price (â‚±) <span class="req">*</span></label>
+          <label>Supply price (₱) <span class="req">*</span></label>
           <input type="number" name="productPrice" min="0" step="0.01" placeholder="0.00" required>
         </div>
       </div>
@@ -375,7 +375,7 @@
         <h3>Log New Delivery</h3>
         <p style="font-size:12px;color:var(--muted);margin-top:3px;">Record an incoming shipment linked to a purchase order.</p>
       </div>
-      <button class="modal-close" onclick="closeAddModal('delivery')">âœ•</button>
+      <button class="modal-close" onclick="closeAddModal('delivery')">&times;</button>
     </div>
    
     <form id="add-delivery-form" onsubmit="submitAddDelivery(event)">
@@ -405,7 +405,7 @@
 
        <div class="form-field">
           <label>Total Amount</label>
-          <input type="text" name="amount" placeholder="â‚±0.00" readonly>
+          <input type="text" name="amount" placeholder="₱0.00" readonly>
         </div>
         </div>
       <div class="form-field full">
@@ -420,7 +420,7 @@
           <select name="warehouse_id" id="delivery-warehouse-select" required>
             <option value="">Select the receiving warehouse...</option>
             @foreach($warehouses ?? collect() as $warehouse)
-              <option value="{{ $warehouse->id }}">{{ $warehouse->name }}{{ $warehouse->address ? ' â€” '.$warehouse->address : '' }}</option>
+              <option value="{{ $warehouse->id }}">{{ $warehouse->name }}{{ $warehouse->address ? ' &mdash; '.$warehouse->address : '' }}</option>
             @endforeach
           </select>
       
@@ -446,7 +446,7 @@
         <h3>Cancel Purchase Order</h3>
         <p style="font-size:12px;color:var(--muted);margin-top:3px;">This action cannot be undone.</p>
       </div>
-      <button class="modal-close" onclick="closeCancelModal()">âœ•</button>
+      <button class="modal-close" onclick="closeCancelModal()">&times;</button>
     </div>
     <div style="padding:20px;text-align:center;">
       <p>Are you sure you want to cancel this Purchase Order?</p>
