@@ -3,6 +3,7 @@
 namespace Modules\OrderFulfillment\Http\Middleware;
 
 use App\Support\EmployeePermissionGate;
+use App\Services\ErpIntegrationService;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -31,6 +32,13 @@ class OrderFulfillmentAccess
         EmployeePermissionGate::abortUnlessAllowed(
             'You do not have permission to access this Order Fulfillment function.',
             $permission
+        );
+
+        // Make pre-client-scope storefront orders visible only to the client
+        // that owns their Ecommerce UUID. This is idempotent and leaves
+        // unrelated legacy Order Fulfillment data untouched.
+        app(ErpIntegrationService::class)->reconcileFulfillmentClientOwnership(
+            (int) session('employee_client_id')
         );
 
         return $next($request);

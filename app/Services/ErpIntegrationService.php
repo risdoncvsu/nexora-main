@@ -169,6 +169,59 @@ class ErpIntegrationService
     }
 
     /**
+     * Repair ownership for storefront orders created before Order Fulfillment
+     * gained client_id columns. We only touch fulfillment records whose UUID
+     * is already owned by this same client in Ecommerce; manually-created
+     * legacy orders remain unassigned rather than being exposed to a client.
+     */
+    public function reconcileFulfillmentClientOwnership(int $clientId): void
+    {
+        try {
+            $fulfillmentSchema = Schema::connection('order_fulfillment');
+            $ecommerceSchema = Schema::connection('ecommerce');
+
+            if (! $ecommerceSchema->hasTable('orders')
+                || ! $ecommerceSchema->hasColumn('orders', 'client_id')
+                || ! $fulfillmentSchema->hasTable('orders')
+                || ! $fulfillmentSchema->hasColumn('orders', 'client_id')) {
+                return;
+            }
+
+            $orderIds = DB::connection('ecommerce')->table('orders')
+                ->where('client_id', $clientId)
+                ->pluck('id')
+                ->filter()
+                ->values();
+
+            foreach ($orderIds->chunk(250) as $ids) {
+                $ids = $ids->all();
+                DB::connection('order_fulfillment')->table('orders')
+                    ->whereIn('id', $ids)
+                    ->whereNull('client_id')
+                    ->update(['client_id' => $clientId, 'updated_at' => now()]);
+
+                foreach (['order_items', 'shipments', 'returns'] as $table) {
+                    if (! $fulfillmentSchema->hasTable($table)
+                        || ! $fulfillmentSchema->hasColumn($table, 'client_id')
+                        || ! $fulfillmentSchema->hasColumn($table, 'order_id')) {
+                        continue;
+                    }
+
+                    DB::connection('order_fulfillment')->table($table)
+                        ->whereIn('order_id', $ids)
+                        ->whereNull('client_id')
+                        ->update(['client_id' => $clientId, 'updated_at' => now()]);
+                }
+            }
+        } catch (\Throwable $exception) {
+            \Log::warning('Unable to reconcile Order Fulfillment client ownership.', [
+                'client_id' => $clientId,
+                'exception' => $exception->getMessage(),
+            ]);
+        }
+    }
+
+    /**
      * A storefront order cannot be accepted when it cannot be packed.
      * This is a live Inventory read; packing still performs its own locked
      * decrement later to protect against concurrent shipments.
@@ -326,29 +379,47 @@ class ErpIntegrationService
     {
         $db = DB::connection('order_fulfillment');
         $this->requireTable('order_fulfillment', 'orders');
+        $schema = Schema::connection('order_fulfillment');
         $address = is_array($order->shipping_address) ? implode(', ', array_filter($order->shipping_address)) : null;
 
         // A retried checkout must not reset an order that Fulfillment has
-        // already moved into packing or shipping.
-        $db->table('orders')->insertOrIgnore([
-            'id' => $orderId,
-            'client_id' => $clientId,
-            'customer_name' => $customer ?: 'Customer',
-            'product_name' => $product ?: 'Storefront order',
-            'qty' => $quantity,
-            'product_amount' => $amount,
-            'status' => 'NEW',
-            'address' => $address,
-            'due_date' => now()->addDays(3)->toDateString(),
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        // already moved into packing or shipping. A legacy row with this
+        // storefront UUID is safe to claim for this client; a row owned by a
+        // different client is a data-integrity error, never a silent merge.
+        $existingOrder = $db->table('orders')->where('id', $orderId)->first();
+        if ($existingOrder) {
+            if (isset($existingOrder->client_id) && (int) $existingOrder->client_id !== $clientId) {
+                throw new RuntimeException('The matching Order Fulfillment record belongs to a different client.');
+            }
+            if (($existingOrder->client_id ?? null) === null && $schema->hasColumn('orders', 'client_id')) {
+                $db->table('orders')->where('id', $orderId)->update(['client_id' => $clientId, 'updated_at' => now()]);
+            }
+        } else {
+            $db->table('orders')->insert([
+                'id' => $orderId,
+                'client_id' => $clientId,
+                'customer_name' => $customer ?: 'Customer',
+                'product_name' => $product ?: 'Storefront order',
+                'qty' => $quantity,
+                'product_amount' => $amount,
+                'status' => 'NEW',
+                'address' => $address,
+                'due_date' => now()->addDays(3)->toDateString(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
 
-        if (! Schema::connection('order_fulfillment')->hasTable('order_items')) {
+        if (! $schema->hasTable('order_items')) {
             return;
         }
 
-        if ($db->table('order_items')->where('client_id', $clientId)->where('order_id', $orderId)->exists()) {
+        if ($schema->hasColumn('order_items', 'client_id')) {
+            $db->table('order_items')->where('order_id', $orderId)->whereNull('client_id')
+                ->update(['client_id' => $clientId, 'updated_at' => now()]);
+        }
+
+        if ($db->table('order_items')->where('order_id', $orderId)->exists()) {
             return;
         }
 
