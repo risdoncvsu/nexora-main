@@ -48,6 +48,24 @@ if (searchInput && searchDropdown) {
         if (html) cachedLiveHtml = html;
     });
 
+    function showSearchDropdown() {
+        searchDropdown.classList.remove('opacity-0', 'pointer-events-none', '-translate-y-2');
+        searchDropdown.classList.add('opacity-100', 'pointer-events-auto', 'translate-y-0');
+        if (searchOverlay) {
+            searchOverlay.classList.remove('opacity-0', 'pointer-events-none');
+            searchOverlay.classList.add('opacity-100', 'pointer-events-auto');
+        }
+    }
+
+    function hideSearchDropdown() {
+        searchDropdown.classList.remove('opacity-100', 'pointer-events-auto', 'translate-y-0');
+        searchDropdown.classList.add('opacity-0', 'pointer-events-none', '-translate-y-2');
+        if (searchOverlay) {
+            searchOverlay.classList.remove('opacity-100', 'pointer-events-auto');
+            searchOverlay.classList.add('opacity-0', 'pointer-events-none');
+        }
+    }
+
     searchInput.addEventListener('focus', function() {
         if (window.lenis) window.lenis.stop();
 
@@ -56,35 +74,58 @@ if (searchInput && searchDropdown) {
             cartDropdown.classList.add('opacity-0', 'pointer-events-none', '-translate-y-2');
         }
 
-        // Show search dropdown when focused, even if empty
-        searchDropdown.classList.remove('opacity-0', 'pointer-events-none', '-translate-y-2');
-        searchDropdown.classList.add('opacity-100', 'pointer-events-auto', 'translate-y-0');
+        showSearchDropdown();
 
         if (searchInput.value.trim().length === 0) {
             searchDropdown.innerHTML = getDefaultHtml();
         }
-
-        if (searchOverlay) {
-            searchOverlay.classList.remove('opacity-0', 'pointer-events-none');
-            searchOverlay.classList.add('opacity-100', 'pointer-events-auto');
-        }
     });
 
-    var debounceTimer;
-    searchInput.addEventListener('input', function() {
-        var query = searchInput.value.toLowerCase().trim();
+    // Keep dropdown visible as long as focus stays inside the search container
+    // (input, clear button, dropdown links — anything inside the form)
+    searchContainer.addEventListener('focusout', function(e) {
+        // Give the browser time to move focus to the next element
+        setTimeout(function() {
+            if (!searchContainer.contains(document.activeElement)) {
+                hideSearchDropdown();
+                if (window.lenis) window.lenis.start();
+            }
+        }, 200);
+    });
 
-        if (query.length > 0) {
+    // Also hide when the user clicks the search overlay
+    if (searchOverlay) {
+        searchOverlay.addEventListener('click', function() {
+            hideSearchDropdown();
+            searchInput.blur();
+            if (window.lenis) window.lenis.start();
+        });
+    }
+
+    var lastQuery = '';
+    searchInput.addEventListener('input', function() {
+        var rawQuery = searchInput.value;
+        var trimmed = rawQuery.trim();
+
+        if (trimmed.length > 0) {
             searchClear.classList.remove('opacity-0', 'pointer-events-none');
             searchClear.classList.add('opacity-100', 'pointer-events-auto');
 
+            // Show "Searching..." immediately on keystroke
+            searchDropdown.innerHTML = '<div class="px-5 py-6 flex flex-col items-center justify-center text-gray-500 gap-2"><i class="ph ph-spinner-gap text-2xl animate-spin"></i><span class="text-sm font-medium">Searching<span class="animate-pulse">...</span></span></div>';
+
             clearTimeout(debounceTimer);
+            lastQuery = rawQuery;
             debounceTimer = setTimeout(function() {
-                fetch('/api/search/suggestions?q=' + encodeURIComponent(query))
+                var searchTerm = rawQuery.trim();
+                fetch('/api/search/suggestions?q=' + encodeURIComponent(searchTerm))
                     .then(function(r) { return r.ok ? r.json() : []; })
                     .then(function(results) {
+                        // Stale-response guard: only apply if the query hasn't changed
+                        if (searchInput.value !== rawQuery) return;
+
                         if (results.length > 0) {
-                            var html = '<ul class="text-sm text-gray-300 flex flex-col">';
+                            var html = '<div class="px-5 mb-2"><span class="text-xs font-bold text-gray-500 uppercase tracking-widest">Search Results</span></div><ul class="text-sm text-gray-300 flex flex-col">';
                             results.forEach(function(item) {
                                 html += '<li><a href="/search?q=' + encodeURIComponent(item.name)
                                     + '" class="flex items-center justify-between px-4 py-2 hover:bg-white/5 transition-colors group">'
@@ -100,11 +141,12 @@ if (searchInput && searchDropdown) {
                             html += '</ul>';
                             searchDropdown.innerHTML = html;
                         } else {
-                            searchDropdown.innerHTML = '<ul class="text-sm text-gray-300 flex flex-col"><li class="px-4 py-4 text-gray-500 text-sm text-center">No products found for "' + query + '"</li></ul>';
+                            searchDropdown.innerHTML = '<div class="px-5 py-6 flex flex-col items-center justify-center text-gray-500 gap-2"><i class="ph ph-magnifying-glass text-3xl opacity-40"></i><span class="text-sm font-medium">No results found for</span><span class="text-xs text-gray-600">"' + escapeHtml(searchTerm) + '"</span></div>';
                         }
                     })
                     .catch(function() {
-                        console.error('Error fetching search suggestions');
+                        if (searchInput.value !== rawQuery) return;
+                        searchDropdown.innerHTML = '<div class="px-5 py-6 flex flex-col items-center justify-center text-gray-500 gap-2"><i class="ph ph-warning-circle text-3xl opacity-40"></i><span class="text-sm font-medium">Something went wrong</span><span class="text-xs text-gray-600">Please try again.</span></div>';
                     });
             }, 300);
 
@@ -125,20 +167,6 @@ if (searchInput && searchDropdown) {
             searchInput.focus();
         });
     }
-
-    document.addEventListener('click', function(e) {
-        if (!searchContainer.contains(e.target)) {
-            searchDropdown.classList.remove('opacity-100', 'pointer-events-auto', 'translate-y-0');
-            searchDropdown.classList.add('opacity-0', 'pointer-events-none', '-translate-y-2');
-
-            if (searchOverlay) {
-                searchOverlay.classList.remove('opacity-100', 'pointer-events-auto');
-                searchOverlay.classList.add('opacity-0', 'pointer-events-none');
-            }
-
-            if (window.lenis) window.lenis.start();
-        }
-    });
 }
 
 // Helper
