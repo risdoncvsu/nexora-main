@@ -1,5 +1,12 @@
 <header style="background:linear-gradient(180deg,#10264a 0%,#0b1e3d 100%);height:70px;display:flex;align-items:center;justify-content:space-between;padding:0 28px;position:sticky;top:0;z-index:10;box-shadow:0 4px 18px rgba(0,0,0,0.35);border-bottom:1px solid rgba(255,255,255,0.06);">
-    <div style="display:flex;align-items:center;flex-shrink:0;">
+    <div style="display:flex;align-items:center;gap:16px;flex-shrink:0;">
+        <button type="button" onclick="toggleNav()" style="cursor:pointer;background:none;border:none;padding:6px;color:#9bb0d1;display:flex;align-items:center;justify-content:center;border-radius:6px;transition:all 0.15s ease;" onmouseover="this.style.color='#ffffff';this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.color='#9bb0d1';this.style.background='none'" aria-label="Toggle navigation">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="3" y1="6" x2="21" y2="6"/>
+                <line x1="3" y1="12" x2="21" y2="12"/>
+                <line x1="3" y1="18" x2="21" y2="18"/>
+            </svg>
+        </button>
         <button type="button" onclick="toggleNav()" style="cursor:pointer;background:none;border:none;padding:0;"><img src="{{ asset('images/nexora-banner.png') }}" alt="Nexora logo" style="height:55px; width:auto;"></button>
     </div>
     <nav style="display:flex;align-items:center;gap:16px;margin-left:auto;">
