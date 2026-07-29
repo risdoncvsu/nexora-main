@@ -42,6 +42,16 @@ class InstallFinanceSchema extends Command
             $this->line("Added nexora_client_id to {$table}.");
         }
 
+        // Storefront orders use UUIDs and need a durable Finance link. Older
+        // Finance databases predate ecommerce integration, so add the link
+        // without rebuilding or deleting the existing invoice table.
+        if ($schema->hasTable('invoice') && ! $schema->hasColumn('invoice', 'order_id')) {
+            $schema->table('invoice', function (Blueprint $table): void {
+                $table->uuid('order_id')->nullable()->index();
+            });
+            $this->line('Added order_id to invoice.');
+        }
+
         $this->info('Finance schema is ready and client-scoped.');
         return self::SUCCESS;
     }

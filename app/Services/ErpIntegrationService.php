@@ -414,6 +414,21 @@ class ErpIntegrationService
     {
         $db = DB::connection('finance');
         $this->requireTable('finance', 'invoice');
+        $columns = $this->columns['finance.invoice'] ??= Schema::connection('finance')->getColumnListing('invoice');
+        if (! in_array('nexora_client_id', $columns, true) || ! in_array('order_id', $columns, true)) {
+            throw new RuntimeException('The Finance invoice schema is missing the client or storefront order reference columns.');
+        }
+
+        // Checkout retries are expected; use the client + ecommerce order as
+        // the durable idempotency key even if a legacy database lacks a unique
+        // constraint for it.
+        if ($db->table('invoice')
+            ->where('nexora_client_id', $clientId)
+            ->where('order_id', $orderId)
+            ->exists()) {
+            return;
+        }
+
         $paid = strtolower($paymentStatus) === 'paid';
         $invoice = [
             'issue_date' => now()->toDateString(),
@@ -433,13 +448,14 @@ class ErpIntegrationService
             'updated_at' => now(),
         ];
 
-        // Finance owns payment state. A checkout retry must never turn a
-        // paid or reconciled invoice back into its original pending state.
-        $db->table('invoice')->insertOrIgnore([
+        // Insert only columns available in the deployed Finance schema. This
+        // keeps storefront orders compatible with both legacy and current
+        // Finance databases while preserving the order/client linkage.
+        $db->table('invoice')->insert(array_intersect_key([
             'nexora_client_id' => $clientId,
             'order_id' => $orderId,
             ...$invoice,
-        ]);
+        ], array_flip($columns)));
     }
 
     private function writeBiSnapshot(int $clientId): void

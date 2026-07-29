@@ -95,7 +95,7 @@ class BusinessIntelligenceController
         $this->cachePut($clientId, 'top_products', $this->computeTopProducts($clientId));
         $this->cachePut($clientId, 'op_efficiency', $this->computeOperationalEfficiency($clientId, $metrics));
 
-        foreach (['finance', 'inventory', 'procurement', 'manufacturing', 'fulfillment', 'ecommerce'] as $department) {
+        foreach (['finance', 'inventory', 'procurement', 'manufacturing', 'fulfillment', 'ecommerce', 'hr', 'itsm'] as $department) {
             $this->cachePut($clientId, 'dept_' . $department, $this->computeDepartmentSummary($department, $clientId));
         }
 
@@ -584,6 +584,20 @@ class BusinessIntelligenceController
                 'chart1' => ['type' => 'doughnut', 'label' => 'Order status', 'data' => $this->statusBreakdown('order_fulfillment', 'orders', $clientId)],
                 'chart2' => ['type' => 'bar', 'label' => 'Carrier performance', 'data' => $this->carrierPerformanceChart($clientId)],
                 'details' => ['carriers' => $this->carrierPerformance($clientId)],
+            ],
+            'hr' => [
+                'title' => 'Human Resources',
+                'stats' => [['label' => 'Employees', 'value' => $this->count('hr', 'employees', $clientId)]],
+                'chart1' => ['type' => 'bar', 'label' => 'Employee records', 'data' => [['label' => 'Employees', 'value' => $this->count('hr', 'employees', $clientId)]]],
+                'chart2' => ['type' => 'bar', 'label' => 'Workforce activity', 'data' => []],
+                'details' => [],
+            ],
+            'itsm' => [
+                'title' => 'IT Service Management',
+                'stats' => [['label' => 'Support tickets', 'value' => $this->firstCount('pgsql', ['tickets', 'itsm_tickets'], $clientId)]],
+                'chart1' => ['type' => 'doughnut', 'label' => 'Ticket status', 'data' => $this->statusBreakdown('pgsql', 'tickets', $clientId)],
+                'chart2' => ['type' => 'bar', 'label' => 'Support tickets', 'data' => [['label' => 'Tickets', 'value' => $this->firstCount('pgsql', ['tickets', 'itsm_tickets'], $clientId)]]],
+                'details' => [],
             ],
             default => [
                 'title' => 'E-commerce & CRM',

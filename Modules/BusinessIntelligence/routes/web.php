@@ -14,7 +14,7 @@ Route::middleware('bi.access')->name('bi.')->group(function (): void {
 
     Route::get('/api/live-feed', [BusinessIntelligenceController::class, 'liveFeed'])->name('live-feed');
     Route::get('/api/department/{department}', [BusinessIntelligenceController::class, 'departmentData'])
-        ->whereIn('department', ['finance', 'inventory', 'procurement', 'manufacturing', 'fulfillment', 'ecommerce'])
+        ->whereIn('department', ['finance', 'inventory', 'procurement', 'manufacturing', 'fulfillment', 'ecommerce', 'hr', 'itsm'])
         ->name('department-data');
     Route::get('/api/sales-forecast', [BusinessIntelligenceController::class, 'salesForecast'])->name('sales-forecast');
 });

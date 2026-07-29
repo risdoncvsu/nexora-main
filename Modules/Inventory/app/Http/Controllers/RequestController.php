@@ -5,6 +5,8 @@ namespace Modules\Inventory\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 class RequestController extends Controller
 {
@@ -56,11 +58,15 @@ class RequestController extends Controller
         $rows = [];
         $names = [];
         $year = now()->format('Y');
+        $clientId = (int) session('employee_client_id');
         $reqSeq = DB::connection('inventory')->table('requisitions')
-            ->where('client_id', (int) session('employee_client_id'))
+            ->where('client_id', $clientId)
             ->whereYear('created_at', $year)
             ->count() + 1;
-        $batchId = 'BATCH-' . $year . '-' . str_pad((string) $reqSeq, 4, '0', STR_PAD_LEFT);
+        // req_id is globally unique in the Inventory database. Including the
+        // client prevents one company’s first request from colliding with
+        // another company’s first request in the same year.
+        $batchId = 'BATCH-' . $clientId . '-' . $year . '-' . str_pad((string) $reqSeq, 4, '0', STR_PAD_LEFT);
 
         foreach ($validated['items'] as $i => $item) {
             $priority = 'Low';
@@ -82,7 +88,7 @@ class RequestController extends Controller
                 $item['part_name'] = $defect->part_name;
             }
 
-            $reqId = 'REQ-' . $year . '-' . str_pad((string) ($reqSeq + $i), 4, '0', STR_PAD_LEFT);
+            $reqId = 'REQ-' . $clientId . '-' . $year . '-' . str_pad((string) ($reqSeq + $i), 4, '0', STR_PAD_LEFT);
 
             $structuredNotes = $item['notes'] ?? '';
             $structuredNotes = '[batch:' . $batchId . '] ' . $structuredNotes;
@@ -93,7 +99,7 @@ class RequestController extends Controller
             }
 
             $rows[] = [
-                'client_id' => session('employee_client_id', 0),
+                'client_id' => $clientId,
                 'req_id' => $reqId,
                 'part_name' => $item['part_name'],
                 'quantity' => $item['quantity'],
@@ -111,11 +117,29 @@ class RequestController extends Controller
         }
 
         try {
-            DB::connection('inventory')->table('requisitions')->insert($rows);
+            $connection = DB::connection('inventory');
+            $schema = Schema::connection('inventory');
+            if (! $schema->hasTable('requisitions')) {
+                throw new \RuntimeException('The Inventory requisitions table is not installed.');
+            }
+
+            // Older Inventory databases may not yet have optional workflow
+            // columns (type/priority). Insert only available fields so a
+            // request still reaches Procurement instead of failing silently.
+            $availableColumns = array_flip($schema->getColumnListing('requisitions'));
+            $connection->table('requisitions')->insert(array_map(
+                fn (array $row): array => array_intersect_key($row, $availableColumns),
+                $rows
+            ));
         } catch (\Exception $e) {
+            Log::error('Inventory requisition submission failed.', [
+                'client_id' => $clientId,
+                'exception' => $e->getMessage(),
+            ]);
+
             return back()
                 ->withInput()
-                ->withErrors(['submit' => 'Failed to submit request. The procurement system is currently unavailable. Please try again later.']);
+                ->withErrors(['submit' => 'Unable to save the Inventory request. Please try again or contact your system administrator.']);
         }
 
         $count = count($rows);

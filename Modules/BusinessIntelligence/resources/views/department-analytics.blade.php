@@ -15,6 +15,8 @@
                     <option value="manufacturing">Manufacturing</option>
                     <option value="fulfillment">Order Fulfillment</option>
                     <option value="ecommerce">E-Commerce &amp; CRM</option>
+                    <option value="hr">Human Resources</option>
+                    <option value="itsm">IT Service Management</option>
                 </select>
             </div>
         </div>
@@ -57,6 +59,8 @@
             manufacturing: 'Work order status and production throughput.',
             fulfillment: 'Delivery performance, tracking, and shipping status.',
             ecommerce: 'Catalog value, product availability, and storefront activity.',
+            hr: 'Employee records and workforce activity for this client.',
+            itsm: 'Client support tickets and service-management activity.',
         };
 
         const moneyLabel = /revenue|expense|value|overdue|invoiced|profit|amount|sales|paid/i;

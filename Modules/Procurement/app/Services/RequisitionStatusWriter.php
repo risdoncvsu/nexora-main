@@ -24,6 +24,7 @@ class RequisitionStatusWriter
     public const APPROVED = 'Approved';
     public const REJECTED = 'Rejected';
     public const PROCESSING = 'Processing';
+    public const DELIVERED = 'Delivered';
     public const COMPLETED = 'Completed';
 
     /** Requisition sources, in lookup order. */
@@ -32,8 +33,12 @@ class RequisitionStatusWriter
     /** Allowed target statuses, keyed by the lowercased current status. */
     private const TRANSITIONS = [
         'pending' => [self::APPROVED, self::REJECTED],
-        'approved' => [self::PROCESSING],
-        'processing' => [self::COMPLETED],
+        // Delivery records may be imported after a shipment has already
+        // reached its destination, so Approved may legitimately advance over
+        // Processing during reconciliation.
+        'approved' => [self::PROCESSING, self::DELIVERED, self::COMPLETED],
+        'processing' => [self::DELIVERED, self::COMPLETED],
+        'delivered' => [self::COMPLETED],
         'rejected' => [],
         'completed' => [],
     ];
@@ -42,7 +47,7 @@ class RequisitionStatusWriter
     public static function isKnownStatus(string $status): bool
     {
         return in_array($status, [
-            self::PENDING, self::APPROVED, self::REJECTED, self::PROCESSING, self::COMPLETED,
+            self::PENDING, self::APPROVED, self::REJECTED, self::PROCESSING, self::DELIVERED, self::COMPLETED,
         ], true);
     }
 

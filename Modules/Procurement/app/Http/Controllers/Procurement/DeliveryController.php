@@ -201,6 +201,13 @@ class DeliveryController extends Controller
             // Requisitions page renders (see RequisitionController@index), so it
             // does not need to be written here.
             $purchaseOrder->update(['status' => 'processing']);
+
+            if (! empty($purchaseOrder->requisition_reference)) {
+                (new RequisitionStatusWriter)->transitionByReference(
+                    $purchaseOrder->requisition_reference,
+                    RequisitionStatusWriter::PROCESSING
+                );
+            }
         }
 
         return response()->json([
@@ -294,14 +301,20 @@ class DeliveryController extends Controller
             $purchaseOrder->update(['status' => $poStatusFromDelivery[$status]]);
         }
 
-        // Completing the shipment completes the requisition behind the PO
-        // (Processing -> Completed). Best-effort: a source without a status
-        // column simply reports not-ok and is ignored.
+        // Persist shipment progress to the originating Inventory requisition.
+        // The Requisitions screen reads this source as authoritative, so only
+        // updating the PO leaves its visible status stale after delivery.
         $requisitionStatus = null;
-        if ($purchaseOrder && $status === 'completed' && ! empty($purchaseOrder->requisition_reference)) {
+        $requisitionTarget = match ($status) {
+            'intransit', 'delayed' => RequisitionStatusWriter::PROCESSING,
+            'delivered' => RequisitionStatusWriter::DELIVERED,
+            'completed' => RequisitionStatusWriter::COMPLETED,
+            default => null,
+        };
+        if ($purchaseOrder && $requisitionTarget && ! empty($purchaseOrder->requisition_reference)) {
             $transition = (new RequisitionStatusWriter)->transitionByReference(
                 $purchaseOrder->requisition_reference,
-                RequisitionStatusWriter::COMPLETED
+                $requisitionTarget
             );
             $requisitionStatus = $transition['ok'] ? $transition['status'] : null;
         }
