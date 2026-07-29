@@ -148,12 +148,6 @@
 
                             
 
-                            @if ($portal === 'admin' && $active !== 'pending-approvals')
-                                <button type="button" id="editSelectedButton" disabled class="rounded-full bg-slate-500 px-6 py-3 text-xl font-semibold text-white opacity-50 transition enabled:bg-[#0B1E3D] enabled:opacity-100 enabled:hover:bg-[#132B52]">
-                                    Edit selected
-                                </button>
-                            @endif
-
                             @if ($portal === 'admin')
                                 <button type="button" id="deleteSelectedButton" disabled class="rounded-full bg-red-500 px-6 py-3 text-xl font-semibold text-white opacity-50 transition enabled:opacity-100 enabled:hover:bg-red-600">
                                     Delete selected
@@ -214,7 +208,7 @@
                                             <th class="sortable cursor-pointer whitespace-nowrap px-2 py-4">ERP Role</th>
                                         @endif
                                         <th class="sortable cursor-pointer whitespace-nowrap px-2 py-4">Status</th>
-                                        <th class="px-2 py-4 text-center">{{ $portal === 'client' || $active === 'pending-approvals' ? 'Action' : '' }}</th>
+                                        <th class="px-2 py-4 text-center">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -259,7 +253,12 @@
                                                         <span aria-hidden="true">&#9998;</span> Edit
                                                     </button>
                                                 @else
-                                                    <input type="checkbox" class="row-checkbox h-5 w-5 accent-[#346DCB]">
+                                                    <div class="inline-flex items-center justify-center gap-3">
+                                                        <button type="button" class="edit-employee-button inline-flex items-center gap-2 rounded-md bg-[#132B52] px-4 py-2 font-semibold text-white hover:bg-[#2554a3]" aria-label="Edit {{ $user->company_name ?? 'client' }}">
+                                                            <span aria-hidden="true">&#9998;</span> Edit
+                                                        </button>
+                                                        <input type="checkbox" class="row-checkbox h-5 w-5 accent-[#346DCB]" aria-label="Select {{ $user->company_name ?? 'client' }} for deletion">
+                                                    </div>
                                                 @endif
                                             </td>
                                         </tr>
@@ -459,7 +458,6 @@
         const selectAllCheckbox = document.getElementById('selectAllCheckbox');
         const searchInput = document.getElementById('tableSearch');
         const tableBody = document.querySelector('#usersTable tbody');
-        const editSelectedButton = document.getElementById('editSelectedButton');
         const deleteSelectedButton = document.getElementById('deleteSelectedButton');
         const editModal = document.getElementById('editModal');
         const editForm = document.getElementById('editForm');
@@ -473,10 +471,8 @@
             .filter((checkbox) => checkbox.checked)
             .map((checkbox) => checkbox.closest('tr'));
 
-        function updateEditButtonState() {
-            if (!editSelectedButton) return;
+        function updateSelectionButtonState() {
             const hasOneSelected = checkedRows().length === 1;
-            editSelectedButton.disabled = !hasOneSelected;
             if (deleteSelectedButton) deleteSelectedButton.disabled = !hasOneSelected;
         }
 
@@ -610,7 +606,7 @@
                 Array.from(getRowCheckboxes())
                     .filter((checkbox) => !checkbox.closest('tr').classList.contains('hidden'))
                     .forEach((checkbox) => checkbox.checked = this.checked);
-                updateEditButtonState();
+                updateSelectionButtonState();
             });
         }
 
@@ -621,13 +617,8 @@
                         if (other !== checkbox) other.checked = false;
                     });
                 }
-                updateEditButtonState();
+                updateSelectionButtonState();
             });
-        });
-
-        editSelectedButton?.addEventListener('click', () => {
-            const row = checkedRows()[0];
-            if (row) openEditModal(row);
         });
 
         document.querySelectorAll('.edit-employee-button').forEach((button) => {
@@ -678,7 +669,7 @@
                     row.classList.toggle('hidden', !rowText.includes(query));
                 });
 
-                updateEditButtonState();
+                updateSelectionButtonState();
             });
         }
 
