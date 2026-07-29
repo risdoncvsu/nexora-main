@@ -35,6 +35,11 @@
 
 <body class="m-0 p-0 bg-[#18386d] text-white">
 
+@php
+    // Employee records live in HR, while company branding lives in ITSM.
+    $idCardLogoUrl = \App\Models\Company::find((int) $employee->client_id)?->logoUrl();
+@endphp
+
     <!-- =====================================================
          TOP NAVBAR
     ====================================================== -->
@@ -69,7 +74,7 @@
                          alt="">
 
                     <div class="relative z-[5] flex justify-center pt-[5px]">
-                        <img src="{{ asset('images/logo.png') }}" class="w-[268px] pb-[2px]" alt="Nexora Logo">
+                        <img src="{{ $idCardLogoUrl ?: asset('images/logo.png') }}" class="w-[268px] h-[86px] pb-[2px] object-contain" alt="Company Logo">
                     </div>
 
                     <div class="relative z-[5] w-[120px] h-[120px] mx-auto -mt-[5px] mb-[18px] rounded-full overflow-hidden border-[10px] border-[#0B1E3D] shadow-[0_10px_25px_rgba(0,0,0,.35)]">

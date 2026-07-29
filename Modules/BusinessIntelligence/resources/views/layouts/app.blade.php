@@ -57,6 +57,7 @@
         <a href="{{ route('bi.dashboard') }}" class="nexora-logo" id="headerLogoBtn">
             <img src="{{ asset('bi/images/Banner Transparent.png') }}" alt="Nexora Logo">
         </a>
+        <x-client-logo :size="64" />
         <div class="header-right">
             <div class="header-profile-wrap" id="headerNotificationWrap">
                 <button type="button" class="header-profile-btn" id="headerNotificationBtn" aria-label="Open notifications" aria-expanded="false">
@@ -81,6 +82,7 @@
                 <div class="profile-dropdown" id="profileDropdown">
                     <p class="profile-dropdown-name">{{ session('employee_name', 'Employee') }}</p>
                     <p class="profile-dropdown-role">{{ session('employee_department', 'Nexora ERP') }}</p>
+                    <a href="{{ route('employee.portal') }}" class="profile-logout-button" style="display:block;text-decoration:none;color:inherit;">Employee Portal</a>
                     {{-- Several legacy modules reuse the "logout" route name. Resolve
                          the shared controller action instead of that ambiguous name. --}}
                     <form method="POST" action="{{ action([\App\Http\Controllers\AuthController::class, 'logout']) }}">

@@ -7,7 +7,9 @@
     $benefits = $sections->get('benefits', []);
     $store = $company->ecommerce_slug;
     $storefrontUrl = route('ecommerce.home', ['store' => $store]);
-    $logoUrl = !empty($layout['logo_path']) ? (str_starts_with($layout['logo_path'], 'Modules/') ? Vite::asset($layout['logo_path']) : asset('storage/'.$layout['logo_path'])) : ($company->logoUrl() ?: asset('ecommerce/Nexora_Logo.png'));
+    // The public storefront uses the client logo uploaded through ITSM.
+    $itsmCompany = \App\Models\Company::find($company->id);
+    $logoUrl = $itsmCompany?->logoUrl() ?: asset('ecommerce/Nexora_Logo.png');
 
     $storefrontCompany = request()->attributes->get('ecommerce_company');
     $storefrontName = $storefrontCompany?->company_name ?: ($layout['brand_name'] ?? 'Nexora Store');

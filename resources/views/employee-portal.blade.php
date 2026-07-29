@@ -10,16 +10,25 @@
 <body class="min-h-screen bg-[#f4f7fb] font-sans text-slate-950">
     <header class="border-b border-white/10 bg-[#132B52] text-white shadow-lg">
         <div class="mx-auto flex max-w-7xl items-center justify-between gap-5 px-6 py-4">
-            <a href="{{ route('employee.portal') }}" class="flex items-center gap-3 no-underline">
-                <img src="{{ asset('images/nexora-icon.ico') }}" alt="Nexora" class="h-10 w-10 rounded-lg bg-white/10 object-contain p-1">
-                <div>
-                    <p class="text-lg font-bold tracking-wide">NEXORA</p>
-                    <p class="text-xs text-blue-200">Employee Portal</p>
+            <div class="flex items-center gap-3">
+                <a href="{{ route('employee.portal') }}" class="flex items-center gap-3 no-underline">
+                    <img src="{{ asset('images/nexora-icon.ico') }}" alt="Nexora" class="h-10 w-10 rounded-lg bg-white/10 object-contain p-1">
+                    <div>
+                        <p class="text-lg font-bold tracking-wide">NEXORA</p>
+                        <p class="text-xs text-blue-200">Employee Portal</p>
+                    </div>
+                </a>
+                <x-client-logo :size="40" />
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="text-right">
+                    <p class="text-sm font-semibold">{{ session('employee_name', 'Employee') }}</p>
+                    <p class="text-xs text-blue-200">{{ $company?->company_name ?? 'Your organization' }}</p>
                 </div>
-            </a>
-            <div class="text-right">
-                <p class="text-sm font-semibold">{{ session('employee_name', 'Employee') }}</p>
-                <p class="text-xs text-blue-200">{{ $company?->company_name ?? 'Your organization' }}</p>
+                <form method="POST" action="{{ route('logout') }}">
+                    @csrf
+                    <button type="submit" class="rounded-lg border border-white/25 px-3 py-2 text-xs font-bold text-white transition hover:bg-white/10">Log out</button>
+                </form>
             </div>
         </div>
     </header>

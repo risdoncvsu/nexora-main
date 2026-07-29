@@ -16,7 +16,10 @@
 
     <header class="w-full h-[150px] bg-[#1B3A6B] flex items-center justify-between pl-[1px] pr-[5px] border-b border-white/5 shadow-[0_1px_0_rgba(255,255,255,.03)_inset] sticky top-0 z-[1000]">
         <div class="flex items-center gap-3">
-            <img src="{{ asset('images/logo.png') }}" class="h-[86px] w-auto object-contain block" alt="Header Logo">
+            <a href="{{ route('hr.employee.dashboard') }}" class="block" aria-label="HR dashboard">
+                <img src="{{ asset('images/logo.png') }}" class="h-[86px] w-auto object-contain block" alt="Header Logo">
+            </a>
+            <x-client-logo :size="64" />
         </div>
 
         <div class="flex items-center gap-7">
@@ -76,8 +79,8 @@
             </nav>
 
             <div class="relative group mr-[15px]">
-                <div class="w-11 h-11 rounded-full grid place-items-center bg-white/[.06] shadow-[inset_0_0_0_1px_rgba(255,255,255,.06)] cursor-pointer" aria-label="Profile">
-                    <svg class="w-10 h-10" viewBox="0 0 36 36" fill="none">
+                <div class="w-9 h-9 rounded-full grid place-items-center bg-white/[.06] shadow-[inset_0_0_0_1px_rgba(255,255,255,.06)] cursor-pointer" aria-label="Profile">
+                    <svg class="w-9 h-9" viewBox="0 0 36 36" fill="none">
                         <circle cx="18" cy="18" r="17" fill="white" opacity=".97"/>
                         <circle cx="18" cy="13" r="5.2" fill="#223B63"/>
                         <path d="M8.8 28.3C10.7 23.8 14.1 21.7 18 21.7C21.9 21.7 25.3 23.8 27.2 28.3" fill="#223B63"/>
@@ -85,7 +88,8 @@
                 </div>
 
                 <div class="absolute top-[120%] right-0 left-auto translate-y-2.5 w-[200px] bg-[#132B52] rounded-2xl shadow-[0_20px_45px_rgba(0,0,0,.25),inset_0_1px_0_rgba(21,21,21,.7)] p-2 opacity-0 invisible transition-all duration-300 z-[999] group-hover:opacity-100 group-hover:visible group-hover:translate-y-0">
-                <a href="{{ route('hr.dashboard') }}"
+                <x-dark-mode-toggle />
+                <a href="{{ route('employee.portal') }}"
    class="flex items-center gap-2 no-underline text-[#C9DAF8] py-2.5 px-3 rounded-[10px] text-[13px] font-semibold transition-all duration-200 hover:bg-[#f3f6fb] hover:text-[#2D7EFF]">
 
     <svg class="w-[15px] h-[15px]" viewBox="0 0 24 24" fill="none">
@@ -96,7 +100,7 @@
               stroke-linejoin="round"/>
     </svg>
 
-    Back to Dashboard
+    Employee Portal
 </a>
                     <form method="POST" action="{{ route('hr.logout') }}">
                         @csrf
@@ -114,4 +118,3 @@
             </div>
         </div>
     </header>
-

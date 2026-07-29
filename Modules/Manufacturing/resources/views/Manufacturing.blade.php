@@ -85,7 +85,10 @@
     <header class="w-full bg-nexora-deep-navy dark:bg-[#0B141F] shadow-md shadow-nexora-deep-navy flex items-center px-6 py-3 flex-shrink-0">
         {{-- Logo --}}
         <div class="flex items-center gap-1">
-            <img src="{{ asset('manufacturing/images/Banner Transparent.png') }}" alt="Application Logo" class="w-56">
+            <a href="{{ route('manufacturing.dashboard') }}" class="block" aria-label="Manufacturing dashboard">
+                <img src="{{ asset('manufacturing/images/Banner Transparent.png') }}" alt="Application Logo" class="w-56">
+            </a>
+            <x-client-logo :size="52" />
         </div>
 
         {{-- Nav Links --}}

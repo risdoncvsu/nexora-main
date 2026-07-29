@@ -58,8 +58,8 @@
             filter: drop-shadow(0 8px 20px rgba(0,0,0,.25));
         }
         .profile-trigger{
-            width:42px;
-            height:42px;
+            width:36px;
+            height:36px;
             margin-right:40px;
             border:1px solid rgba(255,255,255,.24);
             border-radius:50%;
@@ -293,9 +293,10 @@
 
         <!-- Top Navigation -->
         <header class="header">
-            <a href="" class="nexora-logo" id="headerLogoBtn">
+            <a href="{{ route('finance.dashboard') }}" class="nexora-logo" id="headerLogoBtn">
                 <img src="{{ asset('finance/images/Banner Transparent.png') }}" alt="Nexora Logo">
             </a>
+            <x-client-logo :size="64" />
 
         <button type="button" class="profile-trigger" id="profileTrigger" aria-label="Open profile menu" aria-expanded="false">
             <x-heroicon-s-user-circle />
@@ -305,6 +306,8 @@
             <div class="profile-dropdown-email">{{ session('employee_email', 'Employee') }}</div>
             <div class="profile-dropdown-avatar"><x-heroicon-s-user-circle /></div>
             <p class="profile-dropdown-name">Hi, {{ session('employee_name', 'User') }}!</p>
+            <x-dark-mode-toggle />
+            <a href="{{ route('employee.portal') }}" class="profile-logout-button" style="display:flex;text-decoration:none;color:#0b1e3d;">Employee Portal</a>
             <form method="POST" action="{{ action([\App\Http\Controllers\AuthController::class, 'logout']) }}">
                 @csrf
                 <button type="submit" class="profile-logout-button"><x-heroicon-o-arrow-right-on-rectangle /> Log out</button>

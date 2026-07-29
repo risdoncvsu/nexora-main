@@ -8,6 +8,7 @@
     <a href="{{ $homeRoute }}" class="block h-16 transition hover:scale-[1.02] sm:h-20 lg:h-24">
         <img src="{{ asset('images/Banner Transparent.png') }}" alt="Nexora Logo" class="h-full object-contain">
     </a>
+    <x-client-logo :size="64" />
 
     <div class="flex w-full flex-wrap items-center justify-center gap-4 sm:gap-6 lg:w-auto lg:flex-nowrap lg:justify-end lg:gap-16">
         <nav class="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-sm font-medium sm:gap-x-6 sm:text-base lg:flex-nowrap lg:gap-8">
@@ -28,6 +29,10 @@
             </button>
 
             <div class="invisible absolute right-0 top-12 z-50 w-[200px] translate-y-[-10px] overflow-hidden rounded-lg bg-white opacity-0 shadow-2xl transition data-[open=true]:visible data-[open=true]:translate-y-0 data-[open=true]:opacity-100" data-user-menu-dropdown>
+                <x-dark-mode-toggle />
+                @if(session('employee_logged_in'))
+                    <a href="{{ route('employee.portal') }}" class="block px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100">Employee Portal</a>
+                @endif
                 <a href="{{ route('login') }}" class="block px-5 py-4 text-sm font-semibold text-[#DC2626] transition hover:bg-slate-100">Log Out</a>
             </div>
         </div>

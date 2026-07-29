@@ -8,7 +8,10 @@
         $layout = empty($layout) ? $publishedLayout : $layout;
         $storefrontName = $storefrontName ?? ($publishedLayout['brand_name'] ?? ($storefrontCompany->company_name ?: 'Nexora Store'));
         $store = $store ?? $storefrontCompany->ecommerce_slug;
-        $logoUrl = $logoUrl ?? (!empty($publishedLayout['logo_path']) ? (str_starts_with($publishedLayout['logo_path'], 'Modules/') ? Vite::asset($publishedLayout['logo_path']) : asset('storage/'.$publishedLayout['logo_path'])) : ($storefrontCompany->logoUrl() ?: asset('ecommerce/Nexora_Logo.png')));
+        // A storefront layout can set colors and structure, but the company
+        // mark always comes from the ITSM company record.
+        $itsmCompany = \App\Models\Company::find($storefrontCompany->id);
+        $logoUrl = $itsmCompany?->logoUrl() ?: asset('ecommerce/Nexora_Logo.png');
     } else {
         // Fallback for preview mode or when middleware doesn't set it
         // We will pass these as props from storefront.blade.php

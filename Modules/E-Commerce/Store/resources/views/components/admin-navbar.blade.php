@@ -73,8 +73,10 @@
         $breadcrumbs[] = ['label' => $heading ?? 'Admin', 'url' => null];
     }
 
-    // Company logo
-    $companyLogoUrl = $company?->logoUrl();
+    // Branding is owned by ITSM. The ecommerce copy of a company is used only
+    // to identify the client; its logo must not override the ITSM upload.
+    $itsmCompany = $company ? \App\Models\Company::find($company->id) : null;
+    $companyLogoUrl = $itsmCompany?->logoUrl();
 
     // Check if this client's storefront is published
     $clientId = $company?->id;
@@ -226,8 +228,8 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 44px;
-        height: 44px;
+        width: 36px;
+        height: 36px;
         border-radius: 10px;
         border: 0;
         background: transparent;
@@ -288,8 +290,8 @@
     .user-avatar {
         display: grid;
         place-items: center;
-        width: 44px;
-        height: 44px;
+        width: 36px;
+        height: 36px;
         padding: 0;
         border: 0;
         border-radius: 50%;
@@ -413,7 +415,7 @@
             <img src="{{ asset('images/Banner Transparent.png') }}" alt="Nexora Logo">
         </a>
 
-        <div class="company-logo">
+        <div class="company-logo" title="{{ $companyName }}">
             @if($companyLogoUrl)
                 <img src="{{ $companyLogoUrl }}" alt="{{ $companyName }} logo">
             @else
@@ -478,11 +480,17 @@
                     </div>
                 </div>
 
+                <x-dark-mode-toggle />
+
                 @if($storeUrl)
                     <a class="ud-link storefront-link" href="{{ $storeUrl }}" target="_blank" rel="noopener">
                         <i class="ph ph-arrow-square-out"></i> Open Storefront
                     </a>
                 @endif
+
+                <a class="ud-link" href="{{ route('employee.portal') }}">
+                    <i class="ph ph-squares-four"></i> Employee Portal
+                </a>
 
                 <a class="ud-link" href="#" onclick="alert('Settings coming soon!'); return false;">
                     <i class="ph ph-gear"></i> Settings

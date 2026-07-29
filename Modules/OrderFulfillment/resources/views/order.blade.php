@@ -927,8 +927,8 @@
   }
 
   .profile-trigger {
-    width: 40px;
-    height: 40px;
+    width: 36px;
+    height: 36px;
     border-radius: 50%;
     overflow: hidden;
     cursor: pointer;
@@ -1120,7 +1120,8 @@
     <!-- Navbar -->
     <div class="navbar">
       <div class="brand brand-logo" title="Nexora">
-    <img class="logo" src="{{ asset('orderfulfillment/logo/Nexora_Logo_Transparent.png') }}" alt="Nexora Logo">
+    <a href="{{ route('order-fulfillment.dashboard') }}" aria-label="Order Fulfillment dashboard"><img class="logo" src="{{ asset('orderfulfillment/logo/Nexora_Logo_Transparent.png') }}" alt="Nexora Logo"></a>
+    <x-client-logo :size="50" />
     <div class="brand-text">
         <div class="title">NEXORA</div>
         <div class="subtitle">ENTERPRISE RESOURCE PLANNING</div>
@@ -1146,9 +1147,10 @@
                 <div class="profile-name">{{ session('employee_name', 'Employee') }}</div>
                 <div class="profile-email">{{ session('employee_email', '') }}</div>
               </div>
-            </div>
-            <div class="divider"></div>
-            <div class="profile-dropdown-row">
+          </div>
+          <div class="divider"></div>
+          <a href="{{ route('employee.portal') }}" class="profile-dropdown-row" style="text-decoration:none;">Employee Portal</a>
+          <div class="profile-dropdown-row">
               <span class="dark-mode-label">🌙 Dark Mode</span>
               <label class="theme-switch">
                 <input type="checkbox" id="darkModeToggle">

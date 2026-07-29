@@ -8,9 +8,10 @@
             </svg>
         </button>
         <button type="button" onclick="toggleNav()" style="cursor:pointer;background:none;border:none;padding:0;"><img src="{{ asset('images/nexora-banner.png') }}" alt="Nexora logo" style="height:55px; width:auto;"></button>
+        <x-client-logo :size="52" />
     </div>
     <nav style="display:flex;align-items:center;gap:16px;margin-left:auto;">
-        <button type="button" onclick="toggleProfileDropdown()" id="profileTrigger" style="width:34px;height:34px;border-radius:50%;background:rgba(74,158,232,.15);overflow:hidden;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;border:none;padding:0;">
+        <button type="button" onclick="toggleProfileDropdown()" id="profileTrigger" style="width:36px;height:36px;border-radius:50%;background:rgba(74,158,232,.15);overflow:hidden;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;border:none;padding:0;">
             <img src="{{ asset('images/icon.png') }}" alt="User avatar" style="width:100%;height:100%;object-fit:cover;display:block;">
         </button>
     </nav>
@@ -25,6 +26,7 @@
         </div>
         <div class="profile-dropdown-greeting">Hi, {{ session('employee_name', 'User') }}!</div>
         <ul class="profile-dropdown-menu">
+            <li><x-dark-mode-toggle /></li>
             <li>
                 <a href="{{ route('employee.portal') }}">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
