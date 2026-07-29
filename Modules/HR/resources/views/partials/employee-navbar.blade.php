@@ -17,7 +17,7 @@
     <header class="w-full h-[150px] bg-[#1B3A6B] flex items-center justify-between pl-[1px] pr-[5px] border-b border-white/5 shadow-[0_1px_0_rgba(255,255,255,.03)_inset] sticky top-0 z-[1000]">
         <div class="flex items-center gap-3">
             <a href="{{ route('hr.employee.dashboard') }}" class="block" aria-label="HR dashboard">
-                <img src="{{ asset('images/logo.png') }}" class="h-[86px] w-auto object-contain block" alt="Header Logo">
+                <img src="{{ asset('images/Banner Transparent.png') }}" class="h-[86px] w-auto object-contain block" alt="Nexora ERP">
             </a>
             <x-client-logo :size="64" />
         </div>

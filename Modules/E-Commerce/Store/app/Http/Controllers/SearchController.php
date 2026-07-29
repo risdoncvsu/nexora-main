@@ -23,9 +23,9 @@ class SearchController extends Controller
         $isPreview = $request->boolean('preview') && auth('ecommerce_admin')->check();
         $layout = $isPreview ? StorefrontLayout::editableFor($company) : StorefrontLayout::publishedFor($company);
         $brandName = $layout['brand_name'] ?? ($company?->company_name ?: 'Nexora Store');
-        $logoUrl = !empty($layout['logo_path'])
-            ? (str_starts_with($layout['logo_path'], 'Modules/') ? Vite::asset($layout['logo_path']) : asset('storage/'.$layout['logo_path']))
-            : ($company?->logoUrl() ?: asset('ecommerce/Nexora_Logo.png'));
+        // Keep search results branded by the same ITSM company logo as every
+        // other client-scoped Nexora screen.
+        $logoUrl = $company?->logoUrl() ?: asset('ecommerce/Nexora_Logo.png');
 
         // Theme color calculation from layout
         $primaryHex = $layout['primary_color'] ?? '#ff6b00';

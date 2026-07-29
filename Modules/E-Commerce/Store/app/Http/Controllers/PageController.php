@@ -41,9 +41,9 @@ class PageController extends Controller
         $store = $company->ecommerce_slug;
 
         $storefrontName = $company->company_name ?: ($layout['brand_name'] ?? 'Store');
-        $logoUrl = !empty($layout['logo_path'])
-            ? (str_starts_with($layout['logo_path'], 'Modules/') ? \Illuminate\Support\Facades\Vite::asset($layout['logo_path']) : asset('storage/'.$layout['logo_path']))
-            : ($company->logoUrl() ?: asset('ecommerce/Nexora_Logo.png'));
+        // ITSM owns the client mark used across Nexora, including storefront
+        // support and company pages.
+        $logoUrl = $company->logoUrl() ?: asset('ecommerce/Nexora_Logo.png');
 
         // Theme colors
         $primaryHex = $layout['primary_color'] ?? '#ff6b00';

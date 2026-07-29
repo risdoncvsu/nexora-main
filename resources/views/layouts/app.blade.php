@@ -10,7 +10,7 @@
 <body class="bg-[#0B1E3D] font-inter text-white min-h-screen flex">
 
     <aside class="w-64 bg-[#132B52] border-r border-[#E2E8F0]/10 p-6 flex flex-col">
-        <h2 class="text-[#4A9EE8] font-bold text-xl mb-8 tracking-wider">NEXORA</h2>
+        <img src="{{ asset('images/Banner Transparent.png') }}" alt="Nexora ERP" class="mb-8 h-10 w-auto object-contain">
         
         <nav class="flex-1 space-y-2">
             <a href="/dashboard" class="block px-4 py-3 rounded bg-[#1B6FC8] text-white font-semibold text-[14px]">

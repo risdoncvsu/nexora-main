@@ -13,9 +13,9 @@
 
     $storefrontName = $storefrontCompany?->company_name ?: ($layout['brand_name'] ?? 'Nexora Store');
     $store = $storefrontCompany?->ecommerce_slug ?: 'store';
-    $logoUrl = !empty($layout['logo_path']) 
-        ? (str_starts_with($layout['logo_path'], 'Modules/') ? Vite::asset($layout['logo_path']) : asset('storage/'.$layout['logo_path'])) 
-        : ($storefrontCompany?->logoUrl() ?: asset('ecommerce/Nexora_Logo.png'));
+    // Storefront branding is owned by the ITSM company record, not by a
+    // per-layout upload, so every client-scoped application shows one logo.
+    $logoUrl = $storefrontCompany?->logoUrl() ?: asset('ecommerce/Nexora_Logo.png');
 
     $primaryHex = $layout['primary_color'] ?? '#ff6b00';
     $primaryClean = ltrim($primaryHex, '#');

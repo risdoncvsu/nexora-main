@@ -42,7 +42,7 @@
 
     <!-- NAVBAR -->
     <header class="w-full h-[80px] sm:h-[108px] bg-[#1B3A6B] flex items-center px-6 sm:px-[60px] shadow-[0_2px_8px_rgba(0,0,0,.08)]">
-        <img src="images/logo.png" alt="Nexora Logo" class="h-12 sm:h-[72px] w-auto object-contain">
+        <img src="{{ asset('images/Banner Transparent.png') }}" alt="Nexora Logo" class="h-12 sm:h-[72px] w-auto object-contain">
     </header>
 
     <!-- MAIN -->

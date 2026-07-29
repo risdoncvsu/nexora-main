@@ -950,12 +950,8 @@
     <!-- Navbar -->
     <div class="navbar">
       <div class="brand brand-logo">
-        <a href="{{ route('order-fulfillment.dashboard') }}" aria-label="Order Fulfillment dashboard"><img class="logo" src="{{ asset('orderfulfillment/logo/Nexora_Logo_Transparent.png') }}" alt="Nexora Logo"></a>
+        <a href="{{ route('order-fulfillment.dashboard') }}" aria-label="Order Fulfillment dashboard"><img class="logo" src="{{ asset('images/Banner Transparent.png') }}" alt="Nexora Logo"></a>
         <x-client-logo :size="50" />
-        <div class="brand-text">
-            <div class="title">NEXORA</div>
-            <div class="subtitle">ENTERPRISE RESOURCE PLANNING</div>
-        </div>
       </div>
       <div class="nav-actions">
         <div class="nav-links">

@@ -86,7 +86,7 @@
         {{-- Logo --}}
         <div class="flex items-center gap-1">
             <a href="{{ route('manufacturing.dashboard') }}" class="block" aria-label="Manufacturing dashboard">
-                <img src="{{ asset('manufacturing/images/Banner Transparent.png') }}" alt="Application Logo" class="w-56">
+                <img src="{{ asset('images/Banner Transparent.png') }}" alt="Nexora ERP" class="w-56">
             </a>
             <x-client-logo :size="52" />
         </div>

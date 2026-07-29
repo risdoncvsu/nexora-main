@@ -12,9 +12,8 @@
         <div class="mx-auto flex max-w-7xl items-center justify-between gap-5 px-6 py-4">
             <div class="flex items-center gap-3">
                 <a href="{{ route('employee.portal') }}" class="flex items-center gap-3 no-underline">
-                    <img src="{{ asset('images/nexora-icon.ico') }}" alt="Nexora" class="h-10 w-10 rounded-lg bg-white/10 object-contain p-1">
+                    <img src="{{ asset('images/Banner Transparent.png') }}" alt="Nexora ERP" class="h-10 w-auto max-w-40 object-contain">
                     <div>
-                        <p class="text-lg font-bold tracking-wide">NEXORA</p>
                         <p class="text-xs text-blue-200">Employee Portal</p>
                     </div>
                 </a>

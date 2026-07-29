@@ -13,9 +13,7 @@
 
     $storefrontName = $storefrontCompany?->company_name ?: ($layout['brand_name'] ?? 'Nexora Store');
     $store = $storefrontCompany?->ecommerce_slug ?: 'store';
-    $logoUrl = !empty($layout['logo_path']) 
-        ? (str_starts_with($layout['logo_path'], 'Modules/') ? Vite::asset($layout['logo_path']) : asset('storage/'.$layout['logo_path'])) 
-        : ($storefrontCompany?->logoUrl() ?: asset('ecommerce/Nexora_Logo.png'));
+    $logoUrl = $storefrontCompany?->logoUrl() ?: asset('ecommerce/Nexora_Logo.png');
     $storefrontVisitKey = 'storefront_visited_' . ($storefrontCompany?->ecommerce_slug ?: 'store');
 
     $primaryHex = $layout['primary_color'] ?? '#ff6b00';

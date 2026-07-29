@@ -302,7 +302,7 @@
         <header class="header">
             <div class="header-brand">
                 <a href="{{ route('finance.dashboard') }}" class="nexora-logo" id="headerLogoBtn">
-                    <img src="{{ asset('finance/images/Banner Transparent.png') }}" alt="Nexora Logo">
+                    <img src="{{ asset('images/Banner Transparent.png') }}" alt="Nexora Logo">
                 </a>
                 <x-client-logo :size="64" />
             </div>

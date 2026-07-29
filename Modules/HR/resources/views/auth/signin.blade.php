@@ -340,7 +340,7 @@
         
         <header class="header">
             <a href="{{ route('login') }}" class="nexora-logo">
-                <img src="images/logo.png" alt="Nexora Logo">
+                <img src="{{ asset('images/Banner Transparent.png') }}" alt="Nexora Logo">
             </a>
         </header>
         

@@ -7,7 +7,7 @@
 @endphp
 <nav class="topnav">
     <a href="{{ route('procurement.dashboard') }}" class="logo" aria-label="Procurement dashboard">
-        <img src="{{ asset('images/procurement-banner.png') }}" alt="Nexora ERP">
+        <img src="{{ asset('images/Banner Transparent.png') }}" alt="Nexora ERP">
     </a>
     <x-client-logo :size="52" />
     <div class="divider-v"></div>

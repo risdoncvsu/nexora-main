@@ -7,7 +7,7 @@
                 <line x1="3" y1="18" x2="21" y2="18"/>
             </svg>
         </button>
-        <button type="button" onclick="toggleNav()" style="cursor:pointer;background:none;border:none;padding:0;"><img src="{{ asset('images/nexora-banner.png') }}" alt="Nexora logo" style="height:55px; width:auto;"></button>
+        <button type="button" onclick="toggleNav()" style="cursor:pointer;background:none;border:none;padding:0;"><img src="{{ asset('images/Banner Transparent.png') }}" alt="Nexora logo" style="height:55px; width:auto;"></button>
         <x-client-logo :size="52" />
     </div>
     <nav style="display:flex;align-items:center;gap:16px;margin-left:auto;">

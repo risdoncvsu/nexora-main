@@ -7,7 +7,7 @@
         $publishedLayout = $isPreview ? \Modules\Ecommerce\Models\StorefrontLayout::editableFor($storefrontCompany) : \Modules\Ecommerce\Models\StorefrontLayout::publishedFor($storefrontCompany);
         $layout = empty($layout) ? $publishedLayout : $layout;
         $storefrontName = $storefrontName ?? ($publishedLayout['brand_name'] ?? 'Nexora Store');
-        $logoUrl = $logoUrl ?? (!empty($publishedLayout['logo_path']) ? (str_starts_with($publishedLayout['logo_path'], 'Modules/') ? Vite::asset($publishedLayout['logo_path']) : asset('storage/'.$publishedLayout['logo_path'])) : null);
+        $logoUrl = $logoUrl ?? $storefrontCompany->logoUrl();
     } else {
         // Fallback for preview mode or when middleware doesn't set it
         $storefrontName = $storefrontName ?? 'Nexora Store';
