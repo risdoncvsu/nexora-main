@@ -129,7 +129,7 @@ Route::middleware('auth')->group(function () {
         // ==========================================
         Route::get('/compliance', [ComplianceController::class, 'index'])->name('compliance');
         Route::post('/compliance/store', [ComplianceController::class, 'store'])->name('compliance.store');
-        Route::get('/compliance/files/{path}', [ComplianceController::class, 'file'])->where('path', '.*')->name('compliance.file');
+        Route::get('/compliance/{compliance}/file', [ComplianceController::class, 'file'])->name('compliance.file');
         
         // Audits are captured in the client audit trail. Redirect legacy URLs there.
         Route::get('/audit', fn () => redirect()->route('client.itsm.audit-trail'))->name('audit');
@@ -137,7 +137,7 @@ Route::middleware('auth')->group(function () {
         
         Route::get('/permit', [PermitController::class, 'index'])->name('permit');
         Route::post('/permit', [PermitController::class, 'index'])->name('permit.store');
-        Route::get('/permit/files/{path}', [PermitController::class, 'file'])->where('path', '.*')->name('permit.file');
+        Route::get('/permit/{permit}/file', [PermitController::class, 'file'])->name('permit.file');
         
         Route::get('/risk-assessment', [RiskAssController::class, 'index'])->name('risk.assessment');
         Route::post('/risk-assessment/store', [RiskAssController::class, 'store'])->name('risk.assessment.store');

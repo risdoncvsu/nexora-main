@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ComplianceRiskAssessment;
 use Illuminate\Http\Request;
 
 class RiskAssController extends Controller
@@ -9,18 +10,26 @@ class RiskAssController extends Controller
     /**
      * Display the Risk Assessment console dashboard workspace.
      */
-    public function index()
-    
+    public function index(Request $request)
     {
-        // Empty placeholder dataset for the threat matrix array setup
-        $risks = [];
+        $risks = ComplianceRiskAssessment::query()
+            ->where('company_id', $this->clientId($request))
+            ->latest()
+            ->get()
+            ->map(fn (ComplianceRiskAssessment $risk): array => [
+                'id' => $risk->id,
+                'risk_id' => $risk->risk_id,
+                'title' => $risk->title,
+                'inherent_score' => (float) $risk->inherent_score,
+                'inherent_text' => $risk->inherent_text,
+                'likelihood' => $risk->likelihood,
+                'impact' => $risk->impact,
+                'residual_score' => (float) $risk->residual_score,
+                'residual_text' => $risk->residual_text,
+                'status' => $risk->status,
+            ]);
 
-        // Fetch session dataset if modifications were made, otherwise stick to initial empty setup
-        if (!session()->has('stored_risks')) {
-            session(['stored_risks' => $risks]);
-        }
-
-        return view('RiskAss', ['risks' => session('stored_risks')]);
+        return view('RiskAss', compact('risks'));
     }
 
     /**
@@ -40,14 +49,18 @@ class RiskAssController extends Controller
             'status' => 'required|string|in:Active,Mitigated,Pending Review'
         ]);
 
-        $currentRisks = session('stored_risks', []);
-        
-        $validated['id'] = count($currentRisks) + 1;
-        
-        $currentRisks[] = $validated;
-        
-        session(['stored_risks' => $currentRisks]);
+        ComplianceRiskAssessment::create($validated + [
+            'company_id' => $this->clientId($request),
+        ]);
 
         return redirect()->route('client.itsm.risk.assessment')->with('success', 'Risk Assessment metric committed successfully.');
+    }
+
+    private function clientId(Request $request): int
+    {
+        $clientId = (int) $request->user()?->company_id;
+        abort_unless($clientId > 0, 403);
+
+        return $clientId;
     }
 }

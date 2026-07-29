@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\CompliancePermit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -9,10 +10,8 @@ class PermitController extends Controller
 {
     public function index(Request $request)
     {
-        // Baseline records are now empty by default
-        $basePermits = [];
+        $clientId = $this->clientId($request);
 
-        // Process form submission to session store
         if ($request->isMethod('post')) {
             $validated = $request->validate([
                 'title' => 'required|string|max:255',
@@ -23,104 +22,74 @@ class PermitController extends Controller
                 'permit_file' => 'nullable|file|mimes:pdf,doc,docx,png,jpg,jpeg|max:10240',
             ]);
 
-            $sessionPermits = session()->get('added_permits', []);
-            $sessionPermits = is_array($sessionPermits) ? array_values(array_filter($sessionPermits, 'is_array')) : [];
+            $permit = isset($validated['renew_id'])
+                ? CompliancePermit::query()->where('company_id', $clientId)->findOrFail($validated['renew_id'])
+                : new CompliancePermit(['company_id' => $clientId]);
 
-            $statusColor = 'bg-green-600';
-            if ($request->input('status') === 'Expiring Soon') {
-                $statusColor = 'bg-amber-500';
-            } elseif ($request->input('status') === 'Expired') {
-                $statusColor = 'bg-red-600';
-            }
-
-            $renewId = $validated['renew_id'] ?? null;
-            $existingIndex = $renewId === null ? null : collect($sessionPermits)->search(
-                fn (array $permit) => (int) ($permit['id'] ?? 0) === (int) $renewId
-            );
-            $existingPermit = $existingIndex !== false && $existingIndex !== null ? $sessionPermits[$existingIndex] : [];
             $filePath = $request->hasFile('permit_file')
                 ? $request->file('permit_file')->store('compliance/permits', 'public')
-                : ($existingPermit['file_path'] ?? null);
+                : $permit->file_path;
 
-            $permit = [
-                'id' => $existingPermit['id'] ?? ((collect($sessionPermits)->max('id') ?? 0) + 1),
+            $permit->fill([
                 'title' => $validated['title'],
                 'issuer' => $validated['issuer'],
-                'expiry' => 'Expires: ' . $validated['expiry_date'],
                 'expiry_date' => $validated['expiry_date'],
                 'status' => $validated['status'],
-                'status_color' => $statusColor,
-            ];
+                'file_path' => $filePath,
+            ])->save();
 
-            if ($filePath !== null) {
-                $permit['file_path'] = $filePath;
-            }
-
-            if ($existingIndex !== false && $existingIndex !== null) {
-                $sessionPermits[$existingIndex] = $permit;
-            } else {
-                $sessionPermits[] = $permit;
-            }
-
-            session()->put('added_permits', $sessionPermits);
-            return redirect()->route('client.itsm.permit');
+            return redirect()->route('client.itsm.permit')->with('success', 'Permit saved successfully.');
         }
 
-        $sessionPermits = session()->get('added_permits', []);
-        $sessionPermits = is_array($sessionPermits) ? array_values(array_filter($sessionPermits, 'is_array')) : [];
-        $allPermits = collect(array_merge($basePermits, $sessionPermits));
+        $base = CompliancePermit::query()->where('company_id', $clientId);
+        $activeCount = (clone $base)->where('status', 'Active')->count();
+        $expiredCount = (clone $base)->where('status', 'Expired')->count();
+        $expiringSoonCount = (clone $base)->where('status', 'Expiring Soon')->count();
+        $currentStatus = $request->string('status')->toString() ?: 'All';
+        $search = trim($request->string('search')->toString());
 
-        // Compute live metrics dynamically based on available items
-        $activeCount = $allPermits->where('status', 'Active')->count();
-        $expiredCount = $allPermits->where('status', 'Expired')->count();
-        $expiringSoonCount = $allPermits->where('status', 'Expiring Soon')->count();
+        $permits = $base
+            ->when($search, fn ($query) => $query->where(fn ($query) => $query->whereRaw('LOWER(title) LIKE ?', ['%'.strtolower($search).'%'])->orWhereRaw('LOWER(issuer) LIKE ?', ['%'.strtolower($search).'%'])))
+            ->when($currentStatus !== 'All', fn ($query) => $query->where('status', $currentStatus))
+            ->latest()->get()->map(fn (CompliancePermit $permit): array => [
+                'id' => $permit->id,
+                'title' => $permit->title,
+                'issuer' => $permit->issuer,
+                'expiry' => 'Expires: '.$permit->expiry_date?->toDateString(),
+                'expiry_date' => $permit->expiry_date?->toDateString(),
+                'status' => $permit->status,
+                'status_color' => $this->statusColor($permit->status),
+                'file_path' => $permit->file_path,
+                'file_url' => $permit->file_path ? route('client.itsm.permit.file', ['permit' => $permit->id]) : null,
+            ]);
 
-        // Handle text search filters
-        if ($request->has('search') && !empty($request->search)) {
-            $searchTerm = strtolower($request->search);
-            $allPermits = $allPermits->filter(function ($permit) use ($searchTerm) {
-                return str_contains(strtolower($permit['title']), $searchTerm) ||
-                       str_contains(strtolower($permit['issuer']), $searchTerm);
-            });
-        }
-
-        // Handle dropdown filter selection
-        $currentStatus = $request->get('status', 'All');
-        if ($currentStatus !== 'All') {
-            $allPermits = $allPermits->filter(function ($permit) use ($currentStatus) {
-                return $permit['status'] === $currentStatus;
-            });
-        }
-
-        $allPermits = $allPermits->map(function (array $permit) {
-            if (!empty($permit['file_path'])) {
-                $permit['file_url'] = route('client.itsm.permit.file', ['path' => $permit['file_path']]);
-            }
-
-            return $permit;
-        });
-
-        return view('permit', [
-            'permits' => $allPermits,
-            'currentStatus' => $currentStatus,
-            'activeCount' => $activeCount,
-            'expiredCount' => $expiredCount,
-            'expiringSoonCount' => $expiringSoonCount,
-            'search' => $request->get('search', '')
-        ]);
+        return view('permit', compact('permits', 'currentStatus', 'activeCount', 'expiredCount', 'expiringSoonCount', 'search'));
     }
 
-    /** Serve an attachment only when it belongs to the active user's session data. */
-    public function file(Request $request, string $path)
+    public function file(Request $request, CompliancePermit $permit)
     {
-        $allowed = collect(session('added_permits', []))->contains(
-            fn ($permit) => is_array($permit) && ($permit['file_path'] ?? null) === $path
-        );
-
-        abort_unless($allowed && Storage::disk('public')->exists($path), 404);
+        abort_unless((int) $permit->company_id === $this->clientId($request), 404);
+        abort_unless($permit->file_path && Storage::disk('public')->exists($permit->file_path), 404);
 
         return $request->boolean('download')
-            ? Storage::disk('public')->download($path)
-            : Storage::disk('public')->response($path);
+            ? Storage::disk('public')->download($permit->file_path)
+            : Storage::disk('public')->response($permit->file_path);
+    }
+
+    private function clientId(Request $request): int
+    {
+        $clientId = (int) $request->user()?->company_id;
+        abort_unless($clientId > 0, 403);
+
+        return $clientId;
+    }
+
+    private function statusColor(string $status): string
+    {
+        return match ($status) {
+            'Expiring Soon' => 'bg-amber-500',
+            'Expired' => 'bg-red-600',
+            default => 'bg-green-600',
+        };
     }
 }

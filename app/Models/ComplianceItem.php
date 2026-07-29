@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Model;
     'progress',
     'due_date',
     'notes',
+    'file_path',
 ])]
 class ComplianceItem extends Model
 {
