@@ -537,6 +537,9 @@ class BusinessIntelligenceController
             'fulfillment_orders' => $this->count('order_fulfillment', 'orders', $clientId),
             'fulfillment_delayed' => $this->delayedShipments($clientId),
             'ecommerce_products' => $this->firstCount('ecommerce', ['storefront_listings', 'products', 'prebuilt_configs', 'configurator_configs'], $clientId),
+            'ecommerce_orders' => $this->count('ecommerce', 'orders', $clientId),
+            'hr_employees' => $this->count('hr', 'employees', $clientId),
+            'itsm_tickets' => $this->firstCount('pgsql', ['tickets', 'itsm_tickets'], $clientId),
         ];
     }
 
@@ -587,23 +590,23 @@ class BusinessIntelligenceController
             ],
             'hr' => [
                 'title' => 'Human Resources',
-                'stats' => [['label' => 'Employees', 'value' => $this->count('hr', 'employees', $clientId)]],
-                'chart1' => ['type' => 'bar', 'label' => 'Employee records', 'data' => [['label' => 'Employees', 'value' => $this->count('hr', 'employees', $clientId)]]],
-                'chart2' => ['type' => 'bar', 'label' => 'Workforce activity', 'data' => []],
+                'stats' => [['label' => 'Employees', 'value' => $metrics['hr_employees']]],
+                'chart1' => ['type' => 'bar', 'label' => 'Employee records', 'data' => [['label' => 'Employees', 'value' => $metrics['hr_employees']]]],
+                'chart2' => ['type' => 'doughnut', 'label' => 'Employee status', 'data' => $this->statusBreakdown('hr', 'employees', $clientId)],
                 'details' => [],
             ],
             'itsm' => [
                 'title' => 'IT Service Management',
-                'stats' => [['label' => 'Support tickets', 'value' => $this->firstCount('pgsql', ['tickets', 'itsm_tickets'], $clientId)]],
-                'chart1' => ['type' => 'doughnut', 'label' => 'Ticket status', 'data' => $this->statusBreakdown('pgsql', 'tickets', $clientId)],
-                'chart2' => ['type' => 'bar', 'label' => 'Support tickets', 'data' => [['label' => 'Tickets', 'value' => $this->firstCount('pgsql', ['tickets', 'itsm_tickets'], $clientId)]]],
+                'stats' => [['label' => 'Support tickets', 'value' => $metrics['itsm_tickets']]],
+                'chart1' => ['type' => 'doughnut', 'label' => 'Ticket status', 'data' => $this->firstStatusBreakdown('pgsql', ['tickets', 'itsm_tickets'], $clientId)],
+                'chart2' => ['type' => 'bar', 'label' => 'Support tickets', 'data' => [['label' => 'Tickets', 'value' => $metrics['itsm_tickets']]]],
                 'details' => [],
             ],
             default => [
                 'title' => 'E-commerce & CRM',
-                'stats' => [['label' => 'Catalog records', 'value' => $metrics['ecommerce_products']]],
+                'stats' => [['label' => 'Catalog records', 'value' => $metrics['ecommerce_products']], ['label' => 'Storefront orders', 'value' => $metrics['ecommerce_orders']]],
                 'chart1' => ['type' => 'bar', 'label' => 'Catalog records', 'data' => [['label' => 'Products', 'value' => $metrics['ecommerce_products']]]],
-                'chart2' => ['type' => 'bar', 'label' => 'Conversion funnel', 'data' => $this->ecommerceFunnelChart($clientId)],
+                'chart2' => ['type' => 'doughnut', 'label' => 'Storefront order status', 'data' => $this->statusBreakdown('ecommerce', 'orders', $clientId)],
                 'details' => [],
             ],
         };
@@ -1355,13 +1358,20 @@ class BusinessIntelligenceController
             }
 
             $schema = Schema::connection('finance');
-            if (!$schema->hasTable('invoice') || !$schema->hasColumn('invoice', 'order_id')) {
+            if (!$schema->hasTable('invoice')) {
+                return null;
+            }
+
+            $query = DB::connection('finance')->table('invoice');
+            if ($schema->hasColumn('invoice', 'nexora_client_id')) {
+                return $query->where('nexora_client_id', $clientId);
+            }
+
+            if (!$schema->hasColumn('invoice', 'order_id')) {
                 return null;
             }
 
             $orderIds = $this->clientOrderIds($clientId);
-            $query = DB::connection('finance')->table('invoice');
-
             return empty($orderIds) ? $query->whereRaw('1 = 0') : $query->whereIn('order_id', $orderIds);
         } catch (\Throwable) {
             return null;
@@ -1708,6 +1718,29 @@ class BusinessIntelligenceController
         ];
 
         return (int) round(array_sum($scores) / count($scores));
+    }
+
+    /**
+     * ITSM installations use either `tickets` or the older `itsm_tickets`
+     * table. Use the first table that exists, even when it currently has zero
+     * records, so analytics do not disappear merely because the schema name
+     * differs between client deployments.
+     *
+     * @param array<int, string> $tables
+     */
+    private function firstStatusBreakdown(string $connection, array $tables, ?int $clientId): array
+    {
+        foreach ($tables as $table) {
+            try {
+                if (Schema::connection($connection)->hasTable($table)) {
+                    return $this->statusBreakdown($connection, $table, $clientId);
+                }
+            } catch (\Throwable) {
+                // Try the next compatible legacy table.
+            }
+        }
+
+        return [];
     }
 
     /** @return array{score:int, explanation:string, factors:array<int, array{label:string,status:string,detail:string}>} */

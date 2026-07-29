@@ -58,7 +58,6 @@
                             <a href="{{ route('admin.itsm.service-desk') }}" class="block font-extrabold text-slate-950">Nexora Support Queue</a>
                             <a href="{{ route('admin.itsm.service-desk.assigned') }}" class="block font-medium text-slate-700 hover:text-[#346DCB]">Assigned Requests</a>
                             <a href="{{ route('admin.itsm.service-desk.knowledge-base') }}" class="block font-medium text-slate-700 hover:text-[#346DCB]">Knowledge Base</a>
-                            <a href="{{ route('admin.itsm.service-desk.sla-review') }}" class="block font-medium text-slate-700 hover:text-[#346DCB]">SLA Review</a>
                         @else
                             <a href="{{ route('client.itsm.service-desk') }}" class="block {{ $ticketType === 'erp_module' ? 'font-extrabold text-slate-950' : 'font-medium text-slate-700 hover:text-[#346DCB]' }}">Module Ticket Dashboard</a>
                             <a href="{{ route('client.itsm.service-desk.support') }}" class="block {{ $ticketType === 'client_password_reset' ? 'font-extrabold text-slate-950' : 'font-medium text-slate-700 hover:text-[#346DCB]' }}">Account Recovery</a>

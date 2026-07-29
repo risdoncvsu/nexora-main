@@ -58,12 +58,16 @@ class ErpIntegrationService
             $manufacturingProductSummary = $manufacturingItems->pluck('name')->filter()->unique()->implode(', ');
             $manufacturingQuantity = (int) $manufacturingItems->sum('quantity');
 
+            // Finance is a required customer-facing record. Create it before
+            // operational integrations so a temporary Fulfillment,
+            // Procurement, or Manufacturing schema issue cannot suppress an
+            // invoice for a successfully accepted storefront order.
+            $this->createFinanceInvoice($clientId, (string) $order->id, $amount, (float) $order->shipping_fee, (string) $order->payment_status);
             $this->createFulfillmentOrder($clientId, (string) $order->id, $customer, $productSummary, $totalQuantity, $amount, $order, $items);
             if ($manufacturingItems->isNotEmpty()) {
                 $this->createManufacturingWorkOrder($clientId, (string) $order->id, $manufacturingProductSummary, $manufacturingQuantity);
             }
             $this->createProcurementRequisition($clientId, (string) $order->id, $productSummary, $totalQuantity, $amount);
-            $this->createFinanceInvoice($clientId, (string) $order->id, $amount, (float) $order->shipping_fee, (string) $order->payment_status);
             $this->writeBiSnapshot($clientId);
 
             $this->recordAudit($clientId, 'order.placed', 'ecommerce', [
@@ -215,6 +219,45 @@ class ErpIntegrationService
             }
         } catch (\Throwable $exception) {
             \Log::warning('Unable to reconcile Order Fulfillment client ownership.', [
+                'client_id' => $clientId,
+                'exception' => $exception->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Assign legacy Finance invoices only when their storefront order UUID is
+     * owned by the current client. This restores visibility without assigning
+     * unrelated historical accounting data to an arbitrary company.
+     */
+    public function reconcileFinanceInvoiceClientOwnership(int $clientId): void
+    {
+        try {
+            $financeSchema = Schema::connection('finance');
+            $ecommerceSchema = Schema::connection('ecommerce');
+
+            if (! $financeSchema->hasTable('invoice')
+                || ! $financeSchema->hasColumn('invoice', 'nexora_client_id')
+                || ! $financeSchema->hasColumn('invoice', 'order_id')
+                || ! $ecommerceSchema->hasTable('orders')
+                || ! $ecommerceSchema->hasColumn('orders', 'client_id')) {
+                return;
+            }
+
+            $orderIds = DB::connection('ecommerce')->table('orders')
+                ->where('client_id', $clientId)
+                ->pluck('id')
+                ->filter()
+                ->values();
+
+            foreach ($orderIds->chunk(250) as $ids) {
+                DB::connection('finance')->table('invoice')
+                    ->whereIn('order_id', $ids->all())
+                    ->whereNull('nexora_client_id')
+                    ->update(['nexora_client_id' => $clientId, 'updated_at' => now()]);
+            }
+        } catch (\Throwable $exception) {
+            \Log::warning('Unable to reconcile Finance invoice client ownership.', [
                 'client_id' => $clientId,
                 'exception' => $exception->getMessage(),
             ]);
@@ -493,10 +536,21 @@ class ErpIntegrationService
         // Checkout retries are expected; use the client + ecommerce order as
         // the durable idempotency key even if a legacy database lacks a unique
         // constraint for it.
-        if ($db->table('invoice')
-            ->where('nexora_client_id', $clientId)
-            ->where('order_id', $orderId)
-            ->exists()) {
+        $existingInvoice = $db->table('invoice')->where('order_id', $orderId)->first();
+        if ($existingInvoice) {
+            // Earlier storefront integrations created invoices before Finance
+            // owned a client reference. Claim only that unassigned legacy
+            // row; never allow an order from one client to be reused by
+            // another client.
+            if (($existingInvoice->nexora_client_id ?? null) === null) {
+                $db->table('invoice')
+                    ->where('order_id', $orderId)
+                    ->whereNull('nexora_client_id')
+                    ->update(['nexora_client_id' => $clientId, 'updated_at' => now()]);
+            } elseif ((int) $existingInvoice->nexora_client_id !== $clientId) {
+                throw new RuntimeException('The matching Finance invoice belongs to a different client.');
+            }
+
             return;
         }
 

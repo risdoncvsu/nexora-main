@@ -7,7 +7,6 @@ use App\Models\ServiceTicket;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Carbon;
 
 class TicketController extends Controller
 {
@@ -85,32 +84,6 @@ class TicketController extends Controller
         $ticket->update(['assigned_to' => null]);
 
         return back()->with('success', 'Request returned to the support queue.');
-    }
-
-    public function slaReview()
-    {
-        $tickets = ServiceTicket::query()
-            ->where('ticket_type', 'nexora_support')
-            ->whereNotIn('status', ['Resolved', 'Closed'])
-            ->latest()
-            ->get()
-            ->map(function (ServiceTicket $ticket): ServiceTicket {
-                $hours = match ($ticket->priority) {
-                    'Critical' => 4,
-                    'High' => 8,
-                    'Medium' => 24,
-                    default => 72,
-                };
-                $dueAt = $ticket->created_at->copy()->addHours($hours);
-                $ticket->sla_target_hours = $hours;
-                $ticket->sla_due_at = $dueAt;
-                $ticket->sla_state = $dueAt->isPast() ? 'Breached' : 'On track';
-                $ticket->sla_remaining = max(0, (int) Carbon::now()->diffInHours($dueAt, false));
-
-                return $ticket;
-            });
-
-        return view('service.sla-review', compact('tickets'));
     }
 
     public function store(Request $request): RedirectResponse

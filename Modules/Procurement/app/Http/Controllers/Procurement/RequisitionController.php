@@ -373,19 +373,11 @@ class RequisitionController extends Controller
             return $req;
         });
 
-        // The table is an active-work queue. Terminal requests remain in the
-        // source audit trail, but must not return as fresh Procurement work.
-        $requisitions = $requisitions->reject(function ($req) {
-            $status = strtolower(trim((string) ($req->status ?? 'pending')));
-            $poStatus = strtolower(trim((string) ($req->po_status ?? '')));
-
-            if (($req->record_type ?? null) === 'defect') {
-                return in_array($status, ['rejected', 'replacement received'], true);
-            }
-
-            return in_array($status, ['delivered', 'completed', 'rejected', 'cancelled'], true)
-                || in_array($poStatus, ['delivered', 'completed', 'rejected', 'cancelled'], true);
-        })->values();
+        // Requisitions are an auditable request history, not only an active
+        // work queue. Delivered and completed rows must remain available to
+        // the requester and Procurement; the existing status filters let a
+        // user narrow the table to active work when needed.
+        $requisitions = $requisitions->values();
 
         $statusCounts = $requisitions->map(function ($req) {
             return strtolower(str_replace(' ', '', $req->status ?? 'Pending'));

@@ -3,6 +3,7 @@
 namespace Modules\Finance\Http\Middleware;
 
 use App\Support\EmployeePermissionGate;
+use App\Services\ErpIntegrationService;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -45,6 +46,10 @@ class FinanceAccess
                 $permission
             );
         }
+
+        app(ErpIntegrationService::class)->reconcileFinanceInvoiceClientOwnership(
+            (int) session('employee_client_id')
+        );
 
         return $next($request);
     }

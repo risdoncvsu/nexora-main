@@ -91,7 +91,6 @@ Route::middleware('auth')->group(function () {
         Route::patch('/service-desk/{ticket}/release', [TicketController::class, 'release'])->name('service-desk.release');
         Route::get('/service-desk/knowledge-base', [KnowledgeBaseController::class, 'index'])->name('service-desk.knowledge-base');
         Route::post('/service-desk/knowledge-base', [KnowledgeBaseController::class, 'store'])->name('service-desk.knowledge-base.store');
-        Route::get('/service-desk/sla-review', [TicketController::class, 'slaReview'])->name('service-desk.sla-review');
         Route::get('/pending-approvals', [UserController::class, 'pending'])->name('pending-approvals');
         Route::get('/roles-permissions', [RolesAndPermissionController::class, 'index'])->name('roles');
         Route::get('/audit-trail', [AuditTrailController::class, 'rootIndex'])->name('audit-trail');

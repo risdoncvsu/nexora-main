@@ -5,7 +5,6 @@
         'queue' => ['label' => 'Nexora Support Queue', 'route' => route('admin.itsm.service-desk')],
         'assigned' => ['label' => 'Assigned Requests', 'route' => route('admin.itsm.service-desk.assigned')],
         'knowledge' => ['label' => 'Knowledge Base', 'route' => route('admin.itsm.service-desk.knowledge-base')],
-        'sla' => ['label' => 'SLA Review', 'route' => route('admin.itsm.service-desk.sla-review')],
     ];
 @endphp
 <!DOCTYPE html>
