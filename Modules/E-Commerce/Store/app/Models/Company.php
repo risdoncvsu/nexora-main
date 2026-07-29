@@ -35,18 +35,23 @@ class Company extends Model
             return $itsmLogoUrl;
         }
 
-        if (! $this->logo_path) {
+        $path = trim((string) $this->logo_path);
+        if ($path === '') {
             return null;
+        }
+
+        if (filter_var($path, FILTER_VALIDATE_URL)) {
+            return $path;
         }
 
         // Logo paths are stored as e.g. "company-logos/xxx.png" inside ecommerce storage,
         // but the Techforge logo lives in public/ecommerce/. Check public first.
-        $publicPath = public_path('ecommerce/' . basename($this->logo_path));
+        $publicPath = public_path('ecommerce/' . basename($path));
         if (file_exists($publicPath)) {
-            return asset('ecommerce/' . basename($this->logo_path));
+            return asset('ecommerce/' . basename($path));
         }
 
         // Fall back to the storage-based path served via the ecommerce disk.
-        return asset('storage/' . $this->logo_path);
+        return asset('storage/' . $path);
     }
 }

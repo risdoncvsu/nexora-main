@@ -41,7 +41,28 @@ class Company extends Model
 
     public function logoUrl(): ?string
     {
-        if (! $this->logo_path || ! Storage::disk('public')->exists($this->logo_path)) {
+        $path = trim((string) $this->logo_path);
+
+        if ($path === '') {
+            return null;
+        }
+
+        // Support legacy records that retained an externally hosted logo.
+        if (filter_var($path, FILTER_VALIDATE_URL)) {
+            return $path;
+        }
+
+        // Earlier deployments stored uploads directly under public/. Keep
+        // those client logos working while newer uploads use the public disk.
+        if (is_file(public_path($path))) {
+            return asset($path);
+        }
+
+        if (is_file(public_path('storage/'.$path))) {
+            return asset('storage/'.$path);
+        }
+
+        if (! Storage::disk('public')->exists($path)) {
             return null;
         }
 

@@ -149,7 +149,7 @@ class PaymentMethodController extends Controller
         return back()->with('success', 'Bank account added successfully!');
     }
 
-    public function destroy($id)
+    public function destroy($store, $id)
     {
         $paymentMethod = PaymentMethod::findOrFail($id);
         $user = Auth::guard('ecommerce')->user();
@@ -163,7 +163,7 @@ class PaymentMethodController extends Controller
         return back()->with('success', 'Payment method removed.');
     }
 
-    public function update(Request $request, $id)
+    public function update(Request $request, $store, $id)
     {
         $paymentMethod = PaymentMethod::findOrFail($id);
         $user = Auth::guard('ecommerce')->user();
@@ -202,7 +202,7 @@ class PaymentMethodController extends Controller
         return back()->with('success', 'Card updated successfully!');
     }
 
-    public function setDefault($id)
+    public function setDefault($store, $id)
     {
         $paymentMethod = PaymentMethod::findOrFail($id);
         $user = Auth::guard('ecommerce')->user();

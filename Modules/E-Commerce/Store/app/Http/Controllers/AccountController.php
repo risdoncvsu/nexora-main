@@ -219,7 +219,7 @@ class AccountController extends Controller
         return redirect()->to(route('ecommerce.account.profile') . '#order-history');
     }
 
-    public function showOrder(Request $request, $id)
+    public function showOrder(Request $request, $store, $id)
     {
         $user = Auth::guard('ecommerce')->user();
 
@@ -266,7 +266,7 @@ class AccountController extends Controller
         return view('ecommerce::account.order-detail', compact('order'));
     }
 
-    public function confirmReceived(Request $request, $id)
+    public function confirmReceived(Request $request, $store, $id)
     {
         $user = Auth::guard('ecommerce')->user();
 

@@ -65,7 +65,7 @@ class AddressController extends Controller
         return back()->with('success', 'Address added successfully!');
     }
 
-    public function update(Request $request, $id)
+    public function update(Request $request, $store, $id)
     {
         $address = Address::findOrFail($id);
         if ($address->user_id !== Auth::guard('ecommerce')->id()) {
@@ -120,7 +120,7 @@ class AddressController extends Controller
         return back()->with('success', 'Address updated successfully!');
     }
 
-    public function destroy($id)
+    public function destroy($store, $id)
     {
         $address = Address::findOrFail($id);
         if ($address->user_id !== Auth::guard('ecommerce')->id()) {
@@ -141,7 +141,7 @@ class AddressController extends Controller
         return back()->with('success', 'Address removed.');
     }
 
-    public function setDefault($id)
+    public function setDefault($store, $id)
     {
         $address = Address::findOrFail($id);
         if ($address->user_id !== Auth::guard('ecommerce')->id()) {
