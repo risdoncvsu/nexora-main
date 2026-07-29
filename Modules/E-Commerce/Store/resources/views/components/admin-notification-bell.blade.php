@@ -5,37 +5,37 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 34px;
-        height: 34px;
-        border-radius: 8px;
+        width: 44px;
+        height: 44px;
+        border-radius: 10px;
         border: 0;
         background: transparent;
-        color: rgba(255,255,255,0.6);
-        font-size: 18px;
+        color: rgba(255,255,255,0.65);
+        font-size: 22px;
         cursor: pointer;
         text-decoration: none;
         transition: all 0.15s;
     }
     .notif-bell-btn:hover {
-        background: rgba(255,255,255,0.08);
-        color: #fff;
+        background: rgba(255,255,255,0.1);
+        color: #ffffff;
     }
     .notif-bell-btn .badge-count {
         position: absolute;
-        top: 2px;
-        right: 2px;
-        min-width: 16px;
-        height: 16px;
-        padding: 0 4px;
-        border-radius: 8px;
+        top: 5px;
+        right: 5px;
+        min-width: 18px;
+        height: 18px;
+        padding: 0 5px;
+        border-radius: 10px;
         background: #ef4444;
         color: #fff;
-        font-size: 9px;
+        font-size: 10px;
         font-weight: 700;
         display: flex;
         align-items: center;
         justify-content: center;
-        border: 2px solid var(--c-header-bg, #132B52);
+        border: 3px solid #0B1E3D;
         line-height: 1;
     }
     .notif-bell-btn .badge-count.hidden-badge {

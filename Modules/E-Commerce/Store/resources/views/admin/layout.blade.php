@@ -9,15 +9,14 @@
     <!-- Load Phosphor Icons for the sidebar -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     @yield('head')
-    <style>
-        :root {
+    <style>            :root {
             --c-sidebar-bg: #0B1E3D;
             --c-sidebar-hover: #132B52;
-            --c-sidebar-text: #FFFFFF;
-            --c-sidebar-text-muted: #7BBEF0;
+            --c-sidebar-text: #EDEDEC;
+            --c-sidebar-text-muted: #8BA3C4;
             --c-sidebar-active-bg: #1B6FC8;
             --c-sidebar-active-text: #FFFFFF;
-            --c-header-bg: #132B52;
+            --c-header-bg: #0B1E3D;
             --c-bg: #F4F6FA;
             --c-text: #0B1E3D;
             --c-text-muted: #5B7A9D;
@@ -27,40 +26,41 @@
             font-family: Inter, Arial, sans-serif;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background: var(--c-bg); color: var(--c-text); display: flex; flex-direction: column; min-height: 100vh; }
+        body { background: var(--c-bg); color: var(--c-text); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 
         /* Top header styles moved to components/admin-navbar.blade.php */
 
         /* Layout Structure */
-        .layout-wrapper { display: flex; flex: 1; overflow: hidden; }
+        .layout-wrapper { display: flex; flex: 1; min-height: 0; }
 
-        /* Sidebar */
+        /* Sidebar — stretches to fill viewport; body overflow:hidden keeps it pinned */
         .sidebar {
-            width: 240px;
+            width: 220px;
             background: var(--c-sidebar-bg);
             border-right: none;
             display: flex;
             flex-direction: column;
-            padding: 16px 12px;
+            padding: 12px 10px;
+            overflow-y: auto;
         }
-        .sidebar-nav { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+        .sidebar-nav { flex: 1; display: flex; flex-direction: column; gap: 2px; }
         .sidebar-link {
-            display: flex; align-items: center; gap: 12px;
-            padding: 8px 12px; border-radius: 6px;
+            display: flex; align-items: center; gap: 10px;
+            padding: 6px 10px; border-radius: 5px;
             color: var(--c-sidebar-text); text-decoration: none;
-            font-size: 14px; font-weight: 500; transition: background 0.1s;
+            font-size: 13px; font-weight: 500; transition: background 0.1s;
         }
         .sidebar-link:hover { background: var(--c-sidebar-hover); }
         .sidebar-link.active { background: var(--c-sidebar-active-bg); color: var(--c-sidebar-active-text); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .sidebar-link i { font-size: 18px; color: var(--c-sidebar-text-muted); }
+        .sidebar-link i { font-size: 16px; color: var(--c-sidebar-text-muted); }
         .sidebar-link.active i { color: var(--c-sidebar-active-text); }
         .sidebar-section-title {
-            font-size: 12px; font-weight: 600; color: var(--c-sidebar-text-muted);
-            margin: 16px 0 8px 12px; text-transform: uppercase; letter-spacing: 0.5px;
+            font-size: 11px; font-weight: 600; color: var(--c-sidebar-text-muted);
+            margin: 14px 0 6px 10px; text-transform: uppercase; letter-spacing: 0.5px;
         }
 
         /* Main Area */
-        .main-area { flex: 1; overflow-y: auto; padding: 32px 48px; background: var(--c-bg); }
+        .main-area { flex: 1; overflow-y: auto; padding: 24px 40px; background: var(--c-bg); min-height: 0; }
 
         /* Global Styles inside Main Area */
         .page-heading { margin-bottom: 32px; }

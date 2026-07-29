@@ -14,14 +14,12 @@
     $breadcrumbs[] = ['label' => 'Home', 'url' => route('ecommerce.admin.dashboard')];
 
     if (str_starts_with($routeName, 'ecommerce.admin.crm')) {
-        // CRM sub-routes
         $crmDashboard = route('ecommerce.admin.crm.dashboard');
         $breadcrumbs[] = ['label' => 'CRM', 'url' => $crmDashboard];
 
         if (str_starts_with($routeName, 'ecommerce.admin.crm.customers')) {
             $breadcrumbs[] = ['label' => 'Customers', 'url' => route('ecommerce.admin.crm.customers')];
             if (in_array($routeName, ['ecommerce.admin.crm.customers.show'])) {
-                // We can't easily get the name here without a DB query — show a generic label
                 $breadcrumbs[] = ['label' => 'Customer Detail', 'url' => null];
             } else {
                 $breadcrumbs[] = ['label' => 'All Customers', 'url' => null];
@@ -53,7 +51,6 @@
         } elseif (str_starts_with($routeName, 'ecommerce.admin.crm.templates')) {
             $breadcrumbs[] = ['label' => 'Templates', 'url' => null];
         } else {
-            // CRM dashboard — just "CRM"
             $breadcrumbs[] = ['label' => 'Dashboard', 'url' => null];
         }
     } elseif (str_starts_with($routeName, 'ecommerce.admin.listings')) {
@@ -87,24 +84,25 @@
 @endphp
 
 <style>
-    /* ── Navbar ── */
+    /* ── Navbar — Dark navy header matching login page ── */
     .admin-navbar {
-        height: 56px;
-        background: var(--c-header-bg);
+        height: 104px;
+        background: #0B1E3D;
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 0 20px;
+        padding: 0 28px;
         position: sticky;
         top: 0;
         z-index: 50;
-        gap: 16px;
+        gap: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
     }
 
     .navbar-left {
         display: flex;
         align-items: center;
-        gap: 14px;
+        gap: 18px;
         min-width: 0;
     }
 
@@ -116,7 +114,7 @@
     }
 
     .navbar-logo img {
-        height: 30px;
+        height: 56px;
         object-fit: contain;
     }
 
@@ -127,23 +125,23 @@
     }
 
     .company-logo img {
-        height: 26px;
-        max-width: 100px;
+        height: 46px;
+        max-width: 150px;
         object-fit: contain;
     }
 
     .company-logo .no-logo {
-        font-size: 14px;
+        font-size: 18px;
         font-weight: 700;
-        color: #fff;
+        color: rgba(255,255,255,0.95);
         white-space: nowrap;
     }
 
     /* Logo Divider */
     .navbar-divider {
         width: 1px;
-        height: 24px;
-        background: rgba(255,255,255,0.15);
+        height: 36px;
+        background: rgba(255,255,255,0.2);
         flex-shrink: 0;
     }
 
@@ -151,14 +149,14 @@
     .navbar-breadcrumb {
         display: flex;
         align-items: center;
-        gap: 6px;
+        gap: 8px;
         min-width: 0;
         overflow: hidden;
     }
 
     .navbar-breadcrumb a,
     .navbar-breadcrumb span {
-        font-size: 13px;
+        font-size: 15px;
         white-space: nowrap;
         text-decoration: none;
     }
@@ -169,17 +167,17 @@
     }
 
     .navbar-breadcrumb a:hover {
-        color: rgba(255,255,255,0.85);
+        color: rgba(255,255,255,0.9);
     }
 
     .navbar-breadcrumb .sep {
-        color: rgba(255,255,255,0.2);
-        font-size: 12px;
+        color: rgba(255,255,255,0.3);
+        font-size: 13px;
         flex-shrink: 0;
     }
 
     .navbar-breadcrumb .current {
-        color: #fff;
+        color: #ffffff;
         font-weight: 600;
     }
 
@@ -187,13 +185,13 @@
     .store-status {
         display: inline-flex;
         align-items: center;
-        gap: 5px;
-        padding: 3px 10px;
+        gap: 6px;
+        padding: 5px 12px;
         border-radius: 20px;
-        font-size: 11px;
+        font-size: 13px;
         font-weight: 600;
         flex-shrink: 0;
-        margin-left: 4px;
+        margin-left: 6px;
     }
 
     .store-status .dot {
@@ -203,14 +201,14 @@
     }
 
     .store-status.live {
-        background: rgba(34, 197, 94, 0.15);
+        background: rgba(34, 197, 94, 0.2);
         color: #4ade80;
     }
 
     .store-status.live .dot { background: #22c55e; }
 
     .store-status.draft {
-        background: rgba(251, 191, 36, 0.15);
+        background: rgba(251, 191, 36, 0.2);
         color: #fbbf24;
     }
 
@@ -220,7 +218,7 @@
     .navbar-right {
         display: flex;
         align-items: center;
-        gap: 6px;
+        gap: 8px;
         flex-shrink: 0;
     }
 
@@ -228,13 +226,13 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 34px;
-        height: 34px;
-        border-radius: 8px;
+        width: 44px;
+        height: 44px;
+        border-radius: 10px;
         border: 0;
         background: transparent;
-        color: rgba(255,255,255,0.6);
-        font-size: 18px;
+        color: rgba(255,255,255,0.65);
+        font-size: 22px;
         cursor: pointer;
         text-decoration: none;
         transition: all 0.15s;
@@ -242,17 +240,17 @@
     }
 
     .navbar-btn:hover {
-        background: rgba(255,255,255,0.08);
-        color: #fff;
+        background: rgba(255,255,255,0.1);
+        color: #ffffff;
     }
 
     .navbar-btn.primary {
-        background: var(--c-primary);
+        background: #1B6FC8;
         color: #fff;
         width: auto;
-        padding: 0 12px;
-        gap: 6px;
-        font-size: 14px;
+        padding: 0 18px;
+        gap: 8px;
+        font-size: 15px;
         font-weight: 600;
     }
 
@@ -261,7 +259,7 @@
     }
 
     .navbar-btn.primary i {
-        font-size: 15px;
+        font-size: 18px;
     }
 
     /* Decorative notification icon (non-interactive) */
@@ -272,33 +270,33 @@
 
     .navbar-btn .badge-dot {
         position: absolute;
-        top: 6px;
-        right: 6px;
-        width: 7px;
-        height: 7px;
+        top: 7px;
+        right: 7px;
+        width: 8px;
+        height: 8px;
         border-radius: 50%;
         background: #ef4444;
-        border: 2px solid var(--c-header-bg);
+        border: 3px solid #0B1E3D;
     }
 
     /* User Menu */
     .user-menu-wrap {
         position: relative;
-        margin-left: 2px;
+        margin-left: 6px;
     }
 
     .user-avatar {
         display: grid;
         place-items: center;
-        width: 32px;
-        height: 32px;
+        width: 44px;
+        height: 44px;
         padding: 0;
         border: 0;
         border-radius: 50%;
-        background: var(--c-primary);
+        background: #1B6FC8;
         color: #fff;
         font-weight: 600;
-        font-size: 12px;
+        font-size: 15px;
         cursor: pointer;
         transition: opacity 0.15s;
     }
@@ -311,17 +309,17 @@
         visibility: hidden;
         position: absolute;
         z-index: 20;
-        top: 40px;
+        top: 54px;
         right: 0;
         width: 240px;
         overflow: hidden;
         border-radius: 10px;
         background: #fff;
-        box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.15);
         opacity: 0;
         transform: translateY(-6px);
         transition: all 0.16s ease;
-        border: 1px solid var(--c-border);
+        border: 1px solid #e3e3e0;
     }
 
     .user-menu-wrap[data-open="true"] .user-dropdown {
@@ -332,25 +330,25 @@
 
     .user-dropdown-header {
         padding: 16px;
-        border-bottom: 1px solid var(--c-border);
+        border-bottom: 1px solid #e3e3e0;
         background: #fafbfc;
     }
 
     .user-dropdown-header .ud-name {
         font-size: 14px;
         font-weight: 600;
-        color: var(--c-text);
+        color: #1b1b18;
     }
 
     .user-dropdown-header .ud-email {
         font-size: 12px;
-        color: var(--c-text-muted);
+        color: #706f6c;
         margin-top: 2px;
     }
 
     .user-dropdown-header .ud-company {
         font-size: 11px;
-        color: var(--c-primary);
+        color: #1B6FC8;
         font-weight: 600;
         margin-top: 4px;
         display: flex;
@@ -366,7 +364,7 @@
         padding: 11px 16px;
         border: 0;
         background: #fff;
-        color: var(--c-text);
+        color: #1b1b18;
         font: 500 13px Inter, Arial, sans-serif;
         text-align: left;
         text-decoration: none;
@@ -380,18 +378,18 @@
 
     .user-dropdown .ud-link i {
         font-size: 16px;
-        color: var(--c-text-muted);
+        color: #706f6c;
         width: 18px;
         text-align: center;
     }
 
     .user-dropdown .ud-link.storefront-link i {
-        color: var(--c-primary);
+        color: #1B6FC8;
     }
 
     .user-dropdown .ud-divider {
         height: 1px;
-        background: var(--c-border);
+        background: #e3e3e0;
         margin: 0;
     }
 
@@ -412,7 +410,7 @@
     <!-- Left: Logo + Breadcrumb -->
     <div class="navbar-left">
         <a class="navbar-logo" href="{{ route('ecommerce.admin.dashboard') }}" title="Dashboard">
-            <img src="{{ asset('images/Banner Transparent.png') }}" style="filter: brightness(0) invert(1);" alt="Nexora Logo">
+            <img src="{{ asset('images/Banner Transparent.png') }}" alt="Nexora Logo">
         </a>
 
         <div class="company-logo">
