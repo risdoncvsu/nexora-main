@@ -327,7 +327,6 @@ class EcommerceAdminController extends Controller
             'layout' => $layout,
             'storefrontListings' => StorefrontListing::query()->where('status', 'active')->latest()->take(12)->get(),
             'allListings' => StorefrontListing::query()->get()->keyBy('id'),
-            'prebuiltPcs' => [],
             'customConfigs' => $customConfigs,
             'preview' => true,
         ]);
