@@ -28,6 +28,13 @@ class Company extends Model
      */
     public function logoUrl(): ?string
     {
+        // ITSM owns the canonical company logo. Prefer it so storefront and
+        // ecommerce account pages use the same upload as the other modules.
+        $itsmLogoUrl = \App\Models\Company::find($this->getKey())?->logoUrl();
+        if ($itsmLogoUrl) {
+            return $itsmLogoUrl;
+        }
+
         if (! $this->logo_path) {
             return null;
         }

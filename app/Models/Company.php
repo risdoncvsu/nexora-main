@@ -41,10 +41,14 @@ class Company extends Model
 
     public function logoUrl(): ?string
     {
-        if (! $this->logo_path) {
+        if (! $this->logo_path || ! Storage::disk('public')->exists($this->logo_path)) {
             return null;
         }
 
-        return Storage::disk('public')->url($this->logo_path);
+        // Serve the ITSM-owned upload through the application instead of
+        // assuming that every deployment has a public/storage symlink. This
+        // keeps the exact uploaded logo available to every integrated module
+        // and to wildcard storefront domains.
+        return route('company.logo', ['company' => $this]);
     }
 }

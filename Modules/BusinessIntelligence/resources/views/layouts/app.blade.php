@@ -54,10 +54,12 @@
 
 <body>
     <header class="header">
-        <a href="{{ route('bi.dashboard') }}" class="nexora-logo" id="headerLogoBtn">
-            <img src="{{ asset('bi/images/Banner Transparent.png') }}" alt="Nexora Logo">
-        </a>
-        <x-client-logo :size="64" />
+        <div class="header-brand">
+            <a href="{{ route('bi.dashboard') }}" class="nexora-logo" id="headerLogoBtn">
+                <img src="{{ asset('bi/images/Banner Transparent.png') }}" alt="Nexora Logo">
+            </a>
+            <x-client-logo :size="64" />
+        </div>
         <div class="header-right">
             <div class="header-profile-wrap" id="headerNotificationWrap">
                 <button type="button" class="header-profile-btn" id="headerNotificationBtn" aria-label="Open notifications" aria-expanded="false">

@@ -23,6 +23,8 @@ use App\Http\Controllers\KnowledgeBaseController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\EmployeePortalController;
 use App\Http\Controllers\ContactController;
+use App\Models\Company;
+use Illuminate\Support\Facades\Storage;
 
 Route::get('/login', function () {
     return view('auth.login');
@@ -31,6 +33,16 @@ Route::get('/login', function () {
 // Public company-contact page linked from the primary sign-in screen.
 Route::view('/contact', 'contact')->name('contact');
 Route::post('/contact', [ContactController::class, 'store'])->name('contact.store');
+
+// Company logos are public brand assets. Streaming from the public disk avoids
+// broken module/storefront logos when a deployment has no storage symlink.
+Route::get('/company-logo/{company}', function (Company $company) {
+    abort_unless($company->logo_path && Storage::disk('public')->exists($company->logo_path), 404);
+
+    return Storage::disk('public')->response($company->logo_path, null, [
+        'Cache-Control' => 'public, max-age=86400',
+    ]);
+})->name('company.logo');
 
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
