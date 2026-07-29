@@ -60,6 +60,19 @@ class Employee extends Model
     ];
 
     /**
+     * Build the human-readable HR identifier from the immutable primary key.
+     *
+     * Both employee onboarding and the legacy employee form use this method.
+     * Deriving the code after insert avoids duplicate IDs when two employees
+     * are created at the same time and avoids parsing a different client's
+     * most recent record.
+     */
+    public static function employeeCodeForId(int $id, ?int $year = null): string
+    {
+        return (string) ($year ?? now()->year).str_pad((string) $id, 4, '0', STR_PAD_LEFT);
+    }
+
+    /**
      * work_schedule formats:
      * - "08:00-17:00" (start-end from onboarding)
      * - legacy single time "08:00" / "08:00:00"

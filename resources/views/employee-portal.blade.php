@@ -41,7 +41,9 @@
                     <h1 class="text-3xl font-bold md:text-5xl">Welcome back, {{ session('employee_name', 'Employee') }}.</h1>
                     <p class="mt-3 max-w-2xl text-base text-blue-100 md:text-lg">Enter your assigned department, view support updates, or access your HR self-service records from one secure portal.</p>
                 </div>
-                <a href="{{ $moduleUrl }}" class="inline-flex shrink-0 items-center justify-center rounded-full bg-white px-6 py-3 text-center font-bold text-[#132B52] shadow-md transition hover:bg-blue-50">
+                <a href="{{ $moduleUrl }}" role="button" tabindex="0"
+                   onclick="window.location.assign(this.href); return false;"
+                   class="relative z-20 inline-flex shrink-0 cursor-pointer pointer-events-auto items-center justify-center rounded-full bg-white px-6 py-3 text-center font-bold text-[#132B52] shadow-md transition hover:bg-blue-50 focus:outline-none focus:ring-4 focus:ring-white/50">
                     Continue to {{ $department }} dashboard <span class="ml-2" aria-hidden="true">&rarr;</span>
                 </a>
             </div>

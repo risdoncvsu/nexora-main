@@ -60,19 +60,22 @@ class BusinessIntelligenceController
         $ai = $this->cachedAiInsight($clientId) ?? [];
         $lastSnapshot = $this->latestDashboardSnapshot($clientId);
 
+        $lastAnalysisAt = $lastSnapshot['captured_at'] ?? null;
+        $activeRisks = count($this->riskDetection($metrics));
+        $businessHealth = $this->businessHealthBreakdown($metrics);
+
         return view('bi::ai-insights', [
             'alerts' => $this->insightAlerts($metrics),
-            // Keep the overview intentionally focused: these are the four
-            // operational signals shown in the approved KPI layout.
             'kpiOverview' => [
-                ['label' => 'Business Health', 'value' => $this->overallBusinessHealth($metrics) . '%', 'icon' => 'activity', 'tone' => 'blue'],
-                ['label' => 'AI Confidence', 'value' => $this->aiConfigured() ? 'High' : 'Standard', 'icon' => 'sparkles', 'tone' => 'purple'],
-                ['label' => 'Active Risks', 'value' => (string) count($this->riskDetection($metrics)), 'icon' => 'shield-alert', 'tone' => 'red'],
-                ['label' => 'Last Analysis', 'value' => $lastSnapshot ? $lastSnapshot['captured_at']->diffForHumans() : 'Not yet run', 'icon' => 'clock-3', 'tone' => 'green'],
+                ['label' => 'Business Health', 'value' => $businessHealth['score'].'%', 'icon' => 'heart-pulse', 'change' => 'All modules', 'change_class' => 'change-up'],
+                ['label' => 'AI Confidence', 'value' => $this->aiConfigured() ? 'High' : 'Standard', 'icon' => 'sparkles', 'change' => $this->aiConfigured() ? 'AI-powered analysis' : 'Rule-based analysis', 'change_class' => 'change-up'],
+                ['label' => 'Active Risks', 'value' => (string) $activeRisks, 'icon' => 'alert-triangle', 'change' => $activeRisks > 0 ? 'Needs attention' : 'Clear', 'change_class' => $activeRisks > 0 ? 'change-down' : 'change-up'],
+                ['label' => 'Last Analysis', 'value' => $lastAnalysisAt ? $lastAnalysisAt->diffForHumans() : 'No previous analysis', 'icon' => 'clock', 'change' => $lastAnalysisAt ? $lastAnalysisAt->toDateTimeString() : '—', 'change_class' => 'change-up'],
             ],
             'executiveSummary' => !empty($ai['executiveSummary']) ? $ai['executiveSummary'] : $this->executiveSummary($metrics),
             'recommendations' => !empty($ai['recommendations']) ? $ai['recommendations'] : $this->recommendations($metrics),
             'risks' => !empty($ai['risks']) ? $ai['risks'] : $this->riskDetection($metrics),
+            'businessHealth' => $businessHealth,
         ]);
     }
 
@@ -1691,6 +1694,33 @@ class BusinessIntelligenceController
         ];
 
         return (int) round(array_sum($scores) / count($scores));
+    }
+
+    /** @return array{score:int, explanation:string, factors:array<int, array{label:string,status:string,detail:string}>} */
+    private function businessHealthBreakdown(array $metrics): array
+    {
+        $score = $this->overallBusinessHealth($metrics);
+        $revenue = (float) ($metrics['revenue'] ?? 0);
+        $profit = (float) ($metrics['net_profit'] ?? $metrics['profit'] ?? 0);
+        $lowStock = max(0, (int) ($metrics['inventory_low_stock'] ?? 0));
+        $delayed = max(0, (int) ($metrics['fulfillment_delayed'] ?? 0));
+        $overdue = max(0, (int) ($metrics['finance_overdue_receivables'] ?? $metrics['finance_overdue'] ?? 0));
+
+        return [
+            'score' => $score,
+            'explanation' => match (true) {
+                $score >= 80 => 'Business performance is healthy across the connected ERP modules.',
+                $score >= 60 => 'Business performance is stable, with a few areas that need attention.',
+                default => 'Business performance needs attention in one or more operational areas.',
+            },
+            'factors' => [
+                ['label' => 'Revenue', 'status' => $revenue > 0 ? 'positive' : 'negative', 'detail' => '₱'.number_format($revenue, 0)],
+                ['label' => 'Profit Margin', 'status' => $profit >= 0 ? 'positive' : 'negative', 'detail' => '₱'.number_format($profit, 0).($profit >= 0 ? ' profit' : ' loss')],
+                ['label' => 'Inventory Health', 'status' => $lowStock === 0 ? 'positive' : 'warning', 'detail' => $lowStock.' low stock item'.($lowStock === 1 ? '' : 's')],
+                ['label' => 'Order Fulfillment', 'status' => $delayed === 0 ? 'positive' : 'warning', 'detail' => $delayed.' delayed shipment'.($delayed === 1 ? '' : 's')],
+                ['label' => 'Cash Flow', 'status' => $overdue === 0 ? 'positive' : 'negative', 'detail' => $overdue.' overdue invoice'.($overdue === 1 ? '' : 's')],
+            ],
+        ];
     }
 
     private function recordConversationPair(int $clientId, string $userMessage, string $assistantMessage): void

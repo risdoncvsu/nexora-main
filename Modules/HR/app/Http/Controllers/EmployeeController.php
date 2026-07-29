@@ -91,13 +91,7 @@ if ($request->hasFile('profile_picture')) {
     $request->file('profile_picture')->move(public_path('profile_pictures'), $imageName);
 }
 
-$lastEmployee = Employee::latest('id')->first();
-
-$nextNumber = $lastEmployee ? intval(substr($lastEmployee->employee_id, 4)) + 1 : 1;
-
-$employeeId = date('Y') . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
-Employee::create([
-    'employee_id' => $employeeId,
+$employee = Employee::create([
     'first_name' => $request->first_name,
     'last_name' => $request->last_name,
     'middle_name' => $request->middle_name,
@@ -111,6 +105,12 @@ Employee::create([
     'profile_picture' => $imageName,
     'client_id' => $clientId,
     'approval_status' => 'Pending',
+]);
+
+// The database key is the only reliable sequence across concurrent requests
+// and client-scoped employee lists. Generate the visible ID after creation.
+$employee->updateQuietly([
+    'employee_id' => Employee::employeeCodeForId((int) $employee->id),
 ]);
         return redirect()->route('hr.dashboard')
             ->with('success', 'Employee added successfully!');

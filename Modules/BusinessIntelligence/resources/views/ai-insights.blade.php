@@ -16,24 +16,23 @@
         </div>
         <div class="content-container">
 
-            {{-- The approved AI Insights overview: intentionally only four KPIs. --}}
-            <section class="insight-card bi-kpi-overview-card" aria-labelledby="bi-kpi-overview-title">
-                <div class="alerts-header-row">
-                    <h3 id="bi-kpi-overview-title">Executive KPI Overview</h3>
+            <div class="ui-card">
+                <div class="card-header">
+                    <div class="card-title">Executive KPI Overview <span class="info-dot" data-tooltip="High-level metrics derived from all connected ERP modules.">i</span></div>
                 </div>
-                <p class="bi-kpi-overview-caption">A concise view of the current business position.</p>
-                <div class="bi-kpi-overview-grid">
+                <div class="bi-kpi-overview-grid" style="grid-template-columns:repeat(4,minmax(0,1fr));">
                     @foreach($kpiOverview as $kpi)
-                        <article class="kpi-card bi-kpi-overview-item bi-kpi-tone-{{ $kpi['tone'] }}">
-                            <div class="kpi-icon-container"><i data-lucide="{{ $kpi['icon'] }}"></i></div>
-                            <div>
-                                <p class="kpi-label">{{ $kpi['label'] }}</p>
-                                <p class="kpi-value">{{ $kpi['value'] }}</p>
+                        <div class="kpi-card" style="flex-direction:column;align-items:flex-start;gap:.5rem;">
+                            <div class="kpi-icon-container"><i data-lucide="{{ $kpi['icon'] }}" class="kpi-icon"></i></div>
+                            <div class="kpi-details" style="flex:none;width:100%;">
+                                <div class="kpi-label">{{ $kpi['label'] }}</div>
+                                <div class="kpi-value" style="font-size:20px;margin:4px 0 2px;">{{ $kpi['value'] }}</div>
+                                <div class="kpi-change {{ $kpi['change_class'] }}" style="font-size:10px;">{{ $kpi['change'] }}</div>
                             </div>
-                        </article>
+                        </div>
                     @endforeach
                 </div>
-            </section>
+            </div>
 
             <div class="ai-insights-grid">
                 {{-- Executive Summary --}}
@@ -119,6 +118,29 @@
                                 </div>
                             </div>
                         @endforelse
+                    </div>
+                </div>
+
+                <div class="insight-card">
+                    <h3>Business Health Score <span class="info-dot" data-tooltip="Overall business performance score computed from live data across all ERP modules.">i</span></h3>
+                    <div class="card-subtitle">Live cross-module assessment</div>
+                    <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem;">
+                        <div class="op-donut op-donut-lg">
+                            <svg viewBox="0 0 36 36" class="op-donut-svg" aria-label="Business health {{ $businessHealth['score'] }} percent">
+                                <path class="op-donut-track" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                <path class="op-donut-fill {{ $businessHealth['score'] >= 80 ? 'health-green' : ($businessHealth['score'] >= 60 ? 'health-yellow' : ($businessHealth['score'] >= 40 ? 'health-orange' : 'health-red')) }}" stroke-dasharray="{{ $businessHealth['score'] }}, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                            </svg>
+                            <span class="op-donut-text op-donut-text-lg">{{ $businessHealth['score'] }}%</span>
+                        </div>
+                        <p style="font-size:11px;color:var(--slate-500);line-height:1.5;">{{ $businessHealth['explanation'] }}</p>
+                    </div>
+                    <div class="insight-list">
+                        @foreach($businessHealth['factors'] as $factor)
+                            <div class="insight-item">
+                                <div class="insight-icon-circle bg-icon-{{ $factor['status'] === 'positive' ? 'green' : ($factor['status'] === 'warning' ? 'orange' : 'red') }}"><i data-lucide="{{ $factor['status'] === 'positive' ? 'trending-up' : 'trending-down' }}" class="insight-icon-sm"></i></div>
+                                <div class="insight-text-wrapper"><p><strong>{{ $factor['label'] }}</strong></p><div class="sub-text">{{ $factor['detail'] }}</div></div>
+                            </div>
+                        @endforeach
                     </div>
                 </div>
             </div>

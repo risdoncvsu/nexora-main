@@ -83,7 +83,7 @@
                                  class="w-[110px] h-[110px] object-cover"
                                  alt="Employee Picture">
                         @else
-                            <img src="{{ asset('images/avatar-placeholder.png') }}"
+                            <img src="{{ asset('images/icon.png') }}"
                                  class="w-[110px] h-[110px] object-cover bg-[lightblue]"
                                  alt="">
                         @endif
@@ -103,7 +103,7 @@
                     </div>
 
                     <div class="relative z-[5] w-[165px] h-6 py-[5px] px-[2px] text-[0.8125rem] font-light mt-[10%] ml-[38%]">
-                        {{ '2026' . str_pad($employee->id, 4, '0', STR_PAD_LEFT) }}
+                        {{ $employee->employee_id ?: \Modules\HR\Models\Employee::employeeCodeForId((int) $employee->id) }}
                     </div>
 
                 </div>
@@ -546,7 +546,7 @@
             {{ strtoupper($employee->first_name . ' ' . $employee->last_name) }}
         </p>
         <p class="text-[#8FA6D8] text-[11px] text-center mb-5">
-            Employee ID: {{ '2026' . str_pad($employee->id, 4, '0', STR_PAD_LEFT) }}
+            Employee ID: {{ $employee->employee_id ?: \Modules\HR\Models\Employee::employeeCodeForId((int) $employee->id) }}
         </p>
 
         <p class="text-[#8FA6D8] text-[11px] text-center mb-4 leading-relaxed">

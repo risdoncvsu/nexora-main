@@ -244,9 +244,10 @@ class EmployeeOnboardingController extends Controller
         'approval_status' => 'Pending',
     ]);
 
-    // Ngayon meron na tayong auto-increment id, gamitin natin siya
-    $employee->employee_id = date('Y') . str_pad($employee->id, 4, '0', STR_PAD_LEFT);
-    $employee->save();
+    // Use the same collision-safe ID policy as the employee-management form.
+    $employee->updateQuietly([
+        'employee_id' => Employee::employeeCodeForId((int) $employee->id),
+    ]);
 
     session()->forget(['step1', 'step2', 'step3']);
     // Keep the one-time credential available only for the success screen;
