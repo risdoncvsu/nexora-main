@@ -103,7 +103,9 @@ Route::middleware('hr.access')->group(function () {
 });
 
 Route::get('/clockinout', function () {
-    return view('clockinout.index');
+    return view('clockinout.index', [
+        'attendanceTimezone' => session('attendance_timezone'),
+    ]);
 })->name('clockinout');
 
 Route::post('/clock-in', [AttendanceController::class, 'clockIn'])

@@ -2,10 +2,12 @@
 
 namespace Modules\HR\Http\Controllers;
 
+use App\Models\Company;
 use Modules\HR\Models\Attendance;
 use Modules\HR\Models\Employee;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 
@@ -22,12 +24,15 @@ class AttendanceController extends Controller
         ]);
 
         $employeeCode = trim($validated['employee_id']);
-        $employee = Employee::query()->where('employee_id', $employeeCode)->first();
+        // The kiosk intentionally has no employee session. Look up the HR
+        // employee across scopes, then derive every attendance write from the
+        // employee's immutable client ownership.
+        $employee = Employee::withoutGlobalScopes()->where('employee_id', $employeeCode)->first();
 
         // Sessions created before employee_code was stored may still prefill
         // the HR primary key; preserve that existing attendance flow.
         if (! $employee && ctype_digit($employeeCode)) {
-            $employee = Employee::query()->whereKey((int) $employeeCode)->first();
+            $employee = Employee::withoutGlobalScopes()->whereKey((int) $employeeCode)->first();
         }
 
         if (! $employee) {
@@ -35,14 +40,16 @@ class AttendanceController extends Controller
                 ->withErrors(['employee_id' => 'The selected employee ID is invalid.'])
                 ->withInput(['employee_id' => $employeeCode]);
         }
-        $now = Carbon::now('Asia/Manila');
+        $timezone = $this->timezoneForEmployee($employee);
+        $now = Carbon::now($timezone);
         $today = $now->toDateString();
         $action = $request->input('action', 'clock_in');
 
         $photoPath = $this->storeCompressedAttendancePhoto(
             $request->input('photo'),
             $employee->id,
-            $action === 'clock_out' ? 'out' : 'in'
+            $action === 'clock_out' ? 'out' : 'in',
+            $timezone
         );
 
         if (! $photoPath) {
@@ -52,25 +59,28 @@ class AttendanceController extends Controller
         }
 
         if ($action === 'clock_out') {
-            $attendance = Attendance::where('employee_id', $employee->id)
-                ->where('attendance_date', $today)
-                ->first();
+            $attendance = DB::connection('hr')->transaction(function () use ($employee, $today, $now, $photoPath): ?Attendance {
+                $attendance = $this->attendanceForToday($employee, $today, true);
+
+                if (! $attendance || ! $attendance->time_in || $attendance->time_out) {
+                    return $attendance;
+                }
+
+                $attendance->client_id = $employee->client_id;
+                $attendance->time_out = $now->format('H:i:s');
+                $attendance->time_out_image = $photoPath;
+                $attendance->save();
+
+                return $attendance;
+            });
 
             if (! $attendance || ! $attendance->time_in) {
                 return back()->with('error', 'No clock-in found for today.');
             }
 
-            if (! $attendance->client_id) {
-                $attendance->client_id = $employee->client_id;
-            }
-
-            if ($attendance->time_out) {
+            if ($attendance->time_out !== $now->format('H:i:s')) {
                 return back()->with('error', 'This employee already clocked out today.');
             }
-
-            $attendance->time_out = $now->format('H:i:s');
-            $attendance->time_out_image = $photoPath;
-            $attendance->save();
 
             return redirect()->route('hr.clockinout')
                 ->with('success', 'Clock out recorded for employee #' . $employeeCode)
@@ -79,37 +89,68 @@ class AttendanceController extends Controller
                 ->with('clock_out', $attendance->time_out)
                 ->with('clocked_in', true)
                 ->with('clocked_out', true)
+                ->with('attendance_timezone', $timezone)
                 ->withInput(['employee_id' => $employeeCode]);
         }
 
-        $attendance = Attendance::firstOrNew([
-            'employee_id' => $employee->id,
-            'attendance_date' => $today,
-        ]);
+        $attendance = DB::connection('hr')->transaction(function () use ($employee, $today, $now, $photoPath): Attendance {
+            $attendance = $this->attendanceForToday($employee, $today, true);
 
-        if (! $attendance->client_id) {
-            $attendance->client_id = $employee->client_id;
-        }
-
-        if ($attendance->exists && $attendance->time_in) {
-            if ($attendance->time_out) {
-                return back()->with('error', 'This employee already clocked out today.');
+            if (! $attendance) {
+                $attendance = new Attendance([
+                    'employee_id' => $employee->id,
+                    'client_id' => $employee->client_id,
+                    'attendance_date' => $today,
+                ]);
             }
 
-            return back()->with('error', 'This employee already clocked in today.');
-        }
+            if ($attendance->time_in) {
+                return $attendance;
+            }
 
-        $attendance->time_in = $now->format('H:i:s');
-        $attendance->time_in_image = $photoPath;
-        $attendance->status = 'Present';
-        $attendance->save();
+            $attendance->client_id = $employee->client_id;
+            $attendance->time_in = $now->format('H:i:s');
+            $attendance->time_in_image = $photoPath;
+            $attendance->status = 'Present';
+            $attendance->save();
+
+            return $attendance;
+        });
+
+        if ($attendance->time_in !== $now->format('H:i:s')) {
+            return back()->with('error', $attendance->time_out
+                ? 'This employee already clocked out today.'
+                : 'This employee already clocked in today.');
+        }
 
         return redirect()->route('hr.clockinout')
             ->with('success', 'Clock in recorded for employee #' . $employeeCode)
             ->with('employee_id', $employeeCode)
             ->with('clock_in', $attendance->time_in)
             ->with('clocked_in', true)
+            ->with('attendance_timezone', $timezone)
             ->withInput(['employee_id' => $employeeCode]);
+    }
+
+    private function attendanceForToday(Employee $employee, string $date, bool $lock = false): ?Attendance
+    {
+        $query = Attendance::query()
+            ->where('employee_id', $employee->id)
+            ->where('attendance_date', $date)
+            ->where(function ($query) use ($employee): void {
+                $query->where('client_id', $employee->client_id)->orWhereNull('client_id');
+            });
+
+        return ($lock ? $query->lockForUpdate() : $query)->first();
+    }
+
+    private function timezoneForEmployee(Employee $employee): string
+    {
+        $timezone = Company::query()->whereKey($employee->client_id)->value('timezone');
+
+        return is_string($timezone) && in_array($timezone, timezone_identifiers_list(), true)
+            ? $timezone
+            : config('app.timezone', 'UTC');
     }
 
     /**
@@ -117,7 +158,7 @@ class AttendanceController extends Controller
      * Max edge ~480px, quality ~55 for a small file size.
      * Falls back to raw write if GD is unavailable.
      */
-    private function storeCompressedAttendancePhoto(string $dataUrl, int $employeeId, string $type): ?string
+    private function storeCompressedAttendancePhoto(string $dataUrl, int $employeeId, string $type, string $timezone): ?string
     {
         $dataUrl = trim($dataUrl);
 
@@ -148,7 +189,7 @@ class AttendanceController extends Controller
             'emp%s_%s_%s_%s.jpg',
             $employeeId,
             $type,
-            now('Asia/Manila')->format('Ymd_His'),
+            now($timezone)->format('Ymd_His'),
             Str::lower(Str::random(6))
         );
         $fullPath = $directory.DIRECTORY_SEPARATOR.$filename;
@@ -185,7 +226,7 @@ class AttendanceController extends Controller
                 'emp%s_%s_%s_%s.%s',
                 $employeeId,
                 $type,
-                now('Asia/Manila')->format('Ymd_His'),
+                now($timezone)->format('Ymd_His'),
                 Str::lower(Str::random(6)),
                 $extension === 'png' ? 'png' : ($extension === 'webp' ? 'webp' : 'jpg')
             );

@@ -140,22 +140,27 @@
 
 const clock=document.getElementById("clock");
 const date=document.getElementById("date");
+const attendanceTimezone = @json($attendanceTimezone ?? null);
 
 function updateClock(){
 
     const now=new Date();
 
+    const timezoneOption = attendanceTimezone ? { timeZone: attendanceTimezone } : {};
+
     clock.innerHTML=now.toLocaleTimeString([],{
         hour:'2-digit',
         minute:'2-digit',
-        hour12:false
+        hour12:false,
+        ...timezoneOption,
     });
 
     date.innerHTML=now.toLocaleDateString('en-US',{
         weekday:'long',
         year:'numeric',
         month:'long',
-        day:'numeric'
+        day:'numeric',
+        ...timezoneOption,
     });
 
 }
