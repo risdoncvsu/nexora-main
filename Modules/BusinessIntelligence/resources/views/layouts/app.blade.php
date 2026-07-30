@@ -21,7 +21,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    <link rel="stylesheet" href="{{ asset('bi/css/dashboard.css') }}">
+    <link rel="stylesheet" href="{{ asset('bi/css/dashboard.css') }}?v={{ filemtime(public_path('bi/css/dashboard.css')) }}">
     <link rel="icon" type="image/png" href="{{ asset('bi/images/Nexora_Logo_Transparent.png') }}">
     <style>
         /* This layout doesn't load Tailwind's preflight, so reset the native
