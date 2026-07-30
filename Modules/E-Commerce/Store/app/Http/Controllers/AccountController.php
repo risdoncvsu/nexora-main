@@ -13,6 +13,19 @@ use Illuminate\Support\Facades\DB;
 
 class AccountController extends Controller
 {
+    private function customerVisibleStatus(?string $fulfillmentStatus, ?string $manufacturingStatus, ?string $ecommerceStatus): string
+    {
+        $fulfillmentStatus = strtoupper((string) $fulfillmentStatus);
+
+        // Fulfillment deliberately waits while Manufacturing builds and runs
+        // QC. During that wait, show the live production milestone instead.
+        if ($fulfillmentStatus === 'AWAITING_MANUFACTURING' && $manufacturingStatus) {
+            return strtoupper((string) $manufacturingStatus);
+        }
+
+        return $fulfillmentStatus ?: strtoupper((string) ($ecommerceStatus ?: 'NEW'));
+    }
+
     protected function redirectToPasswordPane(): \Illuminate\Http\RedirectResponse
     {
         return redirect()->to(route('ecommerce.account.profile') . '#password');
@@ -45,6 +58,7 @@ class AccountController extends Controller
 
             $fulfillmentOrders = collect();
             $shipments = collect();
+            $manufacturingOrders = collect();
 
             // Always fetch fulfillment orders that match by ID
             if (!empty($ecomOrderIds)) {
@@ -59,6 +73,14 @@ class AccountController extends Controller
                     ->whereIn('order_id', $ecomOrderIds)
                     ->get()
                     ->keyBy('order_id');
+
+                if (\Illuminate\Support\Facades\Schema::connection('manufacturing')->hasTable('work_orders')) {
+                    $manufacturingOrders = DB::connection('manufacturing')
+                        ->table('work_orders')
+                        ->whereIn('fulfillment_order_id', $ecomOrderIds)
+                        ->get()
+                        ->keyBy('fulfillment_order_id');
+                }
             }
 
             // Also fetch fulfillment orders that match by customer_name but DON'T have a matching ecom order ID
@@ -85,8 +107,10 @@ class AccountController extends Controller
                 foreach ($ecomOrders as $order) {
                     $fo = $fulfillmentOrders->get($order->id);
                     $shipment = $shipments->get($order->id);
+                    $manufacturing = $manufacturingOrders->get($order->id);
 
-                    $order->fulfillment_status = strtoupper($fo->status ?? $order->status ?? 'NEW');
+                    $order->fulfillment_status = $this->customerVisibleStatus($fo->status ?? null, $manufacturing->status ?? null, $order->status);
+                    $order->manufacturing_status = $manufacturing?->status;
                     $order->fulfillment_details = $fo;
                     $order->shipment_details = $shipment;
 
@@ -206,8 +230,10 @@ class AccountController extends Controller
                 foreach ($ecomOrders as $order) {
                     $fo = $fulfillmentOrders->get($order->id);
                     $shipment = $shipments->get($order->id);
+                    $manufacturing = $manufacturingOrders->get($order->id);
 
-                    $order->fulfillment_status = strtoupper($fo->status ?? $order->status ?? 'NEW');
+                    $order->fulfillment_status = $this->customerVisibleStatus($fo->status ?? null, $manufacturing->status ?? null, $order->status);
+                    $order->manufacturing_status = $manufacturing?->status;
                     $order->fulfillment_details = $fo;
                     $order->shipment_details = $shipment;
 

@@ -102,6 +102,9 @@ class ManufacturingController extends Controller
             $order->save();
         });
 
+        $order->refresh();
+        $this->syncStorefrontOrderStatus($order);
+
         return response()->json(['success' => true]);
     }
 
@@ -215,6 +218,9 @@ class ManufacturingController extends Controller
             }
         });
 
+        $order->refresh();
+        $this->syncStorefrontOrderStatus($order);
+
         if ($flagged) {
             return response()->json([
                 'success' => true,
@@ -234,6 +240,8 @@ class ManufacturingController extends Controller
         try {
             $fulfillmentOrderId = $this->releaseToFulfillment($order);
             $order->update(['status' => 'Completed']);
+            $order->refresh();
+            $this->syncStorefrontOrderStatus($order);
 
             return response()->json([
                 'success' => true,
@@ -539,6 +547,8 @@ class ManufacturingController extends Controller
             $changes['status'] = 'Building';
         }
         $order->update($changes);
+        $order->refresh();
+        $this->syncStorefrontOrderStatus($order);
 
         return response()->json(['success' => true, 'status' => $changes['status'] ?? $order->status]);
     }
@@ -596,6 +606,8 @@ class ManufacturingController extends Controller
         }
 
         $order->update(['status' => 'Cancelled']);
+        $order->refresh();
+        $this->syncStorefrontOrderStatus($order);
 
         return response()->json(['success' => true]);
     }
@@ -788,6 +800,30 @@ class ManufacturingController extends Controller
         ]);
 
         return (bool) preg_match('/\\b(packaging|packing\\s+(?:list|bom|materials?))\\b/i', $label);
+    }
+
+    /** Keep the customer-facing storefront order aligned with production. */
+    private function syncStorefrontOrderStatus(WorkOrder $workOrder): void
+    {
+        $orderId = (string) $workOrder->fulfillment_order_id;
+        if ($orderId === '' || ! Schema::connection('ecommerce')->hasTable('orders')) {
+            return;
+        }
+
+        $status = match (strtolower((string) $workOrder->status)) {
+            'pending', 'building' => 'manufacturing',
+            'finished' => 'manufacturing_finished',
+            'qc check' => 'qc_check',
+            'rework' => 'rework',
+            'completed' => 'packing',
+            'cancelled' => 'cancelled',
+            default => 'processing',
+        };
+
+        DB::connection('ecommerce')->table('orders')
+            ->where('id', $orderId)
+            ->where('client_id', $workOrder->client_id)
+            ->update(['status' => $status, 'updated_at' => now()]);
     }
 
     /**
