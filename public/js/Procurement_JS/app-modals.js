@@ -1,16 +1,17 @@
 /* ---------- Record modals (view / edit / delete) ---------- */
-  const PO_ITEM_HINTS = {
-    'Cables & Misc':'Cable kits and accessory bundle',
-    'Storage':'SSD and NAS storage units',
-    'Power Supplies':'Server-grade PSU units',
-    'Components':'Motherboards, RAM, and board-level parts',
-    'Cases & Cooling':'Cases, fans, and cooling accessories'
-  };
-
   function htmlEscape(v){
     return String(v ?? '').replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
   }
   function textFrom(node){ return (node?.textContent || '').trim(); }
+  // One canonical form for every status string in the module.
+  //
+  // There used to be three: updateRowStatus wrote "in-transit", the delivery
+  // edit path wrote "intransit", and the status-chart tiles compared against
+  // "intransit". A row moved to In Transit therefore stopped matching its own
+  // filter tile and silently vanished from the table.
+  function normalizeStatusKey(status){
+    return String(status ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  }
   function parseMoney(v){ return Number(String(v || '').replace(/[^0-9.]/g,'')) || 0; }
   function money(v){ return 'PHP ' + Number(v || 0).toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:2}); }
   function supplierNameFromCell(cell){
@@ -27,11 +28,6 @@
     return map[name] || randomColor(name || 'supplier');
   }
   function supplierPill(name){ return `<span class="supplier-pill"><span class="supplier-badge" style="background:${supplierBadgeColor(name)}">${initials(name || 'NA')}</span>${htmlEscape(name || 'Unknown Supplier')}</span>`; }
-  function deliveryBadge(status){
-    const cls = String(status || 'scheduled').toLowerCase().replace(/\s+/g,'');
-    const label = status || 'Scheduled';
-    return `<span class="del-status ${cls}"><span class="dstat-dot"></span>${htmlEscape(label)}</span>`;
-  }
   function statusPill(status){
     const raw = String(status || 'Pending');
     const clsMap = {'Approved':'approved','Pending':'pending','Processing':'processing','Rejected':'rejected','Completed':'completed','Paid':'paid','Unpaid':'unpaid','intransit':'intransit','Delivered':'delivered','Delayed':'delayed','Scheduled':'scheduled','Active':'approved','Inactive':'pending','Blacklisted':'rejected'};
@@ -39,11 +35,13 @@
     return `<span class="status-pill ${cls}">${htmlEscape(raw)}</span>`;
   }
   function getTableType(row){
+    // Suppliers render as cards, so they never sit inside a <table>.
+    if(row?.classList?.contains('supplier-card')) return 'supplier';
     // Defects now share the Requisitions work queue. Preserve their distinct
     // workflow even though they no longer need a separate tab/table.
     if(row?.dataset?.recordType === 'defect') return 'defect';
     const id = row?.closest('table')?.id;
-    return ({'po-table':'po','suppliers-table':'supplier','requisitions-table':'req','invoices-table':'invoice','deliveries-table':'delivery','defect-items-table':'defect'})[id] || '';
+    return ({'po-table':'po','suppliers-table':'supplier','requisitions-table':'req','deliveries-table':'delivery','defect-items-table':'defect'})[id] || '';
   }
   function resolveSupplierByPO(po){
     const found = [...document.querySelectorAll('#po-table tbody tr')].find(r => textFrom(r.children[0]) === po);
@@ -143,10 +141,6 @@
     updateRequisitionStatus(lookupRef, reqStatus);
     persistRequisitionStatus(reqRow, reqStatus);
   }
-  function inferSupplierCategory(name){
-    const found = [...document.querySelectorAll('#po-table tbody tr')].find(r => supplierNameFromCell(r.children[1]) === name);
-    return found ? textFrom(found.children[2]) : 'General Procurement';
-  }
   function getSupplierProducts(row){
     const raw = row?.dataset?.products || '';
     if(!raw) return [];
@@ -162,6 +156,103 @@
     try { const parsed = JSON.parse(raw); return Array.isArray(parsed) ? parsed : []; } catch { return []; }
   }
 
+  // The Suppliers page renders cards, not a table. Everything that used to
+  // scan "#suppliers-table tbody tr" goes through this instead, so there is a
+  // single place that knows where supplier data lives.
+  function supplierCards(){
+    return [...document.querySelectorAll('#suppliers-cards .supplier-card')];
+  }
+  function findSupplierCardByName(name){
+    const key = String(name || '').trim().toLowerCase();
+    if(!key) return null;
+    return supplierCards().find(c => (c.dataset.name || '').trim().toLowerCase() === key) || null;
+  }
+
+  // One product row is enough to identify a supplier at a glance; the rest sit
+  // behind a "+N more" toggle so a supplier with twenty products does not turn
+  // its card into a scrolling column.
+  function supplierProductItemMarkup(p){
+    const meta = [p.sku || 'No SKU', p.category].filter(Boolean).join(' · ');
+    return `<li><div class="sc-product-info"><span class="sc-product-name">${htmlEscape(p.name || 'Product')}</span><span class="sc-product-meta">${htmlEscape(meta)}</span></div><span class="sc-product-price">&#8369;${Number(p.price || 0).toFixed(2)}</span></li>`;
+  }
+
+  // Expand / collapse a card's product list. Stops the click from bubbling to
+  // the card, which would otherwise open the supplier's View modal.
+  function toggleSupplierProducts(btn, event){
+    event?.stopPropagation();
+    const wrap = btn?.closest('.sc-products');
+    const list = wrap?.querySelector('.sc-product-list');
+    if(!wrap || !list) return;
+    const expanded = wrap.classList.toggle('expanded');
+    const hidden = Number(btn.dataset.hidden || 0);
+    btn.textContent = expanded ? 'Show less' : `+${hidden} more`;
+    btn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+  }
+
+  // Repaint a card's product list from its data-products after an edit.
+  function renderSupplierCardProducts(card){
+    if(!card) return;
+    const products = getSupplierProducts(card);
+    const wrap = card.querySelector('.sc-products');
+    if(!wrap) return;
+
+    const heading = wrap.querySelector('h4');
+    if(heading){
+      const label = heading.lastChild;
+      if(label && label.nodeType === Node.TEXT_NODE) label.textContent = ` Products (${products.length})`;
+    }
+
+    wrap.classList.remove('expanded');
+    wrap.querySelectorAll('.sc-product-list, .sc-product-empty, .sc-product-more').forEach(el => el.remove());
+
+    if(!products.length){
+      const empty = document.createElement('div');
+      empty.className = 'sc-product-empty';
+      empty.textContent = 'No products added yet.';
+      wrap.appendChild(empty);
+      if(typeof invalidateRowSearchText === 'function') invalidateRowSearchText(card);
+      return;
+    }
+
+    const list = document.createElement('ul');
+    list.className = 'sc-product-list';
+    list.innerHTML = products.map((p, i) =>
+      supplierProductItemMarkup(p).replace('<li>', i === 0 ? '<li>' : '<li class="sc-product-extra">')
+    ).join('');
+    wrap.appendChild(list);
+
+    if(products.length > 1){
+      const more = document.createElement('button');
+      more.type = 'button';
+      more.className = 'sc-product-more';
+      more.dataset.hidden = String(products.length - 1);
+      more.setAttribute('aria-expanded', 'false');
+      more.textContent = `+${products.length - 1} more`;
+      more.addEventListener('click', e => toggleSupplierProducts(more, e));
+      wrap.appendChild(more);
+    }
+
+    if(typeof invalidateRowSearchText === 'function') invalidateRowSearchText(card);
+  }
+
+  // Rebuild the in-memory catalog the PO modal reads, after a card changes.
+  function refreshSupplierCatalogFromCards(){
+    window.SUPPLIER_CATALOG = window.SUPPLIER_CATALOG || {};
+    supplierCards().forEach(card => {
+      const name = card.dataset.name || '';
+      if(!name) return;
+      window.SUPPLIER_CATALOG[name] = {
+        brand: name,
+        warehouseId: card.dataset.warehouseId || '',
+        products: getSupplierProducts(card).map(p => ({
+          name: p.name,
+          unitPrice: Number(p.price || p.unitPrice || 0),
+          category: p.category || ''
+        }))
+      };
+    });
+  }
+
   function getSupplierCatalogEntry(name){
     const key = String(name || '').trim();
     if(!key) return null;
@@ -169,12 +260,11 @@
     if(window.SUPPLIER_CATALOG && window.SUPPLIER_CATALOG[key]){
       return window.SUPPLIER_CATALOG[key];
     }
-    // Fallback to reading from suppliers table rows in DOM
-    const supplierRow = [...document.querySelectorAll('#suppliers-table tbody tr')].find(r => supplierNameFromCell(r.children[0]) === key || textFrom(r.children[0]) === key);
+    // Fallback to reading the supplier cards currently on the page
+    const supplierRow = findSupplierCardByName(key);
     if(supplierRow){
-      const rowBrand = supplierRow.dataset.category || supplierRow.dataset.brand || '';
       const products = getSupplierProducts(supplierRow);
-      const entry = { brand: rowBrand || key, products: products.map(p => ({ name: p.name, unitPrice: Number(p.price || p.unitPrice || 0), category: p.category || '' })) };
+      const entry = { brand: key, warehouseId: supplierRow.dataset.warehouseId || '', products: products.map(p => ({ name: p.name, unitPrice: Number(p.price || p.unitPrice || 0), category: p.category || '' })) };
       // cache for later
       window.SUPPLIER_CATALOG = window.SUPPLIER_CATALOG || {};
       window.SUPPLIER_CATALOG[key] = entry;
@@ -191,62 +281,6 @@
     return [...document.querySelectorAll('#requisitions-table tbody tr')].find(row => textFrom(row.children[0]) === ref || row.dataset.reqRef === ref || row.dataset.po === ref);
   }
 
-  function findSupplierForItem(itemName){
-    const key = String(itemName || '').trim().toLowerCase();
-    if(!key) return null;
-    const rows = [...document.querySelectorAll('#suppliers-table tbody tr')];
-    for(const row of rows){
-      const products = getSupplierProducts(row);
-      const match = products.find(p => String(p.name || '').trim().toLowerCase() === key);
-      if(match){
-        return {
-          name: supplierNameFromCell(row.children[0]) || textFrom(row.children[0]),
-          category: match.category || row.dataset.category || row.dataset.brand || 'General Procurement'
-        };
-      }
-    }
-    return null;
-  }
-
-  // Matches a requested item name against every supplier's product catalog to
-  // find which supplier sells it, along with its category and unit price.
-  // Used by the Request -> PO modal to auto-fill Supplier/Category/Unit Price
-  // without any manual selection.
-  function matchSupplierProductForItem(itemName){
-    const key = String(itemName || '').trim().toLowerCase();
-    if(!key) return null;
-    const rows = [...document.querySelectorAll('#suppliers-table tbody tr')];
-    for(const row of rows){
-      const products = getSupplierProducts(row);
-      const match = products.find(p => String(p.name || '').trim().toLowerCase() === key);
-      if(match){
-        return {
-          supplierName: supplierNameFromCell(row.children[0]) || textFrom(row.children[0]),
-          category: match.category || row.dataset.category || row.dataset.brand || 'General Procurement',
-          unitPrice: Number(match.price || match.unitPrice || 0),
-          productName: match.name || itemName
-        };
-      }
-    }
-    // Fallback to the client-side supplier catalog cache (populated by
-    // refreshPoSupplierOptions), used when the Suppliers page rows aren't in
-    // the DOM (e.g. opening the PO modal from another page).
-    const catalog = window.SUPPLIER_CATALOG || {};
-    for(const supplierName of Object.keys(catalog)){
-      const products = catalog[supplierName].products || [];
-      const match = products.find(p => String(p.name || '').trim().toLowerCase() === key);
-      if(match){
-        return {
-          supplierName,
-          category: match.category || 'General Procurement',
-          unitPrice: Number(match.unitPrice || match.price || 0),
-          productName: match.name || itemName
-        };
-      }
-    }
-    return null;
-  }
-
   // Kept for the unrelated Requisition -> Purchase Order conversion flow
   // (app-forms.js / app-deliveries.js still call these when a PO tied to a
   // defect-linked row changes stage). No-ops for the real defect rows below
@@ -258,12 +292,13 @@
   }
   function updateDefectStatus(row, status){
     if(!row) return;
-    row.dataset.status = String(status || '').toLowerCase().replace(/\s+/g,'-');
+    row.dataset.status = normalizeStatusKey(status);
     row.dataset.statusLabel = String(status || '');
     const cell = row.closest('table')?.id === 'requisitions-table'
       ? row.children[6]
       : (row.children[5] || row.children[3]);
     if(cell) cell.innerHTML = statusPill(status);
+    if(typeof updateStatusCounts === 'function') updateStatusCounts();
   }
 
   // Defect Items table â€” static return workflow (no supplier portal, no PO).
@@ -278,47 +313,6 @@
   //
   // The table has no server-rendered rows â€” it's populated entirely from
   // GET /procurement/requisitions/defects.
-  function defectRowMarkup(d){
-    const dateStr = d.date ? new Date(d.date).toLocaleDateString(undefined, {year:'numeric', month:'short', day:'numeric'}) : 'â€”';
-    return `
-      <td><b>${htmlEscape(d.defect_no)}</b></td>
-      <td>${htmlEscape(d.part_name)}</td>
-      <td>${Number(d.quantity || 0)}</td>
-      <td>${htmlEscape(d.description || 'â€”')}</td>
-      <td>${htmlEscape(d.reported_by || 'â€”')}</td>
-      <td>${statusPill(d.status)}</td>
-      <td>${htmlEscape(dateStr)}</td>
-      <td><span class="row-actions"><button title="View" onclick="openViewModal(this)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/></svg></button></span></td>
-    `;
-  }
-  function loadDefectItems(){
-    const table = document.getElementById('defect-items-table');
-    if(!table) return;
-    fetch(procurementUrl('requisitions/defects'), { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } })
-      .then(r => r.json())
-      .then(items => {
-        const tbody = table.querySelector('tbody');
-        if(!tbody) return;
-        if(!Array.isArray(items) || items.length === 0){
-          tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:40px 16px; color:var(--text-muted);">No defect items reported yet.</td></tr>`;
-          return;
-        }
-        tbody.innerHTML = '';
-        items.forEach(d => {
-          const row = document.createElement('tr');
-          row.dataset.id = d.id;
-          row.dataset.defectNo = d.defect_no;
-          row.dataset.part = d.part_name;
-          row.dataset.qty = d.quantity;
-          row.dataset.description = d.description || '';
-          row.dataset.source = d.source || '';
-          row.dataset.status = String(d.status || 'Open').toLowerCase().replace(/\s+/g,'');
-          row.innerHTML = defectRowMarkup(d);
-          tbody.appendChild(row);
-        });
-      })
-      .catch(() => showToast('Unable to load defect items from server.', 'no'));
-  }
   // Sends one of the static return actions to the server and refreshes the
   // row + open modal (if any) with the resulting status.
   function defectAction(row, action){
@@ -337,8 +331,9 @@
       })
       .then(payload => {
         const status = payload.defect_status;
-        row.dataset.status = String(status || '').toLowerCase().replace(/\s+/g,'');
+        row.dataset.status = normalizeStatusKey(status);
         if(row.children[5]) row.children[5].innerHTML = statusPill(status);
+        if(typeof updateStatusCounts === 'function') updateStatusCounts();
         closeViewModal();
         showToast(
           payload.receiving_created
@@ -377,10 +372,17 @@
       return {type, key:po, title:`Purchase Order Â· ${po}`, po, supplier, category, item, items, qty, amount, unitPrice:unitPrice ? money(unitPrice) : 'â€”', delivery, priority, status, date, time:row.dataset.time || '09:00 AM', expected:row.dataset.expected || 'â€”', requestedBy:row.dataset.requestedBy || 'Procurement Team', remarks:row.dataset.remarks || 'Standard purchase order workflow.'};
     }
     if(type === 'supplier'){
-      const name = supplierNameFromCell(row.children[0]);
+      // Every value comes from the card's data-* attributes; there are no
+      // fixed cell positions to read any more. The supplier-level Brand field
+      // was removed — category is a property of each product.
+      const name = row.dataset.name || '';
       const products = getSupplierProducts(row);
-      const brand = row.dataset.brand || row.dataset.category || 'General Procurement';
-      return {type, key:name, title:`Supplier Â· ${name}`, sid:row.dataset.sid || '', name, contact:textFrom(row.children[2]), email:textFrom(row.children[3]), phone:textFrom(row.children[4]) || '', address:textFrom(row.children[5]) || '', category:brand, status:row.dataset.status || 'Active', terms:row.dataset.terms || 'Net 30', lastActivity:row.dataset.lastActivity || 'Recent PO activity', products};
+      return {type, key:name, title:`Supplier · ${name}`, id:row.dataset.id || '', sid:row.dataset.sid || '', name,
+        contact:row.dataset.contact || '', email:row.dataset.email || '', phone:row.dataset.phone || '',
+        address:row.dataset.address || '', category:row.dataset.category || '',
+        status:row.dataset.statusLabel || row.dataset.status || 'Active',
+        terms:row.dataset.terms || 'Net 30', lastActivity:row.dataset.lastActivity || 'Recent PO activity',
+        poCount:Number(row.dataset.poCount || 0), products};
     }
     if(type === 'req'){
       const ref = textFrom(row.children[0]);
@@ -395,15 +397,13 @@
       const inSharedQueue = row.closest('table')?.id === 'requisitions-table';
       return {type, key:defectNo, id:row.dataset.id || '', title:`Defect Â· ${defectNo}`, defectNo, part, qty, description:row.dataset.description || row.dataset.notes || textFrom(row.children[3]), reportedBy:row.dataset.reportedBy || textFrom(row.children[inSharedQueue ? 5 : 4]), status:row.dataset.statusLabel || textFrom(row.children[inSharedQueue ? 6 : 5]), source:row.dataset.source || 'Inventory', date:row.dataset.date || textFrom(row.children[inSharedQueue ? 7 : 6])};
     }
-    if(type === 'invoice'){
-      const inv = textFrom(row.children[0]);
-      const po = textFrom(row.children[1]);
-      const supplier = row.dataset.supplier || resolveSupplierByPO(po);
-      return {type, key:inv, title:`Invoice Â· ${inv}`, inv, po, supplier, date:textFrom(row.children[2]), dueDate:row.dataset.dueDate || textFrom(row.children[2]), amount:parseMoney(textFrom(row.children[3])), status:textFrom(row.children[4]), method:row.dataset.method || 'Bank Transfer', notes:row.dataset.notes || 'Invoice recorded against the linked purchase order.'};
-    }
     if(type === 'delivery'){
+      // Columns: 0 ship, 1 PO, 2 supplier, 3 item, 4 expected delivery,
+      // 5 status, 6 date. This read 4 for status and 5 for date, i.e. it
+      // reported the expected-delivery date as the shipment's status and the
+      // status pill's text as its date.
       const ship = textFrom(row.children[0]);
-      return {type, key:ship, title:`Shipment Â· ${ship}`, ship, po:textFrom(row.children[1]), supplier:supplierNameFromCell(row.children[2]), stage:row.dataset.stage || '0', status:textFrom(row.children[4]), date:textFrom(row.children[5]), note:row.dataset.note || 'Shipment tracking entry.', carrier:row.dataset.carrier || 'Assigned carrier'};
+      return {type, key:ship, title:`Shipment Â· ${ship}`, ship, po:textFrom(row.children[1]), supplier:supplierNameFromCell(row.children[2]), stage:row.dataset.stage || '0', expected:textFrom(row.children[4]), status:textFrom(row.children[5]), date:textFrom(row.children[6]), note:row.dataset.note || 'Shipment tracking entry.', carrier:row.dataset.carrier || 'Assigned carrier'};
     }
     return {type:'', key:'', title:'Record'};
   }
@@ -418,8 +418,8 @@
       btn.className = `btn ${cfg.className || fallbackClass}`;
       btn.onclick = cfg.onClick;
     };
-    bind(left ? rejectBtn : rejectBtn, left, 'btn-view');
-    bind(right ? approveBtn : approveBtn, right, 'btn-approve');
+    bind(rejectBtn, left, 'btn-view');
+    bind(approveBtn, right, 'btn-approve');
     if(poBtn){
       if(!po){ poBtn.style.display = 'none'; poBtn.onclick = null; }
       else{ poBtn.style.display = ''; poBtn.textContent = po.label || 'Create Purchase Order'; poBtn.className = `btn ${po.className || 'btn-primary'}`; poBtn.onclick = po.onClick; }
@@ -444,9 +444,14 @@
   }
   function updateRowStatus(row, status){
     const type = getTableType(row);
-    row.dataset.status = String(status || '').toLowerCase().replace(/\s+/g,'-');
-    const pillCell = type === 'delivery' ? row.children[5] : (type === 'invoice' ? row.children[4] : (type === 'po' ? row.children[5] : row.children[6]));
+    row.dataset.status = normalizeStatusKey(status);
+    const pillCell = (type === 'delivery' || type === 'po') ? row.children[5] : row.children[6];
     if(pillCell) pillCell.innerHTML = statusPill(status);
+    if(typeof invalidateRowSearchText === 'function') invalidateRowSearchText(row);
+    // A status change moves the row between status tiles and changes the live
+    // cards/badges, so both are refreshed here rather than on the next reload.
+    if(typeof updateStatusCounts === 'function') updateStatusCounts();
+    if(typeof pollLiveStats === 'function') pollLiveStats();
   }
   function renderViewRecord(row){
     const record = buildRecord(row);
@@ -459,11 +464,19 @@
       // Approve / Reject are no longer done from the PO view modal (approval
       // happens elsewhere). Pending POs can still be cancelled; everything else
       // is view-only.
-      const statusKey = String(record.status || '').toLowerCase();
+      const statusKey = normalizeStatusKey(record.status);
       if(statusKey === 'pending'){
         setViewActions(
           {label:'Close', className:'btn-view', onClick:closeViewModal},
           {label:'Cancel PO', className:'btn-danger', onClick:()=> openCancelModalFromRow(row)}
+        );
+      } else if(statusKey === 'approved'){
+        // An approved PO is the only thing a delivery can be logged against,
+        // so offer that here instead of making the user go to Deliveries and
+        // hunt for the PO number in a dropdown.
+        setViewActions(
+          {label:'Close', className:'btn-view', onClick:closeViewModal},
+          {label:'Log Delivery', className:'btn-approve', onClick:()=> openLogDeliveryForPO(row)}
         );
       } else {
         setViewActions(
@@ -473,7 +486,7 @@
       }
     } else if(record.type === 'supplier'){
       const productsMarkup = record.products?.length ? `<div class="supplier-product-inline">${record.products.map(p => `<span class="supplier-product-tag">${htmlEscape(p.name || 'Product')}${p.category ? ' &middot; '+htmlEscape(p.category) : ''} &middot; ${htmlEscape(p.sku || 'SKU')} &middot; &#8369;${Number(p.price || 0).toFixed(2)}</span>`).join('')}</div>` : '<div class="modal-helper">No products added.</div>';
-      body = `<div class="detail-grid"><div class="detail-card"><h4>Supplier profile</h4><div class="modal-row"><span>Name</span><span>${htmlEscape(record.name)}</span></div><div class="modal-row"><span>Contact</span><span>${htmlEscape(record.contact)}</span></div><div class="modal-row"><span>Email</span><span>${htmlEscape(record.email)}</span></div><div class="modal-row"><span>Phone</span><span>${htmlEscape(record.phone)}</span></div></div><div class="detail-card"><h4>Commercial profile</h4><div class="modal-row"><span>Brand</span><span>${htmlEscape(record.category)}</span></div><div class="modal-row"><span>Status</span><span>${htmlEscape(record.status)}</span></div><div class="modal-row"><span>Payment terms</span><span>${htmlEscape(record.terms)}</span></div><div class="modal-row"><span>Last activity</span><span>${htmlEscape(record.lastActivity)}</span></div></div><div class="detail-card full"><h4>Products</h4>${productsMarkup}</div><div class="detail-card full"><h4>Address</h4><div style="font-size:13px; line-height:1.55;">${htmlEscape(record.address)}</div></div></div>`;
+      body = `<div class="detail-grid"><div class="detail-card"><h4>Supplier profile</h4><div class="modal-row"><span>Name</span><span>${htmlEscape(record.name)}</span></div><div class="modal-row"><span>Contact</span><span>${htmlEscape(record.contact)}</span></div><div class="modal-row"><span>Email</span><span>${htmlEscape(record.email)}</span></div><div class="modal-row"><span>Phone</span><span>${htmlEscape(record.phone)}</span></div></div><div class="detail-card"><h4>Commercial profile</h4><div class="modal-row"><span>Products</span><span>${record.products?.length || 0}</span></div><div class="modal-row"><span>POs placed</span><span>${record.poCount || 0}</span></div><div class="modal-row"><span>Status</span><span>${htmlEscape(record.status)}</span></div><div class="modal-row"><span>Payment terms</span><span>${htmlEscape(record.terms)}</span></div><div class="modal-row"><span>Last activity</span><span>${htmlEscape(record.lastActivity)}</span></div></div><div class="detail-card full"><h4>Products</h4>${productsMarkup}</div><div class="detail-card full"><h4>Address</h4><div style="font-size:13px; line-height:1.55;">${htmlEscape(record.address)}</div></div></div>`;
       setViewActions({label:'Close', className:'btn-view', onClick:closeViewModal}, null);
     } else if(record.type === 'req'){
       body = `<div class="detail-grid"><div class="detail-card"><h4>Request details</h4><div class="modal-row"><span>Requisition no.</span><span>${htmlEscape(record.ref)}</span></div><div class="modal-row"><span>Item</span><span>${htmlEscape(record.item)}</span></div><div class="modal-row"><span>Quantity</span><span>${record.qty} ${htmlEscape(record.uom)}</span></div><div class="modal-row"><span>Delivery status</span><span>${htmlEscape(record.delivery)}</span></div></div><div class="detail-card"><h4>Request workflow</h4><div class="modal-row"><span>Department</span><span>${htmlEscape(record.dept)}</span></div><div class="modal-row"><span>Requested by</span><span>${htmlEscape(record.requester)}</span></div><div class="modal-row"><span>Status</span><span>${htmlEscape(record.status)}</span></div><div class="modal-row"><span>Date & time</span><span>${htmlEscape(record.date)} Â· ${htmlEscape(record.time)}</span></div></div></div><div class="detail-note"><b>Justification</b><br>${htmlEscape(record.notes)}</div>`;
@@ -530,25 +543,12 @@
         // Replacement Received / Completed / Rejected are terminal here.
         setViewActions({label:'Close', className:'btn-view', onClick:closeViewModal}, null);
       }
-    } else if(record.type === 'invoice'){
-      body = `<div class="detail-grid"><div class="detail-card"><h4>Invoice overview</h4><div class="modal-row"><span>Invoice no.</span><span>${htmlEscape(record.inv)}</span></div><div class="modal-row"><span>PO number</span><span>${htmlEscape(record.po)}</span></div><div class="modal-row"><span>Supplier</span><span>${htmlEscape(record.supplier)}</span></div><div class="modal-row"><span>Invoice date</span><span>${htmlEscape(record.date)}</span></div></div><div class="detail-card"><h4>Payment details</h4><div class="modal-row"><span>Amount</span><span>${money(record.amount)}</span></div><div class="modal-row"><span>Due date</span><span>${htmlEscape(record.dueDate)}</span></div><div class="modal-row"><span>Payment method</span><span>${htmlEscape(record.method)}</span></div><div class="modal-row"><span>Status</span><span>${htmlEscape(record.status)}</span></div></div></div><div class="detail-note"><b>Notes</b><br>${htmlEscape(record.notes)}</div>`;
-      if(record.status !== 'Paid') setViewActions({label:'Flag issue', className:'btn-reject', onClick:()=>{ closeViewModal(); showToast(`${record.inv} flagged for review`, 'info'); }},{label:'Mark as paid', className:'btn-approve', onClick:()=>{ updateRowStatus(row,'Paid'); row.dataset.notes = 'Marked paid from view modal.'; closeViewModal(); showToast(`${record.inv} marked as paid`, 'ok'); }});
-      else setViewActions({label:'Delete', className:'btn-reject', onClick:()=> openDeleteModal(row)},{label:'Edit', className:'btn-approve', onClick:()=> openEditModal(row)});
     }
     document.getElementById('modal-body').innerHTML = body;
     document.getElementById('view-modal').classList.add('open');
   }
   function openViewModal(btn){
-    const queueRow = btn.closest('.queue-row');
     setViewModalHeader(null, null);
-    if(queueRow){
-      const d = queueRow.dataset;
-      document.getElementById('modal-title').textContent = `${d.ref} Â· ${d.title}`;
-      document.getElementById('modal-body').innerHTML = `<div class="detail-grid"><div class="detail-card"><h4>Approval details</h4><div class="modal-row"><span>Reference</span><span>${htmlEscape(d.ref)}</span></div><div class="modal-row"><span>Requested by</span><span>${htmlEscape(d.requester)}</span></div><div class="modal-row"><span>Submitted</span><span>${htmlEscape(d.submitted)}</span></div><div class="modal-row"><span>Amount</span><span>${htmlEscape(d.amount)}</span></div></div><div class="detail-card"><h4>Workflow action</h4><div class="modal-row"><span>Queue type</span><span>${htmlEscape(d.type?.toUpperCase() || 'APP')}</span></div><div class="modal-row"><span>Decision path</span><span>Manager review</span></div><div class="modal-row"><span>Status</span><span>Awaiting sign-off</span></div><div class="modal-row"><span>Recommended action</span><span>${d.type === 'inv' ? 'Mark as paid / approve' : 'Approve or reject'}</span></div></div></div><div class="detail-note"><b>Notes</b><br>${htmlEscape(d.note || 'No additional notes.')}</div>`;
-      setViewActions({label:'Reject', className:'btn-reject', onClick:()=>{ handleDecision(queueRow.querySelector('.btn-reject'),'reject'); closeViewModal(); }},{label:d.type === 'inv' ? 'Approve payment' : 'Approve', className:'btn-approve', onClick:()=>{ handleDecision(queueRow.querySelector('.btn-approve'),'approve'); closeViewModal(); }});
-      document.getElementById('view-modal').classList.add('open');
-      return;
-    }
     const row = btn.closest('tr');
     if(row) renderViewRecord(row);
   }
@@ -576,9 +576,9 @@
       <div class="form-field"><label>Contact Person <span class="req">*</span></label><input name="contact" value="${htmlEscape(record.contact)}" required></div>
       <div class="form-field"><label>Email <span class="req">*</span></label><input type="email" name="email" value="${htmlEscape(record.email)}" required></div>
       <div class="form-field"><label>Phone Number <span class="req">*</span></label><input name="phone" value="${htmlEscape(record.phone)}" required></div>
-      <div class="form-field"><label>Brand <span class="req">*</span></label><input name="brand" value="${htmlEscape(record.category || '')}" required></div>
-      <div class="form-field full"><label>Products</label><div id="edit-supplier-products-list" class="product-chip-list"></div><input type="hidden" name="productsJson" id="edit-supplier-products-json" value="[]"><button type="button" class="btn btn-small" style="margin-top:8px;" onclick="openSupplierProductModal()">+ Add Product</button></div>
-      <div class="form-field full"><label>Address <span class="req">*</span></label><textarea name="address" required>${htmlEscape(record.address)}</textarea></div>`;
+      <div class="form-field"><label>Status</label><select name="status"><option value="active" ${normalizeStatusKey(record.status)==='active'?'selected':''}>Active</option><option value="inactive" ${normalizeStatusKey(record.status)==='inactive'?'selected':''}>Inactive</option><option value="blacklisted" ${normalizeStatusKey(record.status)==='blacklisted'?'selected':''}>Blacklisted</option></select></div>
+      <div class="form-field full"><label>Address <span class="req">*</span></label><textarea name="address" required>${htmlEscape(record.address)}</textarea></div>
+      <div class="form-field full"><h4 class="form-section-title">Products of this supplier</h4><div id="edit-supplier-products-list" class="product-row-list"></div><input type="hidden" name="productsJson" id="edit-supplier-products-json" value="[]"><button type="button" class="btn-add-row" onclick="addSupplierProductRow()">+ Add Another Product</button></div>`;
     if(record.type === 'req') return `
       <div class="form-field"><label>Requisition no.</label><input name="ref" value="${htmlEscape(record.ref)}" readonly></div>
       <div class="form-field"><label>Requested by</label><input name="requester" value="${htmlEscape(record.requester)}"></div>
@@ -586,21 +586,11 @@
       <div class="form-field"><label>Item</label><input name="item" value="${htmlEscape(record.item)}"></div>
       <div class="form-field"><label>Quantity</label><input type="number" min="0" name="qty" value="${record.qty}"></div>
       <div class="form-field"><label>Unit</label><input name="uom" value="${htmlEscape(record.uom)}"></div>
-      <div class="form-field"><label>Delivery status</label><select name="delivery"><option ${record.delivery==='Scheduled'?'selected':''}>Scheduled</option><option ${record.delivery==='intransit'?'selected':''}>intransit</option><option ${record.delivery==='Delivered'?'selected':''}>Delivered</option><option ${record.delivery==='Delayed'?'selected':''}>Delayed</option></select></div>
+      <div class="form-field"><label>Priority</label><select name="priority"><option ${record.priority==='Urgent'?'selected':''}>Urgent</option><option ${record.priority==='High'?'selected':''}>High</option><option ${record.priority==='Normal' || !record.priority?'selected':''}>Normal</option><option ${record.priority==='Low'?'selected':''}>Low</option></select></div>
       <div class="form-field"><label>Status</label><select name="status"><option ${record.status==='Pending'?'selected':''}>Pending</option><option ${record.status==='Approved'?'selected':''}>Approved</option><option ${record.status==='Rejected'?'selected':''}>Rejected</option></select></div>
       <div class="form-field"><label>Date</label><input name="date" value="${htmlEscape(record.date)}"></div>
       <div class="form-field"><label>Time</label><input name="time" value="${htmlEscape(record.time)}"></div>
       <div class="form-field full"><label>Justification</label><textarea name="notes">${htmlEscape(record.notes)}</textarea></div>`;
-    if(record.type === 'invoice') return `
-      <div class="form-field"><label>Invoice no.</label><input name="inv" value="${htmlEscape(record.inv)}" readonly></div>
-      <div class="form-field"><label>PO number</label><input name="po" value="${htmlEscape(record.po)}"></div>
-      <div class="form-field"><label>Supplier</label><input name="supplier" value="${htmlEscape(record.supplier)}"></div>
-      <div class="form-field"><label>Invoice date</label><input name="date" value="${htmlEscape(record.date)}"></div>
-      <div class="form-field"><label>Due date</label><input name="dueDate" value="${htmlEscape(record.dueDate)}"></div>
-      <div class="form-field"><label>Amount</label><input type="number" min="0" step="0.01" name="amount" value="${record.amount}"></div>
-      <div class="form-field"><label>Payment method</label><input name="method" value="${htmlEscape(record.method)}"></div>
-      <div class="form-field"><label>Status</label><select name="status"><option ${record.status==='Unpaid'?'selected':''}>Unpaid</option><option ${record.status==='Paid'?'selected':''}>Paid</option><option ${record.status==='Overdue'?'selected':''}>Overdue</option></select></div>
-      <div class="form-field full"><label>Notes</label><textarea name="notes">${htmlEscape(record.notes)}</textarea></div>`;
     if(record.type === 'delivery') return `
       <div class="form-field"><label>Shipment no.</label><input name="ship" value="${htmlEscape(record.ship)}" readonly></div>
       <div class="form-field"><label>PO number</label><input name="po" value="${htmlEscape(record.po)}"></div>
@@ -619,8 +609,7 @@
     document.getElementById('edit-modal-body').innerHTML = buildEditFields(record);
     if(record.type === 'supplier'){
       setSupplierProductEditor('edit-supplier-products-list', 'edit-supplier-products-json');
-      supplierProductDraft = Array.isArray(getSupplierProducts(row)) ? getSupplierProducts(row) : [];
-      renderSupplierProductList();
+      renderSupplierProductList(getSupplierProducts(row));
     }
     document.getElementById('edit-record-form').dataset.type = record.type;
     modal.classList.add('open');
@@ -653,7 +642,7 @@
       row.children[4].innerHTML = priorityBadge(d.priority || 'Normal');
       row.children[5].innerHTML = statusPill(d.status);
       row.children[6].textContent = d.date;
-      row.dataset.status = String(d.status || '').toLowerCase();
+      row.dataset.status = normalizeStatusKey(d.status);
       // Persist PO update to backend if we have an id
       const id = row.dataset.id;
       if(id){
@@ -665,42 +654,71 @@
       }
     } else if(type === 'supplier'){
       let products = [];
-      try { products = JSON.parse(d.productsJson || d.products || '[]'); } catch { products = []; }
+      try { products = JSON.parse(d.productsJson || '[]'); } catch { products = []; }
+      if(!Array.isArray(products)) products = [];
+
+      // The card's data-* attributes are the record; repaint the visible parts
+      // from them. Brand is gone — the subtitle is the most common product
+      // category instead.
+      const categories = products.map(p => String(p.category || '').trim()).filter(Boolean);
+      const subtitle = categories.length
+        ? categories.sort((a, b) =>
+            categories.filter(c => c === b).length - categories.filter(c => c === a).length)[0]
+        : '';
+
       row.dataset.sid = d.sid || '';
-      row.dataset.category = d.brand || '';
-      row.dataset.brand = d.brand || '';
-      row.dataset.status = 'Active';
-      row.dataset.terms = 'Net 30';
-      row.dataset.lastActivity = 'Updated';
+      row.dataset.name = d.name || '';
+      row.dataset.contact = d.contact || '';
+      row.dataset.email = d.email || '';
+      row.dataset.phone = d.phone || '';
+      row.dataset.address = d.address || '';
+      row.dataset.category = subtitle;
+      row.dataset.status = normalizeStatusKey(d.status || 'active');
+      row.dataset.statusLabel = d.status || 'Active';
       row.dataset.products = JSON.stringify(products);
-      row.children[0].innerHTML = `<div class="supplier-pill-cell">${supplierPill(d.name)}</div>`;
-      row.children[1].textContent = d.brand || 'â€”';
-      row.children[2].textContent = d.contact || 'â€”';
-      row.children[3].textContent = d.email || 'â€”';
-      // Ensure phone and address cells are updated if present
-      if(row.children[4]) row.children[4].textContent = d.phone || 'â€”';
-      if(row.children[5]) row.children[5].textContent = d.address || 'â€”';
-      // Persist supplier update to backend if we have an id
+
+      const nameEl = row.querySelector('.sc-ident h3');
+      if(nameEl) nameEl.textContent = d.name || '';
+      const subEl = row.querySelector('.sc-ident p');
+      if(subEl) subEl.textContent = subtitle || 'No category yet';
+      const statusEl = row.querySelector('.sc-status');
+      if(statusEl){
+        statusEl.className = 'sc-status ' + normalizeStatusKey(d.status || 'active');
+        statusEl.innerHTML = '<i></i>' + htmlEscape(d.status || 'Active');
+      }
+      const contactCells = row.querySelectorAll('.sc-contact li span');
+      const contactValues = [d.contact, d.email, d.phone, d.address];
+      contactCells.forEach((cell, idx) => { cell.textContent = contactValues[idx] || '—'; });
+      renderSupplierCardProducts(row);
+
       const supId = row.dataset.id;
       if(supId){
         fetch(procurementUrl(`suppliers/${supId}`), {
           method: 'PUT',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '' },
-          body: new URLSearchParams({ name: d.name || '', contact: d.contact || '', email: d.email || '', phone: d.phone || '', address: d.address || '', brand: d.brand || '', productsJson: JSON.stringify(products) }).toString()
-        }).then(r => r.json()).then(() => {}).catch(() => showToast('Unable to save supplier changes to server.', 'no'));
+          body: new URLSearchParams({ name: d.name || '', contact: d.contact || '', email: d.email || '', phone: d.phone || '', address: d.address || '', status: d.status || 'active', productsJson: JSON.stringify(products) }).toString()
+        }).then(async r => {
+          const json = await r.json().catch(() => ({}));
+          if(!r.ok) throw new Error(json?.message || 'Unable to save supplier changes.');
+        }).catch(err => showToast(err?.message || 'Unable to save supplier changes to server.', 'no'));
       }
+      refreshSupplierCatalogFromCards();
+      if(typeof refreshSupplierCategoryOptions === 'function') refreshSupplierCategoryOptions();
     } else if(type === 'req'){
       row.dataset.uom = d.uom || '';
       row.dataset.notes = d.notes || '';
       row.dataset.time = d.time || '';
       row.children[1].textContent = d.item;
       row.children[2].textContent = d.qty || '0';
-      row.children[3].innerHTML = deliveryBadge(d.delivery);
+      // Column 3 is PRIORITY. This rendered a delivery badge here, which
+      // disagreed with every server-rendered row and with applyReqFilter().
+      row.dataset.priority = d.priority || 'Normal';
+      row.children[3].innerHTML = priorityBadge(d.priority || 'Normal');
       row.children[4].textContent = d.dept;
       row.children[5].textContent = d.requester;
       row.children[6].innerHTML = statusPill(d.status);
       row.children[7].textContent = d.date;
-      row.dataset.status = String(d.status || '').toLowerCase();
+      row.dataset.status = normalizeStatusKey(d.status);
       // Persist requisition update to backend if id exists
       const reqId = row.dataset.id;
       if(reqId){
@@ -709,25 +727,6 @@
           headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '' },
           body: new URLSearchParams({ status: d.status || '', notes: d.notes || '' }).toString()
         }).then(r => r.json()).then(() => {}).catch(() => showToast('Unable to save requisition changes to server.', 'no'));
-      }
-    } else if(type === 'invoice'){
-      row.dataset.supplier = d.supplier || '';
-      row.dataset.dueDate = d.dueDate || '';
-      row.dataset.method = d.method || '';
-      row.dataset.notes = d.notes || '';
-      row.children[1].textContent = d.po;
-      row.children[2].textContent = d.date;
-      row.children[3].innerHTML = `<b>${money(d.amount)}</b>`;
-      row.children[4].innerHTML = statusPill(d.status);
-      row.dataset.amount = Number(d.amount || 0);
-      row.dataset.status = String(d.status || '').toLowerCase();
-      const invId = row.dataset.id;
-      if(invId){
-        fetch(`/invoices/${invId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '' },
-          body: new URLSearchParams({ status: d.status || '', amount: d.amount || '', notes: d.notes || '' }).toString()
-        }).then(r => r.json()).then(() => {}).catch(() => showToast('Unable to save invoice changes to server.', 'no'));
       }
     } else if(type === 'delivery'){
       row.dataset.po = d.po || '';
@@ -738,9 +737,12 @@
       row.dataset.stage = ({'Scheduled':'0','intransit':'2','Delayed':'1','Delivered':'4'})[d.status] || '0';
       row.children[1].innerHTML = `<a class="po-link">${htmlEscape(d.po)}</a>`;
       row.children[2].innerHTML = supplierPill(d.supplier);
-      row.children[4].innerHTML = statusPill(d.status);
-      row.children[5].textContent = d.date;
-      row.dataset.status = String(d.status || '').toLowerCase().replace(/\s+/g,'');
+      // 5 is Status and 6 is Date — writing to 4/5 overwrote the
+      // Expected Delivery column with a status pill and the Status column
+      // with a date.
+      row.children[5].innerHTML = statusPill(d.status);
+      row.children[6].textContent = d.date;
+      row.dataset.status = normalizeStatusKey(d.status);
       const defectStatusMap = { intransit:'Intransit', delivered:'Delivered' };
       const defectStatus = defectStatusMap[String(d.status || '').toLowerCase().trim()];
       if(defectStatus){ findDefectRowsByPO(row.dataset.po || '').forEach(r => updateDefectStatus(r, defectStatus)); }
@@ -753,6 +755,11 @@
         }).then(r => r.json()).then(() => {}).catch(() => showToast('Unable to save delivery changes to server.', 'no'));
       }
     }
+    // The row's cells were rewritten — drop the cached search text so live
+    // search sees the new values.
+    if(typeof invalidateRowSearchText === 'function') invalidateRowSearchText(row);
+    if(typeof updateStatusCounts === 'function') updateStatusCounts();
+    if(typeof pollLiveStats === 'function') pollLiveStats();
     closeEditModal();
     showToast('Record updated successfully', 'ok');
   }
@@ -788,7 +795,8 @@
           fetch(procurementUrl(`${base}${id}`), { method: 'DELETE', headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '' } }).then(response => {
             if (!response.ok) throw new Error('Delete failed');
             row.remove();
-            refreshTabCounts();
+            if(typeof updateStatusCounts === 'function') updateStatusCounts();
+            if(typeof pollLiveStats === 'function') pollLiveStats();
             showToast('Record deleted', 'no');
           }).catch(()=>{ showToast('Unable to delete record on server.', 'no'); });
           closeDeleteModal();
@@ -798,7 +806,8 @@
       row.remove();
     }
     closeDeleteModal();
-    refreshTabCounts();
+    if(typeof updateStatusCounts === 'function') updateStatusCounts();
+    if(typeof pollLiveStats === 'function') pollLiveStats();
     showToast('Record deleted', 'no');
   }
 
@@ -821,13 +830,6 @@
         btn.title = idx === 0 ? 'View' : (idx === 1 ? 'Edit' : 'Delete');
       });
     });
-    if(!document.getElementById('queue-empty')){
-      const empty = document.createElement('div');
-      empty.id = 'queue-empty';
-      empty.style.cssText = 'display:none;padding:16px;border:1px dashed var(--border);border-radius:12px;color:var(--muted);margin-top:12px;text-align:center;';
-      empty.textContent = 'No approval items match the current filter.';
-      document.getElementById('approval-tabs')?.insertAdjacentElement('afterend', empty);
-    }
   }
   document.addEventListener('click', (e)=>{
     const btn = e.target.closest('table .row-actions button');
@@ -853,6 +855,8 @@
   document.addEventListener('click', (e)=>{
     if(e.target.closest('.row-actions')) return;
     if(e.target.closest('button, input, select, textarea, label, a[href]')) return;
+    const card = e.target.closest('.supplier-card');
+    if(card){ renderViewRecord(card); return; }
     const row = e.target.closest('table tbody tr');
     if(!row || !row.querySelector('.row-actions')) return;
     const tableId = row.closest('table')?.id;

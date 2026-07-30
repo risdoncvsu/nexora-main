@@ -6,11 +6,15 @@
     $navInitials = strtoupper(substr($navParts[0] ?? 'E', 0, 1) . (count($navParts) > 1 ? substr(end($navParts), 0, 1) : ''));
 @endphp
 <nav class="topnav">
+    <div class="logo">
     <a href="{{ route('procurement.dashboard') }}" class="logo" aria-label="Procurement dashboard">
-        <img src="{{ asset('images/Banner Transparent.png') }}" alt="Nexora ERP">
+        <img src="{{ asset('images/Banner Transparent.png') }}" alt="NEXORA ERP">
     </a>
-    <x-client-logo :size="52" />
-
+    </div>
+    <div class="divider-v"></div>
+    <img src="{{ asset('images/procurement-techforge.png') }}" alt="NEXORA ERP" style="height:38px;width:auto;display:block;">
+    </span>
+  </div>
     <div class="nav-right">
         <div class="profile-menu">
             <button type="button" class="avatar-btn" onclick="toggleProfileMenu(event)" aria-label="Open profile menu">

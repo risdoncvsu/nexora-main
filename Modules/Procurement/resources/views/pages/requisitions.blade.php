@@ -15,7 +15,7 @@
         <p>All purchase and defect requisitions</p>
       </div>
 
-      <div class="status-chart" id="requisition-status-chart">
+      <div class="status-chart" id="requisition-status-chart" data-table="requisitions-table">
         <div class="status-chart-item pending" data-status="pending" style="background:linear-gradient(135deg,#fff3e0,#ffe0b2);border-color:#ff9800;" onclick="filterByStatus('requisitions-table', 'pending', this)">
           <div class="status-label">Pending</div>
           <div class="status-count">{{ $statusCounts->get('pending', 0) }}</div>
@@ -145,41 +145,8 @@
         </div>
       </div>
 
-      {{-- Defects are rendered in the shared requisitions table above. The old
-          standalone table remains inactive for cached browser compatibility. --}}
-      @if (false)
-      <div id="req-tab-defects" class="hidden">
-        <div class="panel">
-          <div class="table-toolbar">
-            <h2>Defect Items</h2>
-            <div class="search-box">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-              <input placeholder="Search defect items...">
-            </div>
-          </div>
-          <table class="data-table" id="defect-items-table">
-            <thead>
-              <tr>
-                <th>DEFECT #</th>
-                <th>ITEM</th>
-                <th>QTY</th>
-                <th>REASON</th>
-                <th>REPORTED BY</th>
-                <th>STATUS</th>
-                <th>DATE</th>
-                <th>ACTION</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td colspan="8" style="text-align:center; padding:40px 16px; color:var(--text-muted);">
-                  Loading defect items…
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>{{-- /#req-tab-defects --}}
-      @endif
+      {{-- Defects are rendered in the shared requisitions table above; the
+          old standalone #defect-items-table was disabled behind @if(false)
+          and has been removed along with its JS loader. --}}
     </section>
 @endsection

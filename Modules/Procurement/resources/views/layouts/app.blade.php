@@ -5,7 +5,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <title>@yield('title', 'Nexora ERP — Procurement Suite')</title>
-<link rel="stylesheet" href="{{ asset('css/procurement.css') }}">
+@php
+    // Version every Procurement asset by its file mtime. Without this the
+    // browser keeps serving a cached copy of a 170KB script, so a shipped fix
+    // does not reach anyone who already loaded the page until they hard-refresh.
+    $procAsset = function (string $path) {
+        $full = public_path($path);
+        $version = is_file($full) ? filemtime($full) : null;
+
+        return asset($path).($version ? '?v='.$version : '');
+    };
+@endphp
+<link rel="stylesheet" href="{{ $procAsset('css/procurement.css') }}">
 <script>
   // Apply the saved theme before first paint to avoid a light/dark flash.
   (function(){ try { var t = localStorage.getItem('procurement-theme'); if(t) document.documentElement.setAttribute('data-theme', t); } catch(e){} })();
@@ -34,17 +45,19 @@
 </script>
 
 {{-- Shared scripts, split by concern so no single file is too long --}}
-<script src="{{ asset('js/Procurement_JS/app-core.js') }}"></script>       {{-- page/notif/toast/stat helpers --}}
-<script src="{{ asset('js/Procurement_JS/app-modals.js') }}"></script>     {{-- view/edit/delete record modals --}}
-<script src="{{ asset('js/Procurement_JS/app-dashboard.js') }}"></script>  {{-- donut chart, report ranges, queue tabs --}}
-<script src="{{ asset('js/Procurement_JS/app-filters.js') }}"></script>    {{-- table search, sort, filter panels --}}
-<script src="{{ asset('js/Procurement_JS/app-deliveries.js') }}"></script> {{-- delivery tracking modal --}}
-<script src="{{ asset('js/Procurement_JS/app-forms.js') }}"></script>      {{-- add PO/Supplier/Req/Delivery/Invoice forms --}}
+{{-- Load order is significant: these files share one global scope, so a
+     function defined in two of them resolves to whichever loads last. --}}
+<script src="{{ $procAsset('js/Procurement_JS/app-core.js') }}"></script>       {{-- page/notif/toast/stat helpers --}}
+<script src="{{ $procAsset('js/Procurement_JS/app-modals.js') }}"></script>     {{-- view/edit/delete record modals --}}
+<script src="{{ $procAsset('js/Procurement_JS/app-dashboard.js') }}"></script>  {{-- donut chart, report ranges, queue tabs --}}
+<script src="{{ $procAsset('js/Procurement_JS/app-filters.js') }}"></script>    {{-- table search, sort, filter panels --}}
+<script src="{{ $procAsset('js/Procurement_JS/app-deliveries.js') }}"></script> {{-- delivery tracking modal --}}
+<script src="{{ $procAsset('js/Procurement_JS/app-forms.js') }}"></script>      {{-- add PO/Supplier/Req/Delivery/Invoice forms --}}
 
 {{-- Page-specific scripts (optional) --}}
 @yield('scripts')
 
 {{-- Final init calls (row buttons, tab counts, donut, dashboard animation) --}}
-<script src="{{ asset('js/Procurement_JS/app-init.js') }}"></script>
+<script src="{{ $procAsset('js/Procurement_JS/app-init.js') }}"></script>
 </body>
 </html>

@@ -125,6 +125,22 @@
           <span class="hint" id="po-supplier-hint">Auto-filled from the requested item's supplier when creating a PO from a Request.</span>
         </div>
 
+        {{-- Recommended items: what this supplier has actually been ordered
+             most often before (GET purchase-orders/suggestions). One click
+             fills an item row with the usual quantity and the last price paid,
+             so a repeat order does not have to be retyped. --}}
+        <div class="form-field full po-suggest" id="po-suggest-block" style="display:none;">
+          <div class="po-suggest-head">
+            <label>
+              <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M12 3l2.4 5.3 5.6.6-4.2 3.9 1.2 5.7L12 15.7 6.9 18.5l1.2-5.7L4 8.9l5.6-.6z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+              Recommended for this supplier
+            </label>
+            <button type="button" class="po-suggest-toggle" id="po-suggest-toggle" onclick="togglePoSuggestions()">Hide</button>
+          </div>
+          <div class="po-suggest-list" id="po-suggest-list"></div>
+          <span class="hint" id="po-suggest-hint">Based on your previous purchase orders with this supplier.</span>
+        </div>
+
         <div class="form-field full">
           <label>Items <span class="req">*</span></label>
           <div id="po-items-rows"></div>
@@ -268,104 +284,146 @@
 
 <!-- Add Supplier -->
 <div class="modal-overlay" id="add-supplier-modal" onclick="if(event.target===this) closeAddModal('supplier')">
-  <div class="modal-box form-modal">
+  <div class="modal-box form-modal supplier-modal">
     <div class="modal-head">
-      <div>
-        <h3>Add New Supplier</h3>
-        <p style="font-size:12px;color:var(--muted);margin-top:3px;">Register a new supplier record.</p>
+      <div class="modal-head-title">
+        <span class="modal-head-icon">
+          <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="7" width="18" height="13" rx="2" stroke="currentColor" stroke-width="2"/><path d="M8 7V5.5A1.5 1.5 0 0 1 9.5 4h5A1.5 1.5 0 0 1 16 5.5V7" stroke="currentColor" stroke-width="2"/></svg>
+        </span>
+        <h3>Add Supplier + Products</h3>
       </div>
       <button class="modal-close" onclick="closeAddModal('supplier')">&times;</button>
     </div>
     <form id="add-supplier-form" onsubmit="submitAddSupplier(event)">
+      {{-- Supplier ID stays auto-generated but is no longer shown: it is not
+           something anyone types. The supplier-level Brand field was removed
+           entirely; category is a property of each product below. --}}
+      <input type="hidden" name="sid">
       <div class="form-grid">
-        <div class="form-field">
-          <label>Supplier ID <span class="req">*</span></label>
-          <input name="sid" required readonly>
-        </div>
-        <div class="form-field">
+        <div class="form-field full">
           <label>Supplier Name <span class="req">*</span></label>
-          <input name="name" placeholder="e.g. TechSource Inc." required>
+          <input name="name" placeholder="e.g. ABC Trading Corp." required>
         </div>
         <div class="form-field">
-          <label>Contact Person <span class="req">*</span></label>
-          <input name="contact" placeholder="Full name" required>
+          <label>Contact Person</label>
+          <input name="contact" placeholder="Full name">
         </div>
         <div class="form-field">
-          <label>Email <span class="req">*</span></label>
-          <input type="email" name="email" placeholder="name@company.com" required>
+          <label>Status</label>
+          <select name="status">
+            <option value="active" selected>Active</option>
+            <option value="inactive">Inactive</option>
+            <option value="blacklisted">Blacklisted</option>
+          </select>
         </div>
         <div class="form-field">
-          <label>Phone Number <span class="req">*</span></label>
-          <input name="phone" placeholder="+63 9XX XXX XXXX" required>
+          <label>Email</label>
+          <input type="email" name="email" placeholder="name@company.com">
         </div>
         <div class="form-field">
-          <label>Brand <span class="req">*</span></label>
-          <input name="brand" placeholder="e.g. Dell, HP" required>
+          <label>Phone</label>
+          <input name="phone" placeholder="09xx-xxx-xxxx">
         </div>
         <div class="form-field full">
-          <label>Products</label>
-          <div id="supplier-products-list" class="product-chip-list">
-            <div class="product-list-empty">No products added yet.</div>    
-          </div>
+          <label>Address</label>
+          <input name="address" placeholder="City / Province">
+        </div>
+
+        <div class="form-field full">
+          <h4 class="form-section-title">
+            <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="7" width="18" height="13" rx="2" stroke="currentColor" stroke-width="2"/><path d="M8 7V5.5A1.5 1.5 0 0 1 9.5 4h5A1.5 1.5 0 0 1 16 5.5V7" stroke="currentColor" stroke-width="2"/></svg>
+            Products of this supplier
+          </h4>
+          {{-- Products are entered inline here instead of through a second
+               modal, so one submit registers the supplier and its catalog. --}}
+          <div id="supplier-products-list" class="product-row-list"></div>
           <input type="hidden" name="productsJson" id="supplier-products-json" value="[]">
-          <button type="button" class="btn btn-small" style="margin-top:8px;" onclick="openSupplierProductModal()">+ Add Product</button>
-        </div>
-        <div class="form-field full">
-          <label>Address <span class="req">*</span></label>
-          <textarea name="address" placeholder="Full business address" required></textarea>
+          <button type="button" class="btn-add-row" onclick="addSupplierProductRow()">+ Add Another Product</button>
         </div>
       </div>
       <div class="modal-actions">
         <button type="button" class="btn btn-cancel" onclick="closeAddModal('supplier')">Cancel</button>
-        <button type="submit" class="btn btn-submit">Save Supplier</button>
+        <button type="submit" class="btn btn-submit">
+          <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M5 4h11l3 3v13H5z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 4v5h6V4M8 20v-6h8v6" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+          Save Supplier
+        </button>
       </div>
     </form>
   </div>
 </div>
 
-<!-- Add Supplier Product -->
+{{-- Single-product modal, opened from a supplier card's "+ Product" button.
+     It appends to that supplier's existing catalog and saves immediately. --}}
 <div class="modal-overlay" id="add-supplier-product-modal" onclick="if(event.target===this) closeSupplierProductModal()">
-  <div class="modal-box form-modal">
+  <div class="modal-box form-modal supplier-modal">
     <div class="modal-head">
-      <div>
-        <h3>Add Product</h3>
-        <p style="font-size:12px;color:var(--muted);margin-top:3px;">Add a product SKU and supply price.</p>
+      <div class="modal-head-title">
+        <span class="modal-head-icon">
+          <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="7" width="18" height="13" rx="2" stroke="currentColor" stroke-width="2"/><path d="M8 7V5.5A1.5 1.5 0 0 1 9.5 4h5A1.5 1.5 0 0 1 16 5.5V7" stroke="currentColor" stroke-width="2"/></svg>
+        </span>
+        <h3>Add Product<span id="supplier-product-modal-target"></span></h3>
       </div>
       <button class="modal-close" onclick="closeSupplierProductModal()">&times;</button>
     </div>
     <form id="add-supplier-product-form" onsubmit="submitSupplierProduct(event)">
-      <div class="form-grid">
-        <div class="form-field full">
-          <label>Product Name <span class="req">*</span></label>
-          <input name="productName" placeholder="e.g. NAS Storage 8TB" required onchange="syncSupplierProductSku(this)">
-        </div>
-        <div class="form-field">
-          <label>Category</label>
-          <input name="productCategory" placeholder="e.g. Storage">
-        </div>
-        <div class="form-field">
-          <label>SKU code type</label>
-          <select name="productSkuType" onchange="updateSupplierProductSkuType(this)">
-            <option value="auto" selected>Auto-generated</option>
-            <option value="manual">Manual</option>
-          </select>
-        </div>
-        <div class="form-field">
-          <label>SKU code</label>
-          <input name="productSku" readonly>
-        </div>
-        <div class="form-field">
-          <label>Supply price (&#8369;) <span class="req">*</span></label>
-          <input type="number" name="productPrice" min="0" step="0.01" placeholder="0.00" required>
+      <div class="product-row product-row-standalone">
+        <div class="form-grid">
+          <div class="form-field full">
+            <label>Product Name <span class="req">*</span></label>
+            <input name="productName" placeholder="e.g. Bond Paper A4" required oninput="syncSupplierProductSku(this)">
+          </div>
+          <div class="form-field">
+            <label>SKU / Code</label>
+            <input name="productSku" placeholder="e.g. BP-A4">
+          </div>
+          <div class="form-field">
+            <label>Unit Price (&#8369;) <span class="req">*</span></label>
+            <input type="number" name="productPrice" min="0" step="0.01" placeholder="0.00" required>
+          </div>
+          <div class="form-field">
+            <label>Category</label>
+            <input name="productCategory" placeholder="e.g. Office Supplies">
+          </div>
         </div>
       </div>
       <div class="modal-actions">
         <button type="button" class="btn btn-cancel" onclick="closeSupplierProductModal()">Cancel</button>
-        <button type="submit" class="btn btn-submit">Add Product</button>
+        <button type="submit" class="btn btn-submit">
+          <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M5 4h11l3 3v13H5z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 4v5h6V4M8 20v-6h8v6" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+          Save Product
+        </button>
       </div>
     </form>
   </div>
 </div>
+
+{{-- One inline product block inside the Add Supplier form. --}}
+<template id="supplier-product-row-template">
+  <div class="product-row">
+    <button type="button" class="product-row-remove" title="Remove product" onclick="removeSupplierProductRow(this)">
+      <svg viewBox="0 0 24 24" fill="none" width="15" height="15"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="form-grid">
+      <div class="form-field full">
+        <label>Product Name <span class="req">*</span></label>
+        <input class="sp-name" placeholder="e.g. Bond Paper A4" oninput="syncSupplierProductRows()">
+      </div>
+      <div class="form-field">
+        <label>SKU / Code</label>
+        <input class="sp-sku" placeholder="e.g. BP-A4" oninput="syncSupplierProductRows()">
+      </div>
+      <div class="form-field">
+        <label>Unit Price (&#8369;) <span class="req">*</span></label>
+        <input type="number" class="sp-price" min="0" step="0.01" placeholder="0.00" oninput="syncSupplierProductRows()">
+      </div>
+      <div class="form-field">
+        <label>Category</label>
+        <input class="sp-category" placeholder="e.g. Office Supplies" oninput="syncSupplierProductRows()">
+      </div>
+    </div>
+  </div>
+</template>
+
 
 <!-- Add Delivery -->
 <div class="modal-overlay" id="add-delivery-modal" onclick="if(event.target===this) closeAddModal('delivery')">

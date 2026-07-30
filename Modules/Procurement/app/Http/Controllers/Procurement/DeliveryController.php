@@ -26,6 +26,11 @@ class DeliveryController extends Controller
         return $query;
     }
 
+    /**
+     * shipment_number carries a database-wide UNIQUE constraint, so the
+     * "next free number" probe must see every tenant's rows. This is the one
+     * place the client scope is deliberately lifted.
+     */
     private function nextAvailableShipmentNumber(string $requestedNumber): string
     {
         if (! preg_match('/^(.*?)(\d+)$/', $requestedNumber, $matches)) {
@@ -35,6 +40,7 @@ class DeliveryController extends Controller
         $prefix = $matches[1];
         $width = strlen($matches[2]);
         $highestSequence = Delivery::query()
+            ->withoutGlobalScope('client')
             ->where('shipment_number', 'like', $prefix . '%')
             ->pluck('shipment_number')
             ->map(function (string $number) use ($prefix): int {
@@ -47,9 +53,32 @@ class DeliveryController extends Controller
         return $prefix . str_pad($highestSequence + 1, $width, '0', STR_PAD_LEFT);
     }
 
+    /**
+     * Detect a unique-constraint violation regardless of driver. Matching on
+     * the bare string "shipment_number" (the previous approach) also caught
+     * unrelated errors that merely mentioned the column and retried them three
+     * times before giving up.
+     */
+    private function isDuplicateKeyException(\Throwable $e): bool
+    {
+        $message = $e->getMessage();
+
+        return str_contains($message, 'duplicate key')
+            || str_contains($message, 'Unique violation')
+            || str_contains($message, 'SQLSTATE[23505]')
+            || str_contains($message, 'UNIQUE constraint failed');
+    }
+
     private function createDeliveryWithUniqueShipmentNumber(array $attributes): Delivery
     {
-        if (Delivery::query()->where('shipment_number', $attributes['shipment_number'])->exists()) {
+        // Uniqueness is global, so this existence check must ignore the client
+        // scope too.
+        $taken = Delivery::query()
+            ->withoutGlobalScope('client')
+            ->where('shipment_number', $attributes['shipment_number'])
+            ->exists();
+
+        if ($taken) {
             $attributes['shipment_number'] = $this->nextAvailableShipmentNumber($attributes['shipment_number']);
         }
 
@@ -57,10 +86,7 @@ class DeliveryController extends Controller
             try {
                 return Delivery::create($attributes);
             } catch (QueryException $exception) {
-                $message = $exception->getMessage();
-
-                if (! str_contains($message, 'deliveries_shipment_number_key')
-                    && ! str_contains($message, 'shipment_number')) {
+                if (! $this->isDuplicateKeyException($exception)) {
                     throw $exception;
                 }
 
@@ -131,11 +157,20 @@ class DeliveryController extends Controller
 
         $purchaseOrder = PurchaseOrder::where('po_number', $data['po'])->first();
 
+        // The PO is mandatory. Previously a number that matched nothing simply
+        // produced a delivery with a null purchase_order_id — an orphan
+        // shipment that no PO or requisition would ever advance.
+        if (! $purchaseOrder) {
+            return response()->json([
+                'message' => sprintf('Purchase order %s was not found.', $data['po']),
+            ], 422);
+        }
+
         // Server-side guard: a PO can only be logged in Deliveries once it is
         // Approved (or already Processing from a prior delivery). Pending,
         // Rejected and Cancelled POs must be rejected here, not just hidden in
         // the UI.
-        if ($purchaseOrder && ! in_array(strtolower((string) $purchaseOrder->status), ['approved', 'processing'], true)) {
+        if (! in_array(strtolower((string) $purchaseOrder->status), ['approved', 'processing'], true)) {
             return response()->json([
                 'message' => 'Only approved purchase orders can be logged in deliveries.',
             ], 422);
@@ -150,7 +185,9 @@ class DeliveryController extends Controller
                 'email' => null,
                 'phone' => null,
                 'address' => null,
-                'category' => 'General Procurement',
+                // The column is `brand`; `category` is not in $fillable and was
+                // being dropped on the floor.
+                'brand' => 'General Procurement',
                 'status' => 'active',
             ]);
         }
@@ -173,21 +210,25 @@ class DeliveryController extends Controller
             'deliver_to_warehouse' => $warehouse?->name,
         ];
 
-        $delivery = $this->createDeliveryWithUniqueShipmentNumber($deliveryAttributes);
+        $delivery = DB::connection('procurement')->transaction(function () use ($deliveryAttributes, $purchaseOrder) {
+            $delivery = $this->createDeliveryWithUniqueShipmentNumber($deliveryAttributes);
 
-        if ($purchaseOrder) {
             // Logging a delivery moves the PO to Processing. The linked
             // requisition's status is derived from the PO status when the
             // Requisitions page renders (see RequisitionController@index), so it
             // does not need to be written here.
             $purchaseOrder->update(['status' => 'processing']);
 
-            if (! empty($purchaseOrder->requisition_reference)) {
-                (new RequisitionStatusWriter)->transitionByReference(
-                    $purchaseOrder->requisition_reference,
-                    RequisitionStatusWriter::PROCESSING
-                );
-            }
+            return $delivery;
+        });
+
+        // External database — kept outside the transaction above so a failure
+        // there cannot roll back a delivery that was legitimately logged.
+        if (! empty($purchaseOrder->requisition_reference)) {
+            (new RequisitionStatusWriter)->transitionByReference(
+                $purchaseOrder->requisition_reference,
+                RequisitionStatusWriter::PROCESSING
+            );
         }
 
         return response()->json([
@@ -286,7 +327,7 @@ class DeliveryController extends Controller
         // updating the PO leaves its visible status stale after delivery.
         $requisitionStatus = null;
         $requisitionTarget = match ($status) {
-            'intransit', 'delayed' => RequisitionStatusWriter::PROCESSING,
+            'intransit', 'delayed' => RequisitionStatusWriter::IN_TRANSIT,
             'delivered' => RequisitionStatusWriter::DELIVERED,
             'completed' => RequisitionStatusWriter::COMPLETED,
             default => null,

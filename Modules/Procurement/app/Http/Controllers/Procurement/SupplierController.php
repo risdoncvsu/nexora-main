@@ -5,22 +5,26 @@ namespace Modules\Procurement\Http\Controllers\Procurement;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 use Modules\Inventory\Models\Warehouse;
+use Modules\Procurement\Support\SchemaProbe;
 
 class SupplierController extends Controller
 {
     /**
-     * Insert one supplier_products row per product, including its category
+     * Replace a supplier's product catalog, including each product's category
      * when the categories column exists (see EnsureProcurementClientColumns).
+     *
+     * Delete-then-insert has to be atomic: this used to run as a bare DELETE
+     * followed by one INSERT per product, so a failure partway through wiped
+     * the supplier's catalog and left it partially rebuilt.
      */
     private function replaceSupplierProducts(int $supplierId, array $products): void
     {
-        $hasCategories = Schema::connection('procurement')->hasColumn('supplier_products', 'categories');
+        $hasCategories = SchemaProbe::hasColumn('procurement', 'supplier_products', 'categories');
+        $now = now();
 
-        DB::connection('procurement')->table('supplier_products')->where('supplier_id', $supplierId)->delete();
-
+        $rows = [];
         foreach ($products as $product) {
             if (empty($product['name'])) {
                 continue;
@@ -31,16 +35,24 @@ class SupplierController extends Controller
                 'name' => $product['name'],
                 'sku' => $product['sku'] ?? null,
                 'unit_price' => $product['price'] ?? 0,
-                'created_at' => now(),
-                'updated_at' => now(),
+                'created_at' => $now,
+                'updated_at' => $now,
             ];
 
             if ($hasCategories) {
                 $row['categories'] = $product['category'] ?? null;
             }
 
-            DB::connection('procurement')->table('supplier_products')->insert($row);
+            $rows[] = $row;
         }
+
+        DB::connection('procurement')->transaction(function () use ($supplierId, $rows) {
+            DB::connection('procurement')->table('supplier_products')->where('supplier_id', $supplierId)->delete();
+
+            if ($rows !== []) {
+                DB::connection('procurement')->table('supplier_products')->insert($rows);
+            }
+        });
     }
     private function table(string $name)
     {
@@ -60,6 +72,17 @@ class SupplierController extends Controller
     {
         $suppliers = $this->table('suppliers')->orderBy('created_at', 'desc')->get();
 
+        // "N POs placed" on each supplier card. One grouped query for the whole
+        // page rather than a count per card.
+        $supplierIds = $suppliers->pluck('id')->filter()->all();
+        $poCounts = $supplierIds
+            ? $this->table('purchase_orders')
+                ->whereIn('supplier_id', $supplierIds)
+                ->selectRaw('supplier_id, count(*) as total')
+                ->groupBy('supplier_id')
+                ->pluck('total', 'supplier_id')
+            : collect();
+
         if ($request->wantsJson() || $request->ajax()) {
             $data = $suppliers->map(function ($s) {
                 $products = [];
@@ -78,7 +101,7 @@ class SupplierController extends Controller
             return response()->json(['status' => 'ok', 'data' => $data]);
         }
 
-        return view('procurement::pages.suppliers', compact('suppliers'));
+        return view('procurement::pages.suppliers', compact('suppliers', 'poCounts'));
     }
 
     /**
@@ -182,6 +205,19 @@ class SupplierController extends Controller
             'updated_at' => now(),
         ];
 
+        // Confirm the supplier belongs to this client *before* touching its
+        // product catalog — replaceSupplierProducts() deletes by supplier_id
+        // and was previously reached even when the following scoped UPDATE
+        // matched nothing.
+        $exists = $this->table('suppliers')->where('id', $supplier)->exists();
+
+        if (! $exists) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Supplier not found.',
+            ], 404);
+        }
+
         // Products (name/sku/price/category) are edited as a whole list in the
         // modal; when sent, they replace the supplier's product catalog.
         if ($request->filled('productsJson')) {
@@ -198,7 +234,17 @@ class SupplierController extends Controller
 
     public function destroy($supplier)
     {
-        $this->table('suppliers')->where('id', $supplier)->delete();
+        // supplier_products cascades in the database; purchase_orders and
+        // deliveries carry their own FK behaviour. Answer 404 rather than "ok"
+        // for an id this client does not own.
+        $deleted = $this->table('suppliers')->where('id', $supplier)->delete();
+
+        if ($deleted === 0) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Supplier not found.',
+            ], 404);
+        }
 
         return response()->json(['status' => 'ok']);
     }

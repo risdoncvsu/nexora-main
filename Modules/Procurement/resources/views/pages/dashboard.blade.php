@@ -16,22 +16,24 @@
         <div class="stat-card">
           <div class="stat-label">ACTIVE POS</div>
           <div class="stat-value" id="dash-stat-po">{{ $poCount }}</div>
-          <div class="stat-sub">{{ $poCount > 0 ? $dashboardTotalSpend . ' total spend' : 'No purchase orders yet' }}</div>
+          <div class="stat-sub" id="dash-sub-po">{{ $poCount > 0 ? $dashboardTotalSpend . ' total spend' : 'No purchase orders yet' }}</div>
         </div>
         <div class="stat-card">
           <div class="stat-label">SUPPLIERS</div>
           <div class="stat-value" id="dash-stat-sup">{{ $supplierCount }}</div>
-          <div class="stat-sub">{{ $supplierCount > 0 ? 'Active suppliers' : 'No supplier data yet' }}</div>
+          <div class="stat-sub" id="dash-sub-sup">{{ $supplierCount > 0 ? 'Active suppliers' : 'No supplier data yet' }}</div>
         </div>
         <div class="stat-card">
+          {{-- Pending only — the same number the sidebar badge shows. The
+               sub-label carries how many have been Completed. --}}
           <div class="stat-label">REQUISITIONS</div>
           <div class="stat-value" id="dash-stat-req">{{ $requisitionCount }}</div>
-          <div class="stat-sub">{{ $requisitionCount > 0 ? 'Open requisitions' : 'No requisitions yet' }}</div>
+          <div class="stat-sub" id="dash-sub-req">{{ ($requisitionCompletedCount ?? 0) > 0 ? $requisitionCompletedCount . ' completed' : 'None completed yet' }}</div>
         </div>
         <div class="stat-card">
           <div class="stat-label">DELIVERIES</div>
           <div class="stat-value" id="dash-stat-inv">{{ $deliveryCount }}</div>
-          <div class="stat-sub">{{ $deliveryCount > 0 ? ($pendingDeliveries > 0 ? $pendingDeliveries . ' in progress' : 'All shipments settled') : 'No deliveries yet' }}</div>
+          <div class="stat-sub" id="dash-sub-inv">{{ $deliveryCount > 0 ? ($pendingDeliveries > 0 ? $pendingDeliveries . ' in progress' : 'All shipments settled') : 'No deliveries yet' }}</div>
         </div>
       </div>
       

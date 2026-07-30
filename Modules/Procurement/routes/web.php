@@ -28,6 +28,8 @@ Route::post('/logout', function () {
 Route::prefix('purchase-orders')->name('purchase-orders.')->group(function () {
     Route::get('/', [PurchaseOrderController::class, 'index'])->name('index');
     Route::get('/approved', [PurchaseOrderController::class, 'approved'])->name('approved');
+    // Frequently-ordered items per supplier, for the PO modal's Recommended tab.
+    Route::get('/suggestions', [PurchaseOrderController::class, 'suggestions'])->name('suggestions');
     Route::post('/', [PurchaseOrderController::class, 'store'])->name('store');
     Route::put('/{purchaseOrder}', [PurchaseOrderController::class, 'update'])->name('update');
     Route::delete('/{purchaseOrder}', [PurchaseOrderController::class, 'destroy'])->name('destroy');

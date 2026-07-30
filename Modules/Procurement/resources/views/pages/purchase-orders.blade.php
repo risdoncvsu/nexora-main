@@ -15,7 +15,7 @@
         <p>All purchase orders for Techforge PC Solutions</p>
       </div>
 
-      <div class="status-chart" id="po-status-chart">
+      <div class="status-chart" id="po-status-chart" data-table="po-table">
         <div class="status-chart-item pending" data-status="pending" style="background:linear-gradient(135deg,#fff3e0,#ffe0b2);border-color:#ff9800;" onclick="filterByStatus('po-table', 'pending', this)">
           <div class="status-label">Pending</div>
           <div class="status-count">{{ $statusCounts->get('pending', 0) }}</div>

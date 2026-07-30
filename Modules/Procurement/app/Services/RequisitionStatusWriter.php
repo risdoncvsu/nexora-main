@@ -3,6 +3,7 @@
 namespace Modules\Procurement\Services;
 
 use Illuminate\Support\Facades\DB;
+use Modules\Procurement\Support\SchemaProbe;
 
 /**
  * Writes requisition status back to the external requisition sources
@@ -10,13 +11,18 @@ use Illuminate\Support\Facades\DB;
  *
  *   Pending    -> Approved | Rejected   (Procurement approves/rejects)
  *   Approved   -> Processing            (a PO was created for it)
- *   Processing -> Completed             (its delivery was marked Completed)
+ *   Processing -> In Transit            (its shipment left the supplier)
+ *   In Transit -> Delivered -> Completed
  *   Rejected / Completed are terminal.
  *
  * Casing matches the column default ('Pending'), i.e. title case.
  *
  * A requisition may span several rows sharing one req_id; every transition
- * moves the whole group together inside a single transaction.
+ * moves the whole group together.
+ *
+ * Every lookup and every write is scoped to the signed-in client. Without that
+ * scope this class would happily move another tenant's requisition group — the
+ * reference and the numeric id are both guessable.
  */
 class RequisitionStatusWriter
 {
@@ -24,20 +30,22 @@ class RequisitionStatusWriter
     public const APPROVED = 'Approved';
     public const REJECTED = 'Rejected';
     public const PROCESSING = 'Processing';
+    public const IN_TRANSIT = 'In Transit';
     public const DELIVERED = 'Delivered';
     public const COMPLETED = 'Completed';
 
     /** Requisition sources, in lookup order. */
     private const CONNECTIONS = ['order_fulfillment', 'inventory'];
 
-    /** Allowed target statuses, keyed by the lowercased current status. */
+    /** Allowed target statuses, keyed by the normalised current status. */
     private const TRANSITIONS = [
         'pending' => [self::APPROVED, self::REJECTED],
         // Delivery records may be imported after a shipment has already
         // reached its destination, so Approved may legitimately advance over
         // Processing during reconciliation.
-        'approved' => [self::PROCESSING, self::DELIVERED, self::COMPLETED],
-        'processing' => [self::DELIVERED, self::COMPLETED],
+        'approved' => [self::PROCESSING, self::IN_TRANSIT, self::DELIVERED, self::COMPLETED],
+        'processing' => [self::IN_TRANSIT, self::DELIVERED, self::COMPLETED],
+        'intransit' => [self::DELIVERED, self::COMPLETED],
         'delivered' => [self::COMPLETED],
         'rejected' => [],
         'completed' => [],
@@ -46,20 +54,74 @@ class RequisitionStatusWriter
     /** Every status Procurement is allowed to ask for. */
     public static function isKnownStatus(string $status): bool
     {
-        return in_array($status, [
-            self::PENDING, self::APPROVED, self::REJECTED, self::PROCESSING, self::DELIVERED, self::COMPLETED,
-        ], true);
+        return in_array($status, self::knownStatuses(), true);
     }
 
-    /** Normalise arbitrary input ("approved", "APPROVED") to title case. */
-    public static function normalise(string $status): string
+    /** @return list<string> */
+    public static function knownStatuses(): array
     {
-        return ucfirst(strtolower(trim($status)));
+        return [
+            self::PENDING, self::APPROVED, self::REJECTED, self::PROCESSING,
+            self::IN_TRANSIT, self::DELIVERED, self::COMPLETED,
+        ];
     }
 
     /**
-     * Locate a requisition by primary key or by its requisition number,
-     * across the configured sources.
+     * Normalise arbitrary input to the canonical label.
+     *
+     * The old implementation was ucfirst(strtolower($status)), which turned
+     * "intransit" into "Intransit" and "In Transit" into "In transit" —
+     * neither is a known status, so every in-transit write from the delivery
+     * flow was rejected with a 422 that nothing surfaced. Matching on a
+     * collapsed key fixes all three spellings.
+     */
+    public static function normalise(string $status): string
+    {
+        $key = self::statusKey($status);
+
+        foreach (self::knownStatuses() as $known) {
+            if (self::statusKey($known) === $key) {
+                return $known;
+            }
+        }
+
+        return ucfirst(strtolower(trim($status)));
+    }
+
+    /** Collapse "In Transit" / "in transit" / "intransit" / "in-transit" to one key. */
+    private static function statusKey(?string $status): string
+    {
+        return preg_replace('/[^a-z]/', '', strtolower(trim((string) $status))) ?? '';
+    }
+
+    private static function clientId(): int
+    {
+        return (int) session('employee_client_id');
+    }
+
+    private static function isRootTesting(): bool
+    {
+        return (bool) config('nexora.root_admin_module_testing') && auth()->user()?->role === 'root_admin';
+    }
+
+    /**
+     * Apply the tenant filter when the source table carries a client_id.
+     * Root-admin module testing is the single documented bypass.
+     */
+    private static function scopeToClient($query, string $connection): void
+    {
+        if (self::isRootTesting()) {
+            return;
+        }
+
+        if (SchemaProbe::hasColumn($connection, 'requisitions', 'client_id')) {
+            $query->where('requisitions.client_id', self::clientId());
+        }
+    }
+
+    /**
+     * Locate a requisition by primary key or by its requisition number, across
+     * the configured sources — always within the signed-in client.
      *
      * @return array{connection:\Illuminate\Database\Connection,source:string,refColumn:?string,row:object,hasStatus:bool}|null
      */
@@ -67,17 +129,16 @@ class RequisitionStatusWriter
     {
         foreach (self::CONNECTIONS as $source) {
             try {
-                $connection = DB::connection($source);
-                $schema = $connection->getSchemaBuilder();
-
-                if (! $schema->hasTable('requisitions')) {
+                if (! SchemaProbe::hasTable($source, 'requisitions')) {
                     continue;
                 }
 
+                $connection = DB::connection($source);
+
                 // Inventory uses req_id; Order Fulfillment uses req_number.
-                $refColumn = $schema->hasColumn('requisitions', 'req_id')
+                $refColumn = SchemaProbe::hasColumn($source, 'requisitions', 'req_id')
                     ? 'req_id'
-                    : ($schema->hasColumn('requisitions', 'req_number') ? 'req_number' : null);
+                    : (SchemaProbe::hasColumn($source, 'requisitions', 'req_number') ? 'req_number' : null);
 
                 $query = $connection->table('requisitions');
                 if ($id !== null) {
@@ -87,6 +148,8 @@ class RequisitionStatusWriter
                 } else {
                     continue;
                 }
+
+                self::scopeToClient($query, $source);
 
                 $row = $query->first();
                 if (! $row) {
@@ -98,7 +161,7 @@ class RequisitionStatusWriter
                     'source' => $source,
                     'refColumn' => $refColumn,
                     'row' => $row,
-                    'hasStatus' => $schema->hasColumn('requisitions', 'status'),
+                    'hasStatus' => SchemaProbe::hasColumn($source, 'requisitions', 'status'),
                 ];
             } catch (\Throwable $e) {
                 // Skip broken or unavailable external connections.
@@ -142,6 +205,12 @@ class RequisitionStatusWriter
             return ['ok' => false, 'code' => 404, 'message' => 'Requisition not found.'];
         }
 
+        $target = self::normalise($target);
+
+        if (! self::isKnownStatus($target)) {
+            return ['ok' => false, 'code' => 422, 'message' => sprintf('Unknown requisition status "%s".', $target)];
+        }
+
         if (! $found['hasStatus']) {
             // Order Fulfillment has no status column — there is nothing to
             // persist and no lifecycle to enforce. Treat it as a benign no-op
@@ -154,11 +223,11 @@ class RequisitionStatusWriter
         $current = trim((string) ($found['row']->status ?? self::PENDING));
 
         // Idempotent: asking for the status it already has is a no-op success.
-        if (strcasecmp($current, $target) === 0) {
-            return ['ok' => true, 'status' => $target, 'updated' => 0];
+        if (self::statusKey($current) === self::statusKey($target)) {
+            return ['ok' => true, 'status' => $target, 'updated' => 0, 'persisted' => true];
         }
 
-        $allowed = self::TRANSITIONS[strtolower($current)] ?? [];
+        $allowed = self::TRANSITIONS[self::statusKey($current)] ?? [];
         if (! in_array($target, $allowed, true)) {
             return [
                 'ok' => false,
@@ -168,6 +237,7 @@ class RequisitionStatusWriter
         }
 
         $connection = $found['connection'];
+        $source = $found['source'];
         $refColumn = $found['refColumn'];
         $reference = $refColumn !== null ? ($found['row']->{$refColumn} ?? null) : null;
 
@@ -181,6 +251,10 @@ class RequisitionStatusWriter
             $query->where('id', $found['row']->id);
         }
 
+        // The group update is tenant-scoped too: one req_id must never fan out
+        // across clients.
+        self::scopeToClient($query, $source);
+
         // Deliberately a single UPDATE rather than an explicit
         // beginTransaction/commit block. One UPDATE is already atomic in
         // PostgreSQL — the whole req_id group moves all-or-nothing — and these
@@ -192,6 +266,6 @@ class RequisitionStatusWriter
             'updated_at' => now(),
         ]);
 
-        return ['ok' => true, 'status' => $target, 'updated' => $updated];
+        return ['ok' => true, 'status' => $target, 'updated' => $updated, 'persisted' => true];
     }
 }

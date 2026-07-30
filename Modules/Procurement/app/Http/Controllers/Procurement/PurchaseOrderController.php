@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Modules\Inventory\Models\Warehouse;
 use Modules\Procurement\Services\RequisitionStatusWriter;
+use Modules\Procurement\Support\SchemaProbe;
 
 class PurchaseOrderController extends Controller
 {
@@ -222,6 +223,87 @@ class PurchaseOrderController extends Controller
     }
 
     /**
+     * Frequently-ordered items per supplier, for the PO modal's "Recommended"
+     * tab. Derived entirely from existing purchase order history — no new
+     * table, no schema change.
+     *
+     * An item is ranked by how many distinct purchase orders it has appeared
+     * on for that supplier. The suggested quantity is the rounded average of
+     * the quantities previously ordered, and the price is the most recent unit
+     * price paid, so accepting a suggestion reproduces a typical order rather
+     * than the largest or oldest one.
+     *
+     * Cancelled and rejected orders are excluded — they represent purchases
+     * that never happened and must not shape a recommendation.
+     */
+    public function suggestions(Request $request)
+    {
+        $hasItemCategory = SchemaProbe::hasColumn('procurement', 'purchase_order_items', 'category');
+
+        $rows = $this->table('purchase_order_items')
+            ->join('purchase_orders', 'purchase_order_items.purchase_order_id', '=', 'purchase_orders.id')
+            ->leftJoin('suppliers', 'purchase_orders.supplier_id', '=', 'suppliers.id')
+            ->whereNotIn('purchase_orders.status', ['cancelled', 'rejected'])
+            ->whereNotNull('suppliers.name')
+            ->select(
+                'suppliers.name as supplier_name',
+                'purchase_order_items.name as item_name',
+                'purchase_order_items.qty as qty',
+                'purchase_order_items.unit_price as unit_price',
+                'purchase_orders.created_at as ordered_at',
+                ...($hasItemCategory ? ['purchase_order_items.category as category'] : [])
+            )
+            ->orderBy('purchase_orders.created_at')
+            ->get();
+
+        $grouped = [];
+        foreach ($rows as $row) {
+            $supplier = (string) $row->supplier_name;
+            $item = trim((string) $row->item_name);
+            if ($supplier === '' || $item === '') {
+                continue;
+            }
+
+            $key = mb_strtolower($item);
+            $bucket = &$grouped[$supplier][$key];
+            if (! is_array($bucket)) {
+                $bucket = ['name' => $item, 'category' => '', 'times' => 0, 'qtyTotal' => 0, 'unitPrice' => 0.0];
+            }
+
+            $bucket['times']++;
+            $bucket['qtyTotal'] += (int) $row->qty;
+            // Rows arrive oldest-first, so the last write wins: the most
+            // recently paid price and category.
+            $bucket['unitPrice'] = (float) $row->unit_price;
+            if ($hasItemCategory && ! empty($row->category)) {
+                $bucket['category'] = (string) $row->category;
+            }
+            unset($bucket);
+        }
+
+        $result = [];
+        foreach ($grouped as $supplier => $items) {
+            $list = array_values(array_map(function (array $entry) {
+                return [
+                    'name' => $entry['name'],
+                    'category' => $entry['category'],
+                    'qty' => max(1, (int) round($entry['qtyTotal'] / max(1, $entry['times']))),
+                    'unitPrice' => round($entry['unitPrice'], 2),
+                    'times' => $entry['times'],
+                ];
+            }, $items));
+
+            usort($list, function ($a, $b) {
+                return [$b['times'], $b['name']] <=> [$a['times'], $a['name']];
+            });
+
+            $result[$supplier] = array_slice($list, 0, 8);
+        }
+
+        return response()->json($result);
+    }
+
+    /**
      * Handle the "+ New PO" modal submit (submitAddPO in app-forms.js).
      *
      * A PO can now carry multiple item rows (supplier -> category -> item
@@ -347,42 +429,65 @@ class PurchaseOrderController extends Controller
             'updated_at' => now(),
         ];
 
-        $poId = $this->insertPurchaseOrder($insert);
-        $savedPoNumber = $this->table('purchase_orders')->where('id', $poId)->value('po_number');
-
         // Per-item category is only stored once the schema migration has added
         // the column; guard so PO creation still works if it hasn't run yet.
-        $hasItemCategory = \Illuminate\Support\Facades\Schema::connection('procurement')
-            ->hasColumn('purchase_order_items', 'category');
+        $hasItemCategory = SchemaProbe::hasColumn('procurement', 'purchase_order_items', 'category');
 
-        foreach ($items as $item) {
-            // Best-effort link back to the supplier's catalog row (for
-            // reporting); the PO item row is still fully self-contained
-            // (name/qty/price) if no match is found.
-            $supplierProductId = DB::connection('procurement')->table('supplier_products')
+        // The order header and its item rows are one unit of work. Previously
+        // each insert stood alone, so a failure partway through the item loop
+        // left a purchase order whose stored qty/amount did not match the rows
+        // that actually made it in.
+        $poId = DB::connection('procurement')->transaction(function () use (
+            $insert, $items, $supplierId, $hasItemCategory
+        ) {
+            $poId = $this->insertPurchaseOrder($insert);
+
+            // One lookup for the whole catalog slice instead of a query per
+            // item row.
+            $productIdsByName = DB::connection('procurement')->table('supplier_products')
                 ->where('supplier_id', $supplierId)
-                ->where('name', $item['name'])
-                ->value('id');
+                ->whereIn('name', array_column($items, 'name'))
+                ->pluck('id', 'name');
 
-            $itemInsert = [
-                'client_id' => (int) session('employee_client_id'),
-                'purchase_order_id' => $poId,
-                'supplier_product_id' => $supplierProductId,
-                'name' => $item['name'],
-                'qty' => $item['qty'],
-                'unit_price' => $item['unit_price'],
-                'amount' => $item['amount'],
-                'created_at' => now(),
-                'updated_at' => now(),
-            ];
-            if ($hasItemCategory) {
-                $itemInsert['category'] = $item['category'] ?? null;
+            $clientId = (int) session('employee_client_id');
+            $now = now();
+            $itemRows = [];
+
+            foreach ($items as $item) {
+                // Best-effort link back to the supplier's catalog row (for
+                // reporting); the PO item row is still fully self-contained
+                // (name/qty/price) if no match is found.
+                $row = [
+                    'client_id' => $clientId,
+                    'purchase_order_id' => $poId,
+                    'supplier_product_id' => $productIdsByName[$item['name']] ?? null,
+                    'name' => $item['name'],
+                    'qty' => $item['qty'],
+                    'unit_price' => $item['unit_price'],
+                    'amount' => $item['amount'],
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+                if ($hasItemCategory) {
+                    $row['category'] = $item['category'] ?? null;
+                }
+
+                $itemRows[] = $row;
             }
 
-            DB::connection('procurement')->table('purchase_order_items')->insert($itemInsert);
-        }
+            if ($itemRows !== []) {
+                DB::connection('procurement')->table('purchase_order_items')->insert($itemRows);
+            }
 
-        // Creating the PO moves its requisition Approved -> Processing.
+            return $poId;
+        });
+
+        $savedPoNumber = $this->table('purchase_orders')->where('id', $poId)->value('po_number');
+
+        // Creating the PO moves its requisition Approved -> Processing. This
+        // writes to a different (external) database, so it stays outside the
+        // procurement transaction — a failure here must not roll back a PO
+        // that was legitimately created.
         $requisitionStatus = null;
         if (! empty($requisitionReference)) {
             $transition = $statusWriter->transitionByReference($requisitionReference, RequisitionStatusWriter::PROCESSING);
@@ -450,8 +555,15 @@ class PurchaseOrderController extends Controller
         if ($status !== null) {
             $status = strtolower(trim($status));
             $allowed = ['pending', 'approved', 'rejected', 'cancelled', 'processing', 'completed', 'delivered'];
-            if (!in_array($status, $allowed, true)) {
-                $status = null;
+
+            // An unrecognised status used to be silently discarded and the
+            // request still answered 200 — the caller believed it had saved
+            // something it had not. Refuse it instead.
+            if (! in_array($status, $allowed, true)) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => sprintf('Unknown purchase order status "%s".', $validated['status']),
+                ], 422);
             }
         }
 
@@ -501,7 +613,17 @@ class PurchaseOrderController extends Controller
 
     public function destroy($purchaseOrder)
     {
-        $this->table('purchase_orders')->where('id', $purchaseOrder)->delete();
+        // purchase_order_items cascades in the database; deliveries keep their
+        // row with a null purchase_order_id (ON DELETE SET NULL). Report a 404
+        // rather than answering "ok" for an id this client does not own.
+        $deleted = $this->table('purchase_orders')->where('id', $purchaseOrder)->delete();
+
+        if ($deleted === 0) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Purchase order not found.',
+            ], 404);
+        }
 
         return response()->json(['status' => 'ok']);
     }

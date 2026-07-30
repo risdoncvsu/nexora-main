@@ -8,9 +8,44 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Modules\Inventory\Models\Defect;
 use Modules\Procurement\Services\RequisitionStatusWriter;
+use Modules\Procurement\Support\SchemaProbe;
 
 class RequisitionController extends Controller
 {
+    private function isRootTesting(?Request $request = null): bool
+    {
+        $user = $request?->user() ?? auth()->user();
+
+        return (bool) config('nexora.root_admin_module_testing') && $user?->role === 'root_admin';
+    }
+
+    private function clientId(): int
+    {
+        return (int) session('employee_client_id');
+    }
+
+    /**
+     * Apply the tenant filter to an external requisitions query.
+     *
+     * update()/destroy() previously ran a bare `where('id', $requisition)` on
+     * whichever external database happened to hold that id — no client check at
+     * all. Requisition ids are sequential integers, so any signed-in
+     * Procurement user could edit or delete another tenant's requisition by
+     * guessing a number.
+     */
+    private function scopeRequisitionToClient($query, $connection, ?Request $request = null): void
+    {
+        if ($this->isRootTesting($request)) {
+            return;
+        }
+
+        $name = is_string($connection) ? $connection : $connection->getName();
+
+        if (SchemaProbe::hasColumn($name, 'requisitions', 'client_id')) {
+            $query->where('requisitions.client_id', $this->clientId());
+        }
+    }
+
     /**
      * Inventory owns defect records. Procurement can coordinate the supplier
      * replacement lifecycle, but all access stays scoped to the signed-in
@@ -81,34 +116,13 @@ class RequisitionController extends Controller
         ]);
     }
 
-    private function getRequisitionConnection()
-    {
-        foreach (['order_fulfillment', 'inventory'] as $connectionName) {
-            try {
-                $connection = DB::connection($connectionName);
-                if ($connection->getSchemaBuilder()->hasTable('requisitions')) {
-                    return $connection;
-                }
-            } catch (\Exception $e) {
-                // ignore broken or unavailable external DB connections
-            }
-        }
-
-        throw new \RuntimeException('No external requisition source is available.');
-    }
-
     private function getRequisitionConnections(): array
     {
         $connections = [];
 
         foreach (['order_fulfillment', 'inventory'] as $connectionName) {
-            try {
-                $connection = DB::connection($connectionName);
-                if ($connection->getSchemaBuilder()->hasTable('requisitions')) {
-                    $connections[] = $connection;
-                }
-            } catch (\Exception $e) {
-                // ignore broken or unavailable external DB connections
+            if (SchemaProbe::hasTable($connectionName, 'requisitions')) {
+                $connections[] = DB::connection($connectionName);
             }
         }
 
@@ -119,93 +133,34 @@ class RequisitionController extends Controller
         return $connections;
     }
 
-    private function getWritableRequisitionConnection()
-    {
-        return $this->getRequisitionConnection();
-    }
-
     /**
      * Find which external connection (order_fulfillment or inventory) actually
-     * holds the requisition with this id. Previously update()/destroy() always
-     * used the first connection that had a "requisitions" table, so status
-     * changes and deletes for requisitions that came from the other source
-     * silently touched zero rows instead of the real record.
+     * holds this client's requisition with this id.
+     *
+     * Returns null when no source holds it *for this client* — callers must
+     * treat that as a 404 rather than falling back to "whichever database
+     * answered first", which is what the old implementation did and which
+     * meant a write could land on the wrong database and still report success.
      */
-    private function findRequisitionConnectionFor($id)
+    private function findRequisitionConnectionFor($id, ?Request $request = null)
     {
         foreach ($this->getRequisitionConnections() as $connection) {
-            if ($connection->table('requisitions')->where('id', $id)->exists()) {
+            $query = $connection->table('requisitions')->where('id', $id);
+            $this->scopeRequisitionToClient($query, $connection, $request);
+
+            if ($query->exists()) {
                 return $connection;
             }
         }
 
-        // Fall back to the old behavior rather than erroring out.
-        return $this->getRequisitionConnection();
-    }
-
-    private function ensureRequisitionTable($connection): void
-    {
-        if ($connection->getSchemaBuilder()->hasTable('requisitions')) {
-            return;
-        }
-
-        throw new \RuntimeException(sprintf('The requisition table is not available on connection %s.', $connection->getName()));
+        return null;
     }
 
     private function requisitionHasColumn($connection, string $column): bool
     {
-        try {
-            return $connection->getSchemaBuilder()->hasColumn('requisitions', $column);
-        } catch (\Exception $e) {
-            return false;
-        }
-    }
+        $name = is_string($connection) ? $connection : $connection->getName();
 
-       private function isDuplicateKeyException(\Throwable $e): bool
-    {
-        $message = $e->getMessage();
-
-        return str_contains($message, 'duplicate key')
-            || str_contains($message, 'Unique violation')
-            || str_contains($message, 'SQLSTATE[23505]')
-            || str_contains($message, 'UNIQUE constraint failed');
-    }
-
-    private function makeUniqueRequisitionInsert(array $insert): array
-    {
-        $clone = $insert;
-        $suffix = now()->format('YmdHis') . '-' . random_int(1000, 9999);
-
-        if (array_key_exists('req_number', $clone) && ! empty($clone['req_number'])) {
-            $clone['req_number'] = $clone['req_number'] . '-' . $suffix;
-        } elseif (array_key_exists('req_id', $clone) && ! empty($clone['req_id'])) {
-            $clone['req_id'] = $clone['req_id'] . '-' . $suffix;
-        }
-
-        return $clone;
-    }
-
-    private function insertRequisition($connection, array $insert): int
-    {
-        $attempts = 0;
-        $currentConnection = $connection;
-        $currentInsert = $insert;
-
-        while ($attempts < 3) {
-            try {
-                return $currentConnection->table('requisitions')->insertGetId($currentInsert);
-            } catch (\Throwable $e) {
-                if ($this->isDuplicateKeyException($e)) {
-                    $currentInsert = $this->makeUniqueRequisitionInsert($currentInsert);
-                    $attempts++;
-                    continue;
-                }
-
-                throw $e;
-            }
-        }
-
-        throw new \RuntimeException('Unable to save requisition after retrying.');
+        return SchemaProbe::hasColumn($name, 'requisitions', $column);
     }
 
     private function getRequisitionSelectFields($connection): array
@@ -264,6 +219,8 @@ class RequisitionController extends Controller
             ->get(['purchase_order_id', 'status'])
             ->groupBy('purchase_order_id');
 
+        $pending = [];
+
         foreach ($purchaseOrders as $purchaseOrder) {
             $statuses = $deliveriesByPurchaseOrder->get($purchaseOrder->id, collect())
                 ->pluck('status')
@@ -281,12 +238,24 @@ class RequisitionController extends Controller
                 ? 'completed'
                 : 'delivered';
 
+            // Skip rows that already carry the target status. Without this
+            // guard (the PurchaseOrderController copy has it, this one did
+            // not) every single page load re-issued the same no-op UPDATE for
+            // every reconciled order, forever.
+            if (strtolower((string) $purchaseOrder->status) === $targetStatus) {
+                continue;
+            }
+
+            $pending[$targetStatus][] = $purchaseOrder->id;
+            $purchaseOrder->status = $targetStatus;
+        }
+
+        // One UPDATE per target status instead of one per purchase order.
+        foreach ($pending as $targetStatus => $ids) {
             DB::connection('procurement')->table('purchase_orders')
-                ->where('id', $purchaseOrder->id)
+                ->whereIn('id', $ids)
                 ->whereIn('status', ['approved', 'processing'])
                 ->update(['status' => $targetStatus, 'updated_at' => now()]);
-
-            $purchaseOrder->status = $targetStatus;
         }
     }
 
@@ -298,15 +267,11 @@ class RequisitionController extends Controller
         $requisitions = collect();
 
         foreach ($this->getRequisitionConnections() as $connection) {
-            $this->ensureRequisitionTable($connection);
             $connectionRequisitions = $connection
                 ->table('requisitions')
                 ->select($this->getRequisitionSelectFields($connection));
 
-            if (! (config('nexora.root_admin_module_testing') && $request->user()?->role === 'root_admin')
-                && $this->requisitionHasColumn($connection, 'client_id')) {
-                $connectionRequisitions->where('client_id', (int) session('employee_client_id'));
-            }
+            $this->scopeRequisitionToClient($connectionRequisitions, $connection, $request);
 
             $connectionRequisitions = $connectionRequisitions
                 ->orderBy('created_at', 'desc')
@@ -362,9 +327,9 @@ class RequisitionController extends Controller
                     ->table('purchase_orders')
                     ->whereIn('requisition_reference', $requisitionRefs);
 
-                if (! (config('nexora.root_admin_module_testing') && $request->user()?->role === 'root_admin')
-                    && $procurement->getSchemaBuilder()->hasColumn('purchase_orders', 'client_id')) {
-                    $purchaseOrderQuery->where('client_id', (int) session('employee_client_id'));
+                if (! $this->isRootTesting($request)
+                    && SchemaProbe::hasColumn('procurement', 'purchase_orders', 'client_id')) {
+                    $purchaseOrderQuery->where('client_id', $this->clientId());
                 }
 
                 $purchaseOrders = $purchaseOrderQuery
@@ -377,7 +342,14 @@ class RequisitionController extends Controller
             // Leave the queue usable when the Procurement connection is unavailable.
         }
 
-        $requisitions = $requisitions->map(function ($req) use ($purchaseOrders) {
+        // Status writes discovered while rendering are collected here and
+        // flushed in one batched UPDATE per target status after the map. The
+        // old code issued a separate UPDATE inside the loop for every
+        // reconciled requisition — a GET that fired N writes, and two
+        // concurrent page loads raced each other.
+        $inventoryStatusWrites = [];
+
+        $requisitions = $requisitions->map(function ($req) use ($purchaseOrders, &$inventoryStatusWrites) {
             if (($req->record_type ?? null) === 'defect') {
                 return $req;
             }
@@ -410,23 +382,8 @@ class RequisitionController extends Controller
                     && ($req->source_connection ?? null) === 'inventory'
                     && in_array($poStatus, ['delivered', 'completed'], true)
                     && in_array($currentStatus, $advanceable, true)) {
-                    try {
-                        $inventoryRequisition = DB::connection('inventory')->table('requisitions')
-                            ->where('id', $req->id)
-                            ->where('req_id', $ref);
-
-                        if (! (config('nexora.root_admin_module_testing') && auth()->user()?->role === 'root_admin')) {
-                            $inventoryRequisition->where('client_id', (int) session('employee_client_id'));
-                        }
-
-                        $inventoryRequisition->update([
-                            'status' => $derived[$poStatus],
-                            'updated_at' => now(),
-                        ]);
-                        $req->status = $derived[$poStatus];
-                    } catch (\Throwable $exception) {
-                        report($exception);
-                    }
+                    $inventoryStatusWrites[$derived[$poStatus]][] = $req->id;
+                    $req->status = $derived[$poStatus];
                 } elseif (empty($req->status_authoritative)
                     && isset($derived[$poStatus])
                     && in_array($currentStatus, $advanceable, true)) {
@@ -439,6 +396,18 @@ class RequisitionController extends Controller
 
             return $req;
         });
+
+        // One UPDATE per distinct target status, tenant-scoped, instead of one
+        // per row inside the map above.
+        foreach ($inventoryStatusWrites as $targetStatus => $ids) {
+            try {
+                $query = DB::connection('inventory')->table('requisitions')->whereIn('id', $ids);
+                $this->scopeRequisitionToClient($query, 'inventory', $request);
+                $query->update(['status' => $targetStatus, 'updated_at' => now()]);
+            } catch (\Throwable $exception) {
+                report($exception);
+            }
+        }
 
         // Requisitions are an auditable request history, not only an active
         // work queue. Delivered and completed rows must remain available to
@@ -458,7 +427,15 @@ class RequisitionController extends Controller
      */
     public function store(Request $request)
     {
-        return response()->json(['status' => 'ok', 'message' => 'Requisition creation is disabled.']);
+        // Requisitions are raised in Inventory / Order Fulfillment, never here.
+        // This used to return 200 "ok", which the browser treated as success:
+        // it inserted a row into the table and toasted "submitted for
+        // approval" for a record that was never written anywhere. Answer with
+        // a real refusal so the client cannot fake a success.
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Requisitions are created in Inventory or Order Fulfillment, not in Procurement.',
+        ], 422);
     }
 
     public function update(Request $request, $requisition)
@@ -504,10 +481,20 @@ class RequisitionController extends Controller
         }
 
         // Notes are free-form and unaffected by the status lifecycle.
-        if (array_key_exists('notes', $validated)) {
-            $connection = $this->findRequisitionConnectionFor($requisition);
+        if (array_key_exists('notes', $validated) && $validated['notes'] !== null) {
+            $connection = $this->findRequisitionConnectionFor($requisition, $request);
+
+            if (! $connection) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Requisition not found.',
+                ], 404);
+            }
+
             if ($this->requisitionHasColumn($connection, 'notes')) {
-                $connection->table('requisitions')->where('id', $requisition)->update([
+                $query = $connection->table('requisitions')->where('id', $requisition);
+                $this->scopeRequisitionToClient($query, $connection, $request);
+                $query->update([
                     'notes' => $validated['notes'],
                     'updated_at' => now(),
                 ]);
@@ -517,10 +504,27 @@ class RequisitionController extends Controller
         return response()->json(['status' => 'ok', 'requisition_status' => $newStatus]);
     }
 
-    public function destroy($requisition)
+    public function destroy(Request $request, $requisition)
     {
-        $connection = $this->findRequisitionConnectionFor($requisition);
-        $connection->table('requisitions')->where('id', $requisition)->delete();
+        $connection = $this->findRequisitionConnectionFor($requisition, $request);
+
+        if (! $connection) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Requisition not found.',
+            ], 404);
+        }
+
+        $query = $connection->table('requisitions')->where('id', $requisition);
+        $this->scopeRequisitionToClient($query, $connection, $request);
+        $deleted = $query->delete();
+
+        if ($deleted === 0) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Requisition not found.',
+            ], 404);
+        }
 
         return response()->json(['status' => 'ok']);
     }

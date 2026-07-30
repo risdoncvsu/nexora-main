@@ -1,19 +1,28 @@
-/* ---------- Add Modals (PO / Supplier / Req / Delivery / Invoice) ---------- */
+/* ---------- Add Modals (PO / Supplier / Delivery) ----------
+   * The Requisition and Invoice entries were removed: neither #add-req-modal
+   * nor #add-invoice-modal exists in any Procurement view, so openAddModal()
+   * returned early for both and their submit handlers were unreachable.
+   * Requisitions are raised in Inventory / Order Fulfillment. */
   const ADD_MODAL_MAP = {
     po: 'add-po-modal',
     supplier: 'add-supplier-modal',
-    req: 'add-req-modal',
-    delivery: 'add-delivery-modal',
-    invoice: 'add-invoice-modal'
+    delivery: 'add-delivery-modal'
   };
 
-  // simple auto-increment counters (initial values based on existing sample data)
-  const NEXT_ID = { po: 420, req: 45, dr: 232, inv: 3, sup: 20 };
-  const ID_COUNTS = { po: 419, req: 44, dr: 231 }; // Track highest used number per year
+  // Fallback sequence seeds, used only until the server-supplied
+  // window.nextPoSeq / window.nextShipmentSeq arrive.
+  const NEXT_ID = { po: 420, dr: 232, sup: 20 };
+  const ID_COUNTS = { po: 419, dr: 231 };
   const procurementUrl = window.procurementUrl || ((path = '') => `/procurement/${String(path).replace(/^\/+/, '')}`);
 
   function pad(n, len){ return String(n).padStart(len, '0'); }
-  function todayISO(){ return new Date().toISOString().slice(0,10); }
+  // Local calendar date, not UTC. toISOString() returns the UTC day, so in
+  // Manila (UTC+8) every date this produced between midnight and 08:00 was a
+  // day behind — wrong default order/delivery dates, and shipments wrongly
+  // flagged Delayed against their expected date.
+  function todayISO(d = new Date()){
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1, 2)}-${pad(d.getDate(), 2)}`;
+  }
   function fmtDate(iso){
     if(!iso) return '';
     const d = new Date(iso);
@@ -38,9 +47,7 @@
     const select = document.getElementById('delivery-filter-supplier');
     if(!select) return;
     const selected = select.value || '';
-    const supplierNames = [...document.querySelectorAll('#suppliers-table tbody tr')]
-      .map(row => supplierNameFromCell(row.children[0]) || textFrom(row.children[0]))
-      .filter(Boolean);
+    const supplierNames = supplierCards().map(card => card.dataset.name || '').filter(Boolean);
     const uniqueNames = [...new Set(supplierNames)];
     select.innerHTML = '<option value="">All Suppliers</option>' + uniqueNames.map(name => `<option value="${htmlEscape(name)}">${htmlEscape(name)}</option>`).join('');
     select.value = uniqueNames.includes(selected) ? selected : '';
@@ -63,13 +70,15 @@
     const form = modal?.querySelector('#add-po-form');
     if(!form) return Promise.resolve();
     const supplierField = form.querySelector('[name="supplier"]');
-    if(!supplierField) return;
+    // Always a promise. This path used to return undefined, so the caller's
+    // .then() threw a TypeError and aborted the whole modal-open flow.
+    if(!supplierField) return Promise.resolve();
     const selectedSupplier = supplierField.value || '';
-    const supplierRows = [...document.querySelectorAll('#suppliers-table tbody tr')]
-      .map(row => {
-        const supplierName = supplierNameFromCell(row.children[0]) || textFrom(row.children[0]);
+    const supplierRows = supplierCards()
+      .map(card => {
+        const supplierName = card.dataset.name || '';
         if(!supplierName) return null;
-        return { name: supplierName, brand: row.dataset.category || row.dataset.brand || '', warehouseId: row.dataset.warehouseId || '', products: getSupplierProducts(row) };
+        return { name: supplierName, brand: supplierName, warehouseId: card.dataset.warehouseId || '', products: getSupplierProducts(card) };
       })
       .filter(Boolean);
     if(supplierRows.length > 0){
@@ -255,44 +264,10 @@
     }).filter(r => r.name && r.qty > 0);
   }
 
-  /* ---------- PO modal: fully-automated item rows (Request -> PO) ----------
-     When a Purchase Order is generated from a Requisition (or a defect
-     return), the person no longer manually picks Supplier / Category / Item /
-     Qty â€” everything is resolved from the requisition's requested item(s)
-     against the existing supplier product catalog and locked read-only. The
-     manual "+ New PO" flow (no linked request) keeps the original cascading
-     Category -> Item selects untouched. */
   function lockField(el, locked){
     if(!el) return;
     el.classList.toggle('field-locked', !!locked);
     el.tabIndex = locked ? -1 : 0;
-  }
-
-  // Toggles between "auto" (Request/defect generated PO â€” Supplier locked,
-  // "+ Add Item" hidden) and "manual" (the original "+ New PO" experience).
-  function setPoModalMode(modal, mode){
-    if(!modal) return;
-    const addBtn = modal.querySelector('#po-add-item-btn');
-    const hint = modal.querySelector('#po-items-hint');
-    const supplierHint = modal.querySelector('#po-supplier-hint');
-    const supplierField = modal.querySelector('#add-po-form [name="supplier"]');
-    modal.dataset.poMode = mode;
-    if(mode === 'auto'){
-      if(addBtn) addBtn.style.display = 'none';
-      if(hint) hint.textContent = 'Items, supplier, category, quantity, and pricing are generated automatically from the selected request.';
-      if(supplierHint) supplierHint.textContent = "Auto-filled from the requested item's supplier.";
-      lockField(supplierField, true);
-    } else if(mode === 'request'){
-      if(addBtn) addBtn.style.display = 'none';
-      if(hint) hint.textContent = 'Quantity is fixed from the requisition. Select the Supplier, then the Category and Item for each row.';
-      if(supplierHint) supplierHint.textContent = 'Select the supplier for this requisition\u2019s item(s).';
-      lockField(supplierField, false);
-    } else {
-      if(addBtn) addBtn.style.display = '';
-      if(hint) hint.textContent = 'Select a supplier first to load its categories and items.';
-      if(supplierHint) supplierHint.textContent = 'Select a supplier first to load its categories and items.';
-      lockField(supplierField, false);
-    }
   }
 
   // Normalizes a Requisition's requested item(s) into a flat list of
@@ -311,63 +286,36 @@
     return [];
   }
 
-  function renderAutoPoItemRow(container, entry){
-    const template = document.getElementById('po-item-row-auto-template');
-    if(!container || !template) return null;
-    const row = template.content.firstElementChild.cloneNode(true);
-    const catField = row.querySelector('.po-item-category');
-    const itemField = row.querySelector('.po-item-name');
-    const qtyField = row.querySelector('.po-item-qty');
-    const priceField = row.querySelector('.po-item-price');
-    if(catField) catField.value = entry.category || 'Uncategorized';
-    if(itemField) itemField.value = entry.name || '';
-    if(qtyField) qtyField.value = entry.qty || 0;
-    if(priceField) priceField.value = Number(entry.unitPrice || 0).toFixed(2);
-    container.appendChild(row);
-    recomputePoRowAmount(row);
-    return row;
-  }
-
-  // Generates one read-only row per requested item, matching each item
-  // against the supplier catalog for its Category/Unit Price, then locks the
-  // shared Supplier field to whichever supplier owns the matched item(s) â€” a
-  // PO still belongs to a single supplier, unchanged from the existing
-  // PO/database structure.
-  function populateAutoPoItemRows(modal, reqData){
-    const container = modal?.querySelector('#po-items-rows');
-    const supplierField = modal?.querySelector('#add-po-form [name="supplier"]');
-    if(!container) return;
-    container.innerHTML = '';
-    const requested = buildRequestedItemsList(reqData);
-    let matchedSupplier = '';
-    requested.forEach(entry => {
-      const match = matchSupplierProductForItem(entry.name);
-      if(match && !matchedSupplier) matchedSupplier = match.supplierName;
-      renderAutoPoItemRow(container, {
-        name: entry.name,
-        qty: entry.qty,
-        category: match ? match.category : 'Uncategorized',
-        unitPrice: match ? match.unitPrice : 0
-      });
-    });
-    if(supplierField){
-      if(matchedSupplier && ![...supplierField.options].some(o => o.value === matchedSupplier)){
-        addSupplierOptionToPoForm(matchedSupplier);
-      }
-      supplierField.value = matchedSupplier;
+  // Toggles between "request" (Requisition-generated PO â€” Qty fixed,
+  // "+ Add Item" hidden) and "manual" (the original "+ New PO" experience).
+  // The third mode, "auto", belonged to the defect -> PO conversion, which no
+  // button reaches any more; it was removed with the rest of that flow.
+  function setPoModalMode(modal, mode){
+    if(!modal) return;
+    const addBtn = modal.querySelector('#po-add-item-btn');
+    const hint = modal.querySelector('#po-items-hint');
+    const supplierHint = modal.querySelector('#po-supplier-hint');
+    const supplierField = modal.querySelector('#add-po-form [name="supplier"]');
+    modal.dataset.poMode = mode;
+    if(mode === 'request'){
+      if(addBtn) addBtn.style.display = 'none';
+      if(hint) hint.textContent = 'Quantity is fixed from the requisition. Select the Supplier, then the Category and Item for each row.';
+      if(supplierHint) supplierHint.textContent = 'Select the supplier for this requisition\u2019s item(s).';
+      lockField(supplierField, false);
+    } else {
+      if(addBtn) addBtn.style.display = '';
+      if(hint) hint.textContent = 'Select a supplier first to load its categories and items.';
+      if(supplierHint) supplierHint.textContent = 'Select a supplier first to load its categories and items.';
+      lockField(supplierField, false);
     }
-    setPoModalMode(modal, 'auto');
-    recomputePoTotals(modal);
   }
 
   // Picks the right per-row refresh routine for whatever mode the PO modal is
-  // currently in: 'request' rows have a Category select to repopulate,
-  // 'manual' rows use the original Category -> Item cascade, and 'auto' rows
-  // are fully locked already so there is nothing to refresh.
+  // currently in: 'request' rows have a Category select to repopulate, and
+  // 'manual' rows use the original Category -> Item cascade.
   function syncPoItemRowsWithSupplier(modal){
-    const mode = modal?.dataset.poMode;
-    if(mode === 'request') refreshRequestPoItemRowsForSupplier(modal);
-    else if(mode !== 'auto') refreshAllPoItemRowsForSupplier(modal);
+    if(modal?.dataset.poMode === 'request') refreshRequestPoItemRowsForSupplier(modal);
+    else refreshAllPoItemRowsForSupplier(modal);
   }
 
   /* ---------- PO modal: requisition-generated rows, manual Supplier/Category
@@ -418,6 +366,127 @@
     recomputePoTotals(modal);
   }
 
+  /* ---------- PO modal: recommended items ----------
+   * The server ranks a supplier's items by how often they have actually been
+   * ordered before (GET purchase-orders/suggestions). Picking one fills an
+   * item row with the usual quantity and the last price paid, so a repeat
+   * order takes one click instead of three selects and two number fields.
+   *
+   * The map is fetched once per page and reused for every modal open. */
+  let poSuggestionsCache = null;
+  let poSuggestionsRequest = null;
+
+  function loadPoSuggestions(){
+    if(poSuggestionsCache) return Promise.resolve(poSuggestionsCache);
+    if(poSuggestionsRequest) return poSuggestionsRequest;
+    poSuggestionsRequest = fetch(procurementUrl('purchase-orders/suggestions'), {
+      headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+    }).then(res => res.ok ? res.json() : {})
+      .then(json => {
+        poSuggestionsCache = (json && typeof json === 'object') ? json : {};
+        return poSuggestionsCache;
+      })
+      .catch(() => { poSuggestionsCache = {}; return poSuggestionsCache; })
+      .finally(() => { poSuggestionsRequest = null; });
+    return poSuggestionsRequest;
+  }
+
+  function togglePoSuggestions(){
+    const list = document.getElementById('po-suggest-list');
+    const toggle = document.getElementById('po-suggest-toggle');
+    if(!list || !toggle) return;
+    const hidden = list.classList.toggle('collapsed');
+    toggle.textContent = hidden ? 'Show' : 'Hide';
+  }
+
+  // Renders the suggestion chips for whichever supplier is selected. Hides the
+  // whole block when there is no history for that supplier, so a first-time
+  // supplier shows nothing rather than an empty panel.
+  function renderPoSuggestions(modal){
+    const block = document.getElementById('po-suggest-block');
+    const list = document.getElementById('po-suggest-list');
+    if(!block || !list) return;
+
+    // Only the manual "+ New PO" flow benefits; requisition-generated rows
+    // already carry their items.
+    if(modal?.dataset.poMode !== 'manual'){ block.style.display = 'none'; return; }
+
+    const supplier = (modal.querySelector('#add-po-form [name="supplier"]')?.value || '').trim();
+    const items = (poSuggestionsCache && poSuggestionsCache[supplier]) || [];
+    if(!supplier || !items.length){ block.style.display = 'none'; return; }
+
+    block.style.display = '';
+    list.classList.remove('collapsed');
+    const toggle = document.getElementById('po-suggest-toggle');
+    if(toggle) toggle.textContent = 'Hide';
+
+    list.innerHTML = items.map((it, idx) => `
+      <button type="button" class="po-suggest-item" data-index="${idx}">
+        <span class="po-suggest-main">
+          <span class="po-suggest-name">${htmlEscape(it.name || '')}</span>
+          <span class="po-suggest-meta">${htmlEscape(it.category || 'Uncategorized')} &middot; usually ${Number(it.qty || 1)} pc &middot; &#8369;${Number(it.unitPrice || 0).toFixed(2)}</span>
+        </span>
+        <span class="po-suggest-count">${Number(it.times || 0)}&times;</span>
+      </button>
+    `).join('');
+
+    list.querySelectorAll('.po-suggest-item').forEach(btn => {
+      btn.addEventListener('click', () => applyPoSuggestion(modal, items[Number(btn.dataset.index)]));
+    });
+  }
+
+  // Fills the first empty item row (or appends one) with the suggestion.
+  function applyPoSuggestion(modal, suggestion){
+    if(!modal || !suggestion) return;
+    const container = modal.querySelector('#po-items-rows');
+    if(!container) return;
+
+    let row = [...container.querySelectorAll('.po-item-row')]
+      .find(r => !(r.querySelector('.po-item-name')?.value || '').trim());
+    if(!row) row = addPoItemRow(modal);
+    if(!row) return;
+
+    const entry = currentPoSupplierEntry(modal);
+    const category = suggestion.category || 'Uncategorized';
+
+    const catField = row.querySelector('.po-item-category');
+    if(catField){
+      // The category select is built from the supplier catalog; if this
+      // historical category is no longer in the catalog, add it back so the
+      // suggestion is still selectable.
+      if(![...catField.options].some(o => o.value === category)){
+        const opt = document.createElement('option');
+        opt.value = category;
+        opt.textContent = category;
+        catField.appendChild(opt);
+      }
+      catField.value = category;
+    }
+    populatePoRowItemSelect(row, entry, category);
+
+    const itemField = row.querySelector('.po-item-name');
+    if(itemField){
+      if(![...itemField.options].some(o => o.value === suggestion.name)){
+        const opt = document.createElement('option');
+        opt.value = suggestion.name;
+        opt.textContent = suggestion.name;
+        opt.dataset.unitPrice = Number(suggestion.unitPrice || 0);
+        itemField.appendChild(opt);
+      }
+      itemField.disabled = false;
+      itemField.value = suggestion.name;
+    }
+
+    const priceField = row.querySelector('.po-item-price');
+    if(priceField) priceField.value = Number(suggestion.unitPrice || 0).toFixed(2);
+    const qtyField = row.querySelector('.po-item-qty');
+    if(qtyField) qtyField.value = Number(suggestion.qty || 1);
+
+    recomputePoRowAmount(row);
+    recomputePoTotals(modal);
+    showToast(`${suggestion.name} added from your order history`, 'ok');
+  }
+
   function bindPoFormAutofill(modal){
     const form = modal?.querySelector('#add-po-form');
     if(!form || form.__poAutofillBound) return;
@@ -426,7 +495,10 @@
     // Selecting a supplier loads that supplier's categories/items into every
     // item row (request or manual mode) â€” it must never touch a row's unit
     // price on its own; auto-mode rows are already fully locked.
-    supplierField?.addEventListener('change', () => syncPoItemRowsWithSupplier(modal));
+    supplierField?.addEventListener('change', () => {
+      syncPoItemRowsWithSupplier(modal);
+      renderPoSuggestions(modal);
+    });
   }
 
   function refreshDeliveryPoOptions(){
@@ -564,8 +636,9 @@
         if(poAmount) amountField.value = poAmount.toFixed(2);
       }
     };
+    // 'change' only. A <select> fires both 'change' and 'input' for the same
+    // interaction, so binding both ran this whole routine twice per pick.
     poField?.addEventListener('change', update);
-    poField?.addEventListener('input', update);
   }
 
   function openAddModal(kind, reqData = null){
@@ -596,26 +669,23 @@
       const poNum = Number(window.nextPoSeq) > 0 ? Number(window.nextPoSeq) : (ID_COUNTS.po + 1);
       setModalFieldValue(modal, 'po', `PO-${yr}-${pad(poNum,4)}`);
       const exp = new Date(); exp.setDate(exp.getDate()+7);
-      setModalFieldValue(modal, 'expected', exp.toISOString().slice(0,10));
+      setModalFieldValue(modal, 'expected', todayISO(exp));
       const createdByField = modal.querySelector('[name="createdBy"]');
       if(createdByField){
         createdByField.value = getCurrentEmployeeName() || createdByField.value;
         createdByField.setAttribute('readonly', 'readonly');
       }
 
-      // Defect returns stay fully auto-filled (Supplier/Category/Item/Qty/Unit
-      // Price all locked, no manual selection). Requisition conversions now
-      // only fix Item and Qty from the requisition â€” Supplier and Category
-      // are picked manually by the user. The "+ New PO" toolbar button (no
-      // reqData at all) keeps the original fully-manual entry experience.
-      const isDefectFlow = !!(reqData && reqData.defect);
-      const isRequestFlow = !!(reqData && reqData.reqNum && !reqData.defect);
+      // Requisition conversions fix Item and Qty from the requisition â€”
+      // Supplier and Category are picked manually by the user. The "+ New PO"
+      // toolbar button (no reqData at all) keeps the original fully-manual
+      // entry experience.
+      const isRequestFlow = !!(reqData && reqData.reqNum);
 
       // Always set reqRef/priority explicitly (both directions) so a PO created
       // straight from this page doesn't inherit a leftover requisition
       // reference/priority from a previous conversion â€” form.reset() can't
       // clear these because their defaultValue gets mutated once assigned.
-      modal.__defectRow = isDefectFlow ? (reqData.row || null) : null;
       if(reqData && reqData.reqNum){
         setModalFieldValue(modal, 'reqRef', reqData.reqNum || '');
         setModalFieldValue(modal, 'priority', normalizePriorityLabel(reqData.priority));
@@ -624,36 +694,30 @@
         setModalFieldValue(modal, 'priority', 'Normal');
       }
 
-      if(isDefectFlow){
-        setPoModalMode(modal, 'auto');
-      } else if(isRequestFlow){
+      if(isRequestFlow){
         setPoModalMode(modal, 'request');
       } else {
         setPoModalMode(modal, 'manual');
         resetPoItemRows(modal);
       }
 
-      refreshPoSupplierOptions(modal);
-      setTimeout(() => {
-        // wait for supplier options/catalog to be ready before generating rows
-        refreshPoSupplierOptions(modal).then(() => {
-          if(isDefectFlow){
-            // Defect -> PO: auto-fill supplier, category, item and quantity from
-            // the defect's part (resolved against the loaded supplier catalog).
-            autofillPoFromDefect(modal, reqData);
-          } else if(isRequestFlow){
-            // Requisition -> PO: one row per requested item (Item/Qty fixed,
-            // shown as a label); Supplier and Category are left for the user
-            // to pick manually.
-            populateRequestPoItemRows(modal, reqData);
-          }
-          recomputePoTotals(modal);
-        });
-      }, 60);
-    } else if(kind==='req'){
-      const reqNum = ID_COUNTS.req + 1;
-      setModalFieldValue(modal, 'rq', `REQ-${yr}-${pad(reqNum,4)}`);
-      setModalFieldValue(modal, 'dateReq', todayISO());
+      // One load of the supplier catalog, then generate rows from it. This
+      // previously called refreshPoSupplierOptions() immediately and *again*
+      // inside a 60ms timeout: two /suppliers requests per modal open and two
+      // racing innerHTML writes into the same <select>.
+      // Warm the recommendation cache alongside the supplier catalog.
+      loadPoSuggestions().then(() => renderPoSuggestions(modal));
+
+      Promise.resolve(refreshPoSupplierOptions(modal)).then(() => {
+        if(isRequestFlow){
+          // Requisition -> PO: one row per requested item (Item/Qty fixed,
+          // shown as a label); Supplier and Category are left for the user
+          // to pick manually.
+          populateRequestPoItemRows(modal, reqData);
+        }
+        recomputePoTotals(modal);
+        renderPoSuggestions(modal);
+      });
     } else if(kind==='delivery'){
       const shpNum = Number(window.nextShipmentSeq) > 0 ? Number(window.nextShipmentSeq) : (ID_COUNTS.dr + 1);
       setModalFieldValue(modal, 'dr', `SHP-${yr}-${pad(shpNum,4)}`);
@@ -661,11 +725,6 @@
       resetDeliveryItemChips();
       refreshDeliveryPoOptions();
       bindDeliveryPoAutofill(modal);
-    } else if(kind==='invoice'){
-      setModalFieldValue(modal, 'inv', `INV-${yr}-${pad(NEXT_ID.inv,3)}`);
-      setModalFieldValue(modal, 'invDate', todayISO());
-      const due = new Date(); due.setDate(due.getDate()+30);
-      setModalFieldValue(modal, 'dueDate', due.toISOString().slice(0,10));
     } else if(kind==='supplier'){
       setModalFieldValue(modal, 'sid', `SUP-${pad(NEXT_ID.sup,4)}`);
     }
@@ -676,6 +735,41 @@
       const focusable = modal.querySelector('input:not([readonly]), select, textarea');
       if(focusable) focusable.focus();
     }, 60);
+  }
+
+  /* ---------- Approved PO -> Log Delivery ----------
+   * Opens the Log Delivery modal already pointed at this purchase order, so
+   * the PO number, supplier, items and amount are filled in rather than
+   * re-selected by hand.
+   *
+   * refreshDeliveryPoOptions() populates the PO <select> from the page's own
+   * rows when it can and falls back to a fetch when it can't, so the selection
+   * is retried for a short while instead of assuming the options are ready. */
+  function openLogDeliveryForPO(row){
+    // PO rows carry the number in their first cell, not a data attribute.
+    const poNumber = textFrom(row?.children?.[0]).trim();
+    closeViewModal();
+    openAddModal('delivery');
+    if(!poNumber) return;
+
+    const modal = document.getElementById('add-delivery-modal');
+    const poField = modal?.querySelector('[name="po"]');
+    if(!poField) return;
+
+    let attempts = 0;
+    const select = () => {
+      const option = [...poField.options].find(o => o.value === poNumber);
+      if(option){
+        poField.value = poNumber;
+        // Fire the same event a manual pick would, so bindDeliveryPoAutofill()
+        // fills supplier / item chips / amount.
+        poField.dispatchEvent(new Event('change', { bubbles: true }));
+        return;
+      }
+      if(++attempts < 20){ setTimeout(select, 100); return; }
+      showToast(`${poNumber} is not available for delivery logging right now.`, 'no');
+    };
+    select();
   }
 
   function closeAddModal(kind){
@@ -691,6 +785,8 @@
         if(poTitle) poTitle.textContent = 'Create New Purchase Order';
         setPoModalMode(modal, 'manual');
         resetPoItemRows(modal);
+        const suggestBlock = document.getElementById('po-suggest-block');
+        if(suggestBlock) suggestBlock.style.display = 'none';
       }
     }
     if(kind==='supplier'){
@@ -716,59 +812,6 @@
     openAddModal('po', reqData);
   }
 
-  // Defect -> PO ("Return to Supplier"). Opens the PO modal flagged as a defect
-  // conversion so autofillPoFromDefect() can pre-select supplier/category/item.
-  function convertDefectToPO(part, qty, row){
-    openAddModal('po', { defect: true, part: part || '', qty: qty || 1, row: row || null });
-  }
-
-  // Defect -> straight to Deliveries log, no PO. Auto-fills supplier/category
-  // by matching the defect's item name against the suppliers' product lists.
-  function receiveDefectDirectly(record, row){
-    const match = findSupplierForItem(record.part);
-    const supplierName = match ? match.name : 'Unassigned Supplier';
-    const table = document.querySelector('#deliveries-table tbody');
-    if(table){
-      ID_COUNTS.dr++;
-      NEXT_ID.dr = ID_COUNTS.dr + 1;
-      const shipNo = `DR-${String(ID_COUNTS.dr).padStart(4,'0')}`;
-      const today = todayISO();
-      const tr = document.createElement('tr');
-      tr.dataset.status = 'delivered';
-      tr.dataset.date = today;
-      tr.dataset.ship = shipNo;
-      tr.dataset.po = '';
-      tr.dataset.sup = supplierName;
-      tr.dataset.category = match ? match.category : 'General Procurement';
-      tr.dataset.items = record.part;
-      tr.dataset.note = `Direct return receive • ${record.part} • Qty ${record.qty}`;
-      tr.dataset.carrier = 'Direct return';
-      tr.innerHTML = `
-        <td><a class="po-link">${htmlEscape(shipNo)}</a></td>
-        <td>â€”</td>
-        <td>${supplierPill(supplierName)}</td>
-        <td title="${htmlEscape(record.part)}">${htmlEscape(record.part)}</td>
-        <td>${fmtDate(today)}</td>
-        <td>${statusPill('Delivered')}</td>
-        <td>${fmtDate(today)}</td>
-        <td><span class="row-actions"><button title="Track" onclick="openTrackModal(this)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/></svg></button></span></td>`;
-      table.prepend(tr);
-      initRowActionButtons();
-    }
-    updateDefectStatus(row, 'Delivered');
-    closeViewModal();
-    showToast(`${record.part} received â€” logged directly, no PO needed`, 'ok');
-  }
-
-  // Find which loaded supplier sells `reqData.part`, then generate a single
-  // locked, auto-filled item row (Category/Item/Qty/Unit Price) the same way
-  // a Requisition-generated PO does â€” no manual cascade, nothing editable.
-  function autofillPoFromDefect(modal, reqData){
-    const part = String(reqData.part || '').trim();
-    if(!part) return;
-    populateAutoPoItemRows(modal, { item: part, qty: reqData.qty ?? 1 });
-  }
-
   let cancelPOData = null;
   function createPOFromView(){
     const modal = document.getElementById('view-modal');
@@ -780,7 +823,15 @@
       closeViewModal();
     }
   }
-  let supplierProductDraft = [];
+  /* ---------- Supplier products ----------
+   * Products are edited as inline blocks inside the supplier form (Add and
+   * Edit both use the same markup), instead of the old "open a second modal to
+   * add one chip at a time" flow. The blocks are the source of truth; the
+   * hidden productsJson input is rebuilt from them on every keystroke, which is
+   * what actually gets posted.
+   *
+   * The standalone Add Product modal survives for the "+ Product" button on a
+   * supplier card, where there is no open supplier form to type into. */
   let supplierProductCounter = 1;
   let supplierProductEditor = { listId: 'supplier-products-list', hiddenId: 'supplier-products-json' };
 
@@ -788,110 +839,133 @@
     supplierProductEditor = { listId, hiddenId };
   }
 
-  function resetSupplierProductDraft(){
-    supplierProductDraft = [];
-    supplierProductCounter = 1;
-    renderSupplierProductList();
+  function supplierProductListEl(){
+    return document.getElementById(supplierProductEditor.listId);
   }
 
-  function renderSupplierProductList(){
-    const list = document.getElementById(supplierProductEditor.listId);
+  // Read every inline block back out into the shape the server stores in
+  // suppliers.product_items: {name, sku, price, category}.
+  // Blocks with no name are skipped rather than saved as blank products.
+  function collectSupplierProductRows(){
+    const list = supplierProductListEl();
+    if(!list) return [];
+    return [...list.querySelectorAll('.product-row')].map(row => ({
+      name: (row.querySelector('.sp-name')?.value || '').trim(),
+      sku: (row.querySelector('.sp-sku')?.value || '').trim(),
+      price: Number(row.querySelector('.sp-price')?.value || 0),
+      category: (row.querySelector('.sp-category')?.value || '').trim()
+    })).filter(p => p.name);
+  }
+
+  // Mirror the blocks into the hidden field. Deliberately does NOT re-render:
+  // rewriting the markup on each keystroke would blur the input being typed in.
+  function syncSupplierProductRows(){
     const hidden = document.getElementById(supplierProductEditor.hiddenId);
-    if(list){
-      if(!supplierProductDraft.length){
-        list.innerHTML = '<div class="product-list-empty">No products added yet.</div>';
-      } else {
-        // Editable rows: name, category, and price are inline inputs so
-        // existing products can be edited, not just added or removed.
-        list.innerHTML = supplierProductDraft.map((item, idx) => `
-          <div class="product-chip product-chip-edit">
-            <input type="text" class="product-chip-name" value="${htmlEscape(item.name || '')}" placeholder="Product name" oninput="updateSupplierProduct(${idx}, 'name', this.value)">
-            <input type="text" class="product-chip-category-input" value="${htmlEscape(item.category || '')}" placeholder="Category" oninput="updateSupplierProduct(${idx}, 'category', this.value)">
-            <input type="text" class="product-chip-category-input" value="${htmlEscape(item.brand || '')}" placeholder="Brand" oninput="updateSupplierProduct(${idx}, 'brand', this.value)">
-            <span class="product-chip-sku">${htmlEscape(item.sku || 'SKU pending')}</span>
-            <span class="product-chip-price">&#8369;<input type="number" min="0" step="0.01" class="product-chip-price-input" value="${Number(item.price || 0)}" placeholder="0.00" oninput="updateSupplierProduct(${idx}, 'price', this.value)"></span>
-            <button type="button" class="remove" onclick="removeSupplierProduct(${idx})" title="Remove">×</button>
-          </div>
-        `).join('');
-      }
+    if(hidden) hidden.value = JSON.stringify(collectSupplierProductRows());
+    updateSupplierProductRemoveButtons();
+  }
+
+  function updateSupplierProductRemoveButtons(){
+    const list = supplierProductListEl();
+    if(!list) return;
+    const rows = [...list.querySelectorAll('.product-row')];
+    rows.forEach(r => {
+      const btn = r.querySelector('.product-row-remove');
+      // Keep at least one block on screen so the section is never empty.
+      if(btn) btn.style.visibility = rows.length > 1 ? 'visible' : 'hidden';
+    });
+  }
+
+  function addSupplierProductRow(values){
+    const list = supplierProductListEl();
+    const template = document.getElementById('supplier-product-row-template');
+    if(!list || !template) return null;
+    const row = template.content.firstElementChild.cloneNode(true);
+    if(values){
+      const set = (sel, v) => { const el = row.querySelector(sel); if(el) el.value = v ?? ''; };
+      set('.sp-name', values.name);
+      set('.sp-sku', values.sku);
+      set('.sp-price', values.price != null ? Number(values.price) : '');
+      set('.sp-category', values.category);
     }
-    if(hidden){ hidden.value = JSON.stringify(supplierProductDraft); }
+    list.appendChild(row);
+    syncSupplierProductRows();
+    return row;
   }
 
-  function removeSupplierProduct(index){
-    supplierProductDraft.splice(index, 1);
-    renderSupplierProductList();
+  function removeSupplierProductRow(btn){
+    const list = supplierProductListEl();
+    if(!list || list.querySelectorAll('.product-row').length <= 1) return;
+    btn.closest('.product-row')?.remove();
+    syncSupplierProductRows();
   }
 
-  function updateSupplierProduct(index, field, value){
-    if(!supplierProductDraft[index]) return;
-    if(field === 'price'){
-      supplierProductDraft[index].price = Number(value || 0);
+  // Rebuild the whole editor from a saved product array (Edit Supplier), or
+  // from nothing but one blank block (Add Supplier).
+  function renderSupplierProductList(products){
+    const list = supplierProductListEl();
+    if(!list) return;
+    list.innerHTML = '';
+    const items = Array.isArray(products) ? products.filter(p => p && p.name) : [];
+    if(items.length){
+      items.forEach(p => addSupplierProductRow(p));
     } else {
-      supplierProductDraft[index][field] = value;
+      addSupplierProductRow();
     }
-    // Update only the hidden JSON payload â€” don't re-render, or the input the
-    // user is typing into would lose focus on every keystroke.
-    const hidden = document.getElementById(supplierProductEditor.hiddenId);
-    if(hidden){ hidden.value = JSON.stringify(supplierProductDraft); }
+    syncSupplierProductRows();
   }
 
-  function openSupplierProductModal(){
+  function resetSupplierProductDraft(){
+    supplierProductCounter = 1;
+    renderSupplierProductList([]);
+  }
+
+  /* ---------- Standalone "+ Product" modal (from a supplier card) ---------- */
+  let supplierProductTargetCard = null;
+
+  function openSupplierProductModal(trigger){
     const modal = document.getElementById('add-supplier-product-modal');
     const form = document.getElementById('add-supplier-product-form');
     if(!modal || !form) return;
 
-    const skuInput = form.querySelector('[name="productSku"]');
-    const skuType = form.querySelector('[name="productSkuType"]');
-    if(skuType) skuType.value = 'auto';
-    form.reset();
-    if(skuInput){
-      skuInput.readOnly = true;
-      skuInput.value = generateSupplierProductSku('');
+    // The button lives inside a supplier card; remember which one so the new
+    // product is appended to that supplier's existing catalog.
+    supplierProductTargetCard = trigger?.closest?.('.supplier-card') || null;
+    const label = document.getElementById('supplier-product-modal-target');
+    if(label){
+      const name = supplierProductTargetCard?.dataset.name || '';
+      label.textContent = name ? ` — ${name}` : '';
     }
+
+    form.reset();
+    const skuInput = form.querySelector('[name="productSku"]');
+    if(skuInput) skuInput.value = generateSupplierProductSku('');
     modal.classList.add('open');
-    const nameField = form.querySelector('[name="productName"]');
-    if(nameField){ nameField.focus(); }
+    setTimeout(() => form.querySelector('[name="productName"]')?.focus(), 60);
   }
 
   function closeSupplierProductModal(){
     const modal = document.getElementById('add-supplier-product-modal');
     if(modal){
       modal.classList.remove('open');
-      const form = document.getElementById('add-supplier-product-form');
-      if(form) form.reset();
+      document.getElementById('add-supplier-product-form')?.reset();
     }
+    supplierProductTargetCard = null;
   }
 
-  function updateSupplierProductSkuType(select){
-    const form = document.getElementById('add-supplier-product-form');
-    const skuInput = form?.querySelector('[name="productSku"]');
-    if(!skuInput) return;
-    if(select.value === 'manual'){
-      skuInput.readOnly = false;
-      skuInput.focus();
-    } else {
-      skuInput.readOnly = true;
-      const nameField = form?.querySelector('[name="productName"]');
-      skuInput.value = nameField ? generateSupplierProductSku(nameField.value) : `SKU-${String(supplierProductCounter).padStart(3, '0')}`;
-    }
-  }
-
+  // SKU is suggested from the product name but stays editable — the old
+  // auto/manual dropdown was an extra control for no benefit.
   function syncSupplierProductSku(nameInput){
     const form = document.getElementById('add-supplier-product-form');
-    const skuType = form?.querySelector('[name="productSkuType"]');
     const skuInput = form?.querySelector('[name="productSku"]');
-    if(!skuType || !skuInput) return;
-    if(skuType.value !== 'manual'){
-      skuInput.value = generateSupplierProductSku(nameInput.value);
-    }
+    if(!skuInput || skuInput.dataset.touched === '1') return;
+    skuInput.value = generateSupplierProductSku(nameInput.value);
   }
 
   function generateSupplierProductSku(name){
     const trimmed = (name || '').trim();
     const base = trimmed ? trimmed.toUpperCase().replace(/[^A-Z0-9]+/g, '').slice(0, 8) : 'PRD';
-    const suffix = String(supplierProductCounter).padStart(3, '0');
-    return `${base}${suffix}`;
+    return `${base}${String(supplierProductCounter).padStart(3, '0')}`;
   }
 
   function submitSupplierProduct(e){
@@ -899,28 +973,59 @@
     const form = e.target;
     const d = Object.fromEntries(new FormData(form).entries());
     const name = (d.productName || '').trim();
-    const category = (d.productCategory || '').trim();
-    const brand = (d.productBrand || '').trim();
-    const price = Number(d.productPrice || 0);
-    if(!name){ return; }
-    const sku = (d.productSku || '').trim() || generateSupplierProductSku(name);
-    supplierProductDraft.push({ name, category, brand, sku, price });
+    if(!name) return;
+
+    const product = {
+      name,
+      sku: (d.productSku || '').trim() || generateSupplierProductSku(name),
+      price: Number(d.productPrice || 0),
+      category: (d.productCategory || '').trim()
+    };
     supplierProductCounter += 1;
-    renderSupplierProductList();
-    form.reset();
-    const skuInput = form.querySelector('[name="productSku"]');
-    if(skuInput){ skuInput.value = generateSupplierProductSku(''); }
-    const nameField = form.querySelector('[name="productName"]');
-    if(nameField){ nameField.focus(); }
+
+    // Opened from a supplier card: append to that supplier and persist now.
+    if(supplierProductTargetCard){
+      saveProductToSupplierCard(supplierProductTargetCard, product);
+      closeSupplierProductModal();
+      return;
+    }
+
+    // Opened while a supplier form is on screen: just add another block.
+    addSupplierProductRow(product);
+    closeSupplierProductModal();
   }
 
-  function openCancelModal(btn){
-    const row = btn.closest('tr');
-    const poNum = row?.cells[0]?.textContent?.trim() || 'this PO';
-    cancelPOData = { row, poNum };
-    document.getElementById('cancel-po-number').textContent = poNum;
-    document.getElementById('cancel-po-modal').classList.add('open');
+  // Appends one product to an existing supplier and PUTs the whole catalog
+  // back, then repaints the card so the change is visible without a reload.
+  function saveProductToSupplierCard(card, product){
+    const id = card.dataset.id;
+    if(!id){
+      showToast('This supplier has no id yet — reload the page and try again.', 'no');
+      return;
+    }
+    const products = getSupplierProducts(card);
+    products.push(product);
+
+    fetch(procurementUrl(`suppliers/${id}`), {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+      },
+      body: new URLSearchParams({ productsJson: JSON.stringify(products) }).toString()
+    }).then(async res => {
+      const json = await res.json().catch(() => ({}));
+      if(!res.ok) throw new Error(json?.message || 'Unable to save the product.');
+      card.dataset.products = JSON.stringify(products);
+      renderSupplierCardProducts(card);
+      refreshSupplierCatalogFromCards();
+      showToast(`${product.name} added to ${card.dataset.name || 'supplier'}`, 'ok');
+    }).catch(err => showToast(err?.message || 'Unable to save the product.', 'no'));
   }
+
+  // Cancelling is reached from the PO's View Details modal, which passes the
+  // row directly. The button-based openCancelModal(btn) variant had no caller.
   function openCancelModalFromRow(row){
     const poNum = row?.cells[0]?.textContent?.trim() || 'this PO';
     cancelPOData = { row, poNum };
@@ -935,9 +1040,11 @@
   function confirmCancelPO(){
     if(cancelPOData && cancelPOData.row){
       const row = cancelPOData.row;
-      row.dataset.status = 'cancelled';
       row.classList.add('cancelled-row');
-      row.cells[6].innerHTML = '<span class="status-pill cancelled">Cancelled</span>';
+      // cells[6] is the DATE column — this used to stamp the status pill over
+      // the order date and leave the real Status cell reading "Pending".
+      // updateRowStatus() knows the right index (5) for every table.
+      updateRowStatus(row, 'Cancelled');
       findDefectRowsByPO(cancelPOData.poNum || '').forEach(r => updateDefectStatus(r, 'Cancelled'));
       // Previously this only updated the DOM â€” the cancellation was never sent
       // to the server, so refreshing the page silently reverted the PO (and any
@@ -947,6 +1054,7 @@
           if(typeof syncRelatedRequisitionStatusForPO === 'function') syncRelatedRequisitionStatusForPO(row, 'Cancelled');
         }).catch(() => {});
       }
+      if(typeof pollLiveStats === 'function') pollLiveStats();
       showToast(`PO ${cancelPOData.poNum} cancelled`, 'no');
     }
     closeCancelModal();
@@ -1017,7 +1125,7 @@
         tr.dataset.priority = priorityLabel;
         tr.dataset.delivery = 'Pending';
         tr.innerHTML = `
-          <td><a class="po-link">${d.po}</a></td>
+          <td><a class="po-link">${htmlEscape(d.po)}</a></td>
           <td>${supplierPill(d.supplier || 'Unknown Supplier')}</td>
           <td style="max-width:220px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis" title="${htmlEscape(itemSummary)}">${htmlEscape(items[0].name || 'â€”')}${items.length > 1 ? `<span class="item-more">+${items.length - 1} more</span>` : ''}</td>
           <td><b>${money(amountNum)}</b></td>
@@ -1030,11 +1138,6 @@
       }
       NEXT_ID.po++;
       ID_COUNTS.po++;
-      if(modal.__defectRow){
-        modal.__defectRow.dataset.po = d.po;
-        updateDefectStatus(modal.__defectRow, 'Processing');
-        modal.__defectRow = null;
-      }
       if(d.reqRef){
         const reqRow = findReqRowByRef(d.reqRef);
         if(reqRow){
@@ -1046,7 +1149,7 @@
         }
       }
       initRowActionButtons();
-      updateStatusCounts();
+      poSuggestionsCache = null; // this PO changes the recommendations
       showToast(`Purchase Order ${d.po} created`, 'ok');
       closeAddModal('po');
       if(typeof pollLiveStats === 'function') pollLiveStats();
@@ -1058,10 +1161,12 @@
   function submitAddSupplier(e){
     e.preventDefault();
     const d = Object.fromEntries(new FormData(e.target).entries());
-    const products = Array.isArray(JSON.parse(d.productsJson || '[]')) ? JSON.parse(d.productsJson || '[]') : [];
-    // The supplier form owns the supplier brand. Product rows do not collect a
-    // separate brand, so retain the value entered in the form.
-    const supplierBrand = (d.brand || '').trim();
+    // Products are read straight from the inline blocks so a half-typed last
+    // row is still captured.
+    let products = [];
+    try { products = JSON.parse(d.productsJson || '[]'); } catch { products = []; }
+    if(!Array.isArray(products)) products = [];
+    if(!products.length) products = collectSupplierProductRows();
 
     fetch(procurementUrl('suppliers'), {
       method: 'POST',
@@ -1073,7 +1178,6 @@
         email: d.email || '',
         phone: d.phone || '',
         address: d.address || '',
-        brand: supplierBrand,
         status: d.status || 'active',
         warehouse_id: d.warehouse_id || '',
         productsJson: JSON.stringify(products)
@@ -1083,30 +1187,56 @@
       if (!res.ok) throw new Error(json?.message || 'Unable to save supplier right now.');
       return json;
     }).then(json => {
-      const table = document.querySelector('#suppliers-table tbody');
-      if(table){
-        const tr = document.createElement('tr');
-        tr.dataset.sid = d.sid || '';
-        tr.dataset.category = supplierBrand;
-        tr.dataset.brand = supplierBrand;
-        tr.dataset.warehouseId = d.warehouse_id || '';
-        tr.dataset.status = (d.status || 'active').replace(/^./, m => m.toUpperCase());
-        tr.dataset.terms = 'Net 30';
-        tr.dataset.lastActivity = 'Newly onboarded';
-        tr.dataset.itemName = products[0]?.name || '';
-        tr.dataset.sku = products[0]?.sku || '';
-        tr.dataset.unitPrice = products[0]?.price || '';
-        tr.dataset.products = JSON.stringify(products);
-        tr.innerHTML = `
-          <td><div class="supplier-pill-cell">${supplierPill(d.name)}</div></td>
-          <td>${htmlEscape(supplierBrand || '-')}</td>
-          <td>${htmlEscape(d.contact || 'â€”')}</td>
-          <td>${htmlEscape(d.email || 'â€”')}</td>
-          <td>${htmlEscape(d.phone || 'â€”')}</td>
-          <td>${htmlEscape(d.address || 'â€”')}</td>
-          <td><span class="row-actions"><button title="View"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/></svg></button><button title="Edit"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M4 20h4l10-10-4-4L4 16v4z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></button><button class="del" title="Delete"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></span></td>`;
-        if(json && (json.id || (json.data && json.data.id))) tr.dataset.id = json.id || json.data.id;
-        table.prepend(tr);
+      // The Suppliers page renders cards. Build one so a newly saved supplier
+      // shows up without a reload, matching the server-rendered markup.
+      const cardWrap = document.getElementById('suppliers-cards');
+      if(cardWrap){
+        cardWrap.querySelector('.sc-empty-state')?.remove();
+        const categories = products.map(p => String(p.category || '').trim()).filter(Boolean);
+        const subtitle = categories.length
+          ? categories.sort((a, b) =>
+              categories.filter(c => c === b).length - categories.filter(c => c === a).length)[0]
+          : '';
+        const statusLabel = (d.status || 'active').replace(/^./, m => m.toUpperCase());
+        const card = document.createElement('article');
+        card.className = 'supplier-card';
+        card.dataset.id = (json && (json.id || json.data?.id)) || '';
+        card.dataset.sid = d.sid || '';
+        card.dataset.name = d.name || '';
+        card.dataset.contact = d.contact || '';
+        card.dataset.email = d.email || '';
+        card.dataset.phone = d.phone || '';
+        card.dataset.address = d.address || '';
+        card.dataset.status = (d.status || 'active').toLowerCase();
+        card.dataset.statusLabel = statusLabel;
+        card.dataset.category = subtitle;
+        card.dataset.warehouseId = d.warehouse_id || '';
+        card.dataset.poCount = '0';
+        card.dataset.products = JSON.stringify(products);
+        card.innerHTML = `
+          <header class="sc-head">
+            <span class="sc-avatar" style="background:${supplierBadgeColor(d.name)}">${htmlEscape(initials(d.name || 'NA'))}</span>
+            <div class="sc-ident">
+              <h3>${htmlEscape(d.name || '')}</h3>
+              <p>${htmlEscape(subtitle || 'No category yet')}</p>
+            </div>
+            <span class="sc-status ${(d.status || 'active').toLowerCase()}"><i></i>${htmlEscape(statusLabel)}</span>
+          </header>
+          <ul class="sc-contact">
+            <li><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.5" stroke="currentColor" stroke-width="2"/><path d="M4.5 20c0-3.6 3.4-6 7.5-6s7.5 2.4 7.5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>${htmlEscape(d.contact || '—')}</span></li>
+            <li><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" stroke-width="2"/><path d="M3.5 7l8.5 6 8.5-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>${htmlEscape(d.email || '—')}</span></li>
+            <li><svg viewBox="0 0 24 24" fill="none"><path d="M5 4h3.5l1.8 4.4-2.2 1.6a12 12 0 0 0 5.9 5.9l1.6-2.2L20 15.5V19a1 1 0 0 1-1.1 1A15.9 15.9 0 0 1 4 5.1 1 1 0 0 1 5 4z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><span>${htmlEscape(d.phone || '—')}</span></li>
+            <li><svg viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="10" r="2.5" stroke="currentColor" stroke-width="2"/></svg><span>${htmlEscape(d.address || '—')}</span></li>
+          </ul>
+          <div class="sc-products">
+            <h4><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="7" width="18" height="13" rx="2" stroke="currentColor" stroke-width="2"/><path d="M8 7V5.5A1.5 1.5 0 0 1 9.5 4h5A1.5 1.5 0 0 1 16 5.5V7" stroke="currentColor" stroke-width="2"/></svg> Products (${products.length})</h4>
+          </div>
+          <footer class="sc-foot">
+            <span class="sc-po-count"><svg viewBox="0 0 24 24" fill="none"><path d="M7 3h7l4 4v14H7z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M14 3v4h4" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg> 0 POs placed</span>
+            <button type="button" class="sc-add-product" onclick="openSupplierProductModal(this)"><span aria-hidden="true">+</span> Product</button>
+          </footer>`;
+        cardWrap.prepend(card);
+        renderSupplierCardProducts(card);
       }
       NEXT_ID.sup++;
       // supplier IDs are NEXT_ID-based; no change to ID_COUNTS for suppliers
@@ -1114,6 +1244,9 @@
       addSupplierOptionToPoForm(d.name);
       refreshPoSupplierOptions(document.getElementById('add-po-modal'));
       refreshDeliverySupplierOptions();
+      refreshSupplierCatalogFromCards();
+      if(typeof refreshSupplierCategoryOptions === 'function') refreshSupplierCategoryOptions();
+      if(typeof pollLiveStats === 'function') pollLiveStats();
       showToast(`Supplier ${d.name} added successfully`, 'ok');
       closeAddModal('supplier');
     }).catch(error => {
@@ -1125,55 +1258,6 @@
     refreshDeliverySupplierOptions();
   });
 
-  function submitAddReq(e){
-    e.preventDefault();
-    const d = Object.fromEntries(new FormData(e.target).entries());
-
-    fetch(procurementUrl('requisitions'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '' },
-      body: new URLSearchParams({
-        rq: d.rq,
-        item: d.item || '',
-        qty: d.qty || '1',
-        uom: d.uom || 'pcs',
-        dept: d.dept || '',
-        requester: d.requester || '',
-        dateReq: d.dateReq || '',
-        notes: d.notes || ''
-      }).toString()
-    }).then(res => res.json()).then(json => {
-      const table = document.querySelector('#requisitions-table tbody');
-      if(table){
-        const tr = document.createElement('tr');
-        tr.dataset.status = 'pending';
-        tr.dataset.date = d.dateReq;
-        tr.dataset.uom = d.uom || 'pcs';
-        tr.dataset.notes = d.notes || '';
-        tr.innerHTML = `
-          <td><a class="po-link">${d.rq}</a></td>
-          <td>${d.item}</td>
-          <td>${d.qty}</td>
-          <td>${deliveryBadge('Scheduled')}</td>
-          <td>${d.dept}</td>
-          <td>${d.requester}</td>
-          <td>${statusPill('Pending')}</td>
-          <td>${fmtDate(d.dateReq)}</td>
-          <td><span class="row-actions"><button title="View"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/></svg></button><button title="Edit"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M4 20h4l10-10-4-4L4 16v4z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></button><button class="del" title="Delete"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></span></td>`;
-        if(json && (json.id || (json.data && json.data.id))) tr.dataset.id = json.id || json.data.id;
-        table.prepend(tr);
-      }
-      NEXT_ID.req++;
-      ID_COUNTS.req++;
-      initRowActionButtons();
-      showToast(`Requisition ${d.rq} submitted for approval`, 'ok');
-      closeAddModal('req');
-      if(typeof pollLiveStats === 'function') pollLiveStats();
-    }).catch(() => {
-      showToast('Unable to save requisition right now.', 'no');
-    });
-  }
-
   function submitAddDelivery(e){
     e.preventDefault();
     const d = Object.fromEntries(new FormData(e.target).entries());
@@ -1184,6 +1268,17 @@
     }
     if(!(d.items || '').trim()){
       showToast('Select a purchase order so its items can be loaded before logging the delivery.', 'no');
+      return;
+    }
+    // The delivery form has no quantity input, so `d.qty` was always undefined
+    // and every shipment was stored as qty 1 / qty_expected 1 regardless of
+    // what the PO actually ordered. Take the real total from the PO's items.
+    const poItems = Array.isArray(poInfo.items) ? poInfo.items : [];
+    const deliveryQty = poItems.length
+      ? poItems.reduce((sum, it) => sum + (Number(it.qty) || 0), 0)
+      : (Number(poInfo.qty) || 0);
+    if(!(deliveryQty > 0)){
+      showToast('This purchase order has no quantity to deliver.', 'no');
       return;
     }
     const expectedDate = poInfo.expected || '';
@@ -1199,7 +1294,7 @@
         po: d.po,
         supplier: d.supplier,
         items: d.items || '',
-        qty: d.qty || '1',
+        qty: String(deliveryQty),
         delDate: d.delDate || '',
         status: statusLabel,
         remarks: d.remarks || '',
@@ -1223,7 +1318,8 @@
         tr.dataset.sup = d.supplier;
         tr.dataset.items = d.items || '';
         tr.dataset.stage = stage;
-        tr.dataset.note = d.remarks || `${d.items} • Qty ${d.qty}`;
+        tr.dataset.note = d.remarks || `${d.items} • Qty ${deliveryQty}`;
+        tr.dataset.qty = String(deliveryQty);
         tr.dataset.carrier = d.carrier || 'Assigned carrier';
         tr.dataset.expected = expectedDate;
         tr.dataset.warehouse = (document.querySelector('#delivery-warehouse-select')?.selectedOptions?.[0]?.textContent || '').trim();
@@ -1233,7 +1329,7 @@
         const delItemsCell = `${htmlEscape(delItemsList[0] || 'â€”')}${delItemsList.length > 1 ? `<span class="item-more">+${delItemsList.length - 1} more</span>` : ''}`;
         tr.innerHTML = `
           <td><a class="po-link">${htmlEscape(shipmentNumber)}</a></td>
-          <td><a class="po-link">${d.po}</a></td>
+          <td><a class="po-link">${htmlEscape(d.po)}</a></td>
           <td>${supplierPill(d.supplier)}</td>
           <td title="${htmlEscape(d.items || '')}">${delItemsCell}</td>
           <td>${fmtDate(expectedDate)}</td>
@@ -1252,48 +1348,35 @@
       }
       const reqRow = findReqRowByRef(d.po);
       if(reqRow){
-        updateRowStatus(reqRow, 'intransit');
-        reqRow.children[6].innerHTML = statusPill('intransit');
-        reqRow.dataset.status = 'intransit';
-        persistRequisitionStatus(reqRow, 'intransit');
+        // "In Transit" is the canonical label the server's status writer
+        // accepts; "intransit" was normalised to "Intransit", rejected with a
+        // 422, and — because nothing caught the rejection — the badge showed a
+        // status the database never received.
+        const prevCellHtml = reqRow.children[6] ? reqRow.children[6].innerHTML : '';
+        const prevStatus = reqRow.dataset.status || '';
+        updateRowStatus(reqRow, 'In Transit');
+        persistRequisitionStatus(reqRow, 'In Transit').catch(err => {
+          reqRow.dataset.status = prevStatus;
+          if(reqRow.children[6]) reqRow.children[6].innerHTML = prevCellHtml;
+          showToast(err?.message || 'Delivery saved, but the requisition status could not be updated.', 'no');
+        });
       }
       const shipmentSequence = Number(String(shipmentNumber).match(/(\d+)$/)?.[1] || 0);
       ID_COUNTS.dr = Math.max(ID_COUNTS.dr, shipmentSequence);
       NEXT_ID.dr = ID_COUNTS.dr + 1;
       initRowActionButtons();
-      updateStatusCounts();
       showToast(`Delivery ${shipmentNumber} logged`, 'ok');
       closeAddModal('delivery');
       if(typeof pollLiveStats === 'function') pollLiveStats();
+
+      // Logging from anywhere other than the Deliveries page (e.g. an approved
+      // PO's View modal) lands the user on Deliveries so they can see the
+      // shipment they just created. On the Deliveries page itself the row was
+      // just prepended, so navigating would only throw that away.
+      if(!document.getElementById('deliveries-table')){
+        setTimeout(() => { window.location.href = procurementUrl('deliveries'); }, 600);
+      }
     }).catch(() => {
       showToast('Unable to save delivery right now.', 'no');
     });
-  }
-
-  function submitAddInvoice(e){
-    e.preventDefault();
-    const d = Object.fromEntries(new FormData(e.target).entries());
-    const table = document.querySelector('#invoices-table tbody');
-    if(!table){ closeAddModal('invoice'); return; }
-    const statusLabel = ({unpaid:'Unpaid', partial:'Overdue', paid:'Paid', overdue:'Overdue'})[d.status] || 'Unpaid';
-    const tr = document.createElement('tr');
-    tr.dataset.status = statusLabel.toLowerCase();
-    tr.dataset.date = d.invDate;
-    tr.dataset.amount = Number(d.amount || 0);
-    tr.dataset.supplier = d.supplier || '';
-    tr.dataset.dueDate = fmtDate(d.dueDate);
-    tr.dataset.method = d.method || '';
-    tr.dataset.notes = d.notes || '';
-    tr.innerHTML = `
-      <td><a class="po-link">${d.inv}</a></td>
-      <td><a class="po-link">${d.po}</a></td>
-      <td>${fmtDate(d.invDate)}</td>
-      <td><b>${money(d.amount)}</b></td>
-      <td>${statusPill(statusLabel)}</td>
-      <td><span class="row-actions"><button title="View"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/></svg></button><button title="Edit"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M4 20h4l10-10-4-4L4 16v4z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></button><button class="del" title="Delete"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></span></td>`;
-    table.prepend(tr);
-    NEXT_ID.inv++;
-    initRowActionButtons();
-    showToast(`Invoice ${d.inv} recorded`, 'ok');
-    closeAddModal('invoice');
   }

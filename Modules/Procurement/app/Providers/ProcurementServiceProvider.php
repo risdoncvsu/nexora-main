@@ -73,6 +73,10 @@ class ProcurementServiceProvider extends ServiceProvider
           // composer must target that namespaced name — otherwise it never
           // fires and the notification/nav badge counts stay empty.
           View::composer('procurement::partials.sidebar', function ($view): void {
+            // Resolved first: the low-stock query below filters on it, and it
+            // used to be read before it was assigned (so that query ran with a
+            // null client_id).
+            $clientId = (int) session('employee_client_id');
             $alerts = collect();
             try {
                 $alerts = DB::connection('inventory')
@@ -90,7 +94,6 @@ class ProcurementServiceProvider extends ServiceProvider
 
             // Delivery + pending-PO counts for the nav badges (tenant-scoped,
             // defensive so a missing table/column never breaks the layout).
-            $clientId = (int) session('employee_client_id');
             $deliveryCount = 0;
             $pendingPoCount = 0;
             try {
@@ -114,106 +117,19 @@ class ProcurementServiceProvider extends ServiceProvider
                 // leave the counts at 0
             }
 
-            $requisitionCount = $this->pendingRequisitionNotificationCount($clientId);
+            $rootTesting = (bool) config('nexora.root_admin_module_testing')
+                && auth()->user()?->role === 'root_admin';
+            $requisitionTally = \Modules\Procurement\Support\RequisitionTally::counts($clientId, $rootTesting);
+            $requisitionCount = $requisitionTally['pending'];
 
             $view->with([
                 'lowStockAlerts' => $alerts,
                 'lowStockAlertCount' => $alerts->count(),
                 'requisitionCount' => $requisitionCount,
+                'requisitionCompletedCount' => $requisitionTally['completed'],
                 'deliveryCount' => $deliveryCount,
                 'pendingPoCount' => $pendingPoCount,
             ]);
         });
-    }
-
-    private function resolveRequisitionConnection()
-    {
-        foreach (['order_fulfillment', 'inventory'] as $connection) {
-            try {
-                if (DB::connection($connection)->getSchemaBuilder()->hasTable('requisitions')) {
-                    return DB::connection($connection);
-                }
-            } catch (\Exception $e) {
-                // ignore broken or unavailable external DB connections
-            }
-        }
-
-        return DB::connection('inventory');
-    }
-
-    /**
-     * Count only actionable requisitions for the sidebar. Order Fulfillment's
-     * legacy requisition table has no status column, so counting that table
-     * directly kept historical, delivered requests in the notification badge.
-     */
-    private function pendingRequisitionNotificationCount(int $clientId): int
-    {
-        if ($clientId <= 0) {
-            return 0;
-        }
-
-        $purchaseOrderReferences = [];
-        try {
-            $procurement = DB::connection('procurement');
-            $schema = $procurement->getSchemaBuilder();
-
-            if ($schema->hasTable('purchase_orders') && $schema->hasColumn('purchase_orders', 'requisition_reference')) {
-                $purchaseOrderQuery = $procurement->table('purchase_orders')
-                    ->whereNotNull('requisition_reference');
-
-                if ($schema->hasColumn('purchase_orders', 'client_id')) {
-                    $purchaseOrderQuery->where('client_id', $clientId);
-                }
-
-                $purchaseOrderReferences = $purchaseOrderQuery
-                    ->pluck('requisition_reference')
-                    ->map(fn ($reference) => strtoupper(trim((string) $reference)))
-                    ->filter()
-                    ->flip()
-                    ->all();
-            }
-        } catch (\Throwable $e) {
-            // Keep the badge usable if the Procurement database is unavailable.
-        }
-
-        $pending = [];
-        foreach (['order_fulfillment', 'inventory'] as $connectionName) {
-            try {
-                $connection = DB::connection($connectionName);
-                $schema = $connection->getSchemaBuilder();
-                if (! $schema->hasTable('requisitions') || ! $schema->hasColumn('requisitions', 'client_id')) {
-                    continue;
-                }
-
-                $referenceColumn = $schema->hasColumn('requisitions', 'req_id')
-                    ? 'req_id'
-                    : ($schema->hasColumn('requisitions', 'req_number') ? 'req_number' : null);
-                $hasStatus = $schema->hasColumn('requisitions', 'status');
-                $columns = array_filter(['id', $referenceColumn, $hasStatus ? 'status' : null]);
-                $query = $connection->table('requisitions')
-                    ->where('client_id', $clientId)
-                    ->select($columns);
-
-                if ($hasStatus) {
-                    $query->whereRaw('LOWER(status) = ?', ['pending']);
-                }
-
-                foreach ($query->get() as $requisition) {
-                    $reference = $referenceColumn ? strtoupper(trim((string) ($requisition->{$referenceColumn} ?? ''))) : '';
-
-                    // A linked PO means Procurement has already accepted this
-                    // request. This also closes old status-less source rows.
-                    if ($reference !== '' && isset($purchaseOrderReferences[$reference])) {
-                        continue;
-                    }
-
-                    $pending[$reference !== '' ? "ref:{$reference}" : "{$connectionName}:{$requisition->id}"] = true;
-                }
-            } catch (\Throwable $e) {
-                // Skip unavailable external sources without breaking the layout.
-            }
-        }
-
-        return count($pending);
     }
 }

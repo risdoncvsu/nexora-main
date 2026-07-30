@@ -121,22 +121,72 @@
       table.__pagingBound = true;
       paginateTable(table, 1);
       // Rows added/removed dynamically (new PO, logged delivery, delete, sort)
-      // should re-page automatically — no reload, no caller changes.
-      new MutationObserver(() => paginateTable(table)).observe(
+      // should re-page and re-count automatically — no reload, no caller
+      // changes, nothing left showing a stale number.
+      new MutationObserver(() => { paginateTable(table); updateStatusCounts(); }).observe(
         table.querySelector('tbody'), { childList: true }
       );
     });
   }
 
-  /* ---------- Live search ---------- */
+  /* ---------- Live search ----------
+   * Two things this deliberately avoids:
+   *  - row.innerText, which forces a layout pass per row per keystroke. On a
+   *    few hundred rows that alone made typing visibly janky. textContent
+   *    needs no layout.
+   *  - re-reading the DOM on every keystroke: the searchable text is cached on
+   *    the row and invalidated whenever the row's markup is rewritten. */
+  function rowSearchText(row){
+    if(row.dataset.searchBlob === undefined || row.dataset.searchDirty === '1'){
+      row.dataset.searchBlob = (row.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
+      row.dataset.searchDirty = '';
+    }
+    return row.dataset.searchBlob;
+  }
+  // Call after rewriting a row's cells so the cached text is rebuilt.
+  function invalidateRowSearchText(row){ if(row) row.dataset.searchDirty = '1'; }
+
+  let searchDebounce = null;
   function filterTable(tableId, query){
-    const table = document.getElementById(tableId);
-    if(!table) return;
     const q = String(query || '').trim().toLowerCase();
-    dataRows(table).forEach(row => {
-      row.dataset.searchHidden = row.innerText.toLowerCase().includes(q) ? '' : '1';
+    clearTimeout(searchDebounce);
+    searchDebounce = setTimeout(() => {
+      const table = document.getElementById(tableId);
+      if(!table) return;
+      dataRows(table).forEach(row => {
+        row.dataset.searchHidden = rowSearchText(row).includes(q) ? '' : '1';
+      });
+      repaginate(table);
+    }, 120);
+  }
+
+  /* ---------- Status-chart tiles ----------
+   * The tile numbers are rendered server-side, so before this they only
+   * changed on a page reload: create a PO and the "Pending" tile still showed
+   * the old count. Every table on these pages holds all of its rows (the 8-row
+   * limit is pagination, not a query limit), so the counts can be recomputed
+   * exactly from the DOM — no request, no staleness.
+   *
+   * Each chart declares which table it summarises via data-table. */
+  function updateStatusCounts(){
+    document.querySelectorAll('.status-chart[data-table]').forEach(chart => {
+      const table = document.getElementById(chart.dataset.table);
+      if(!table) return;
+
+      const tally = new Map();
+      dataRows(table).forEach(row => {
+        const key = normalizeStatusKey(row.dataset.status);
+        if(!key) return;
+        tally.set(key, (tally.get(key) || 0) + 1);
+      });
+
+      chart.querySelectorAll('.status-chart-item[data-status]').forEach(tile => {
+        const countEl = tile.querySelector('.status-count');
+        if(!countEl) return;
+        const next = tally.get(normalizeStatusKey(tile.dataset.status)) || 0;
+        if(countEl.textContent.trim() !== String(next)) countEl.textContent = next;
+      });
     });
-    repaginate(table);
   }
 
   /* ---------- Status-chart tile filter (click to toggle) ---------- */
@@ -146,11 +196,11 @@
     const chart = el ? el.closest('.status-chart') : null;
     const alreadyActive = el && el.classList.contains('active');
     if(chart) chart.querySelectorAll('.status-chart-item').forEach(i => i.classList.remove('active'));
-    const active = alreadyActive ? null : String(status || '').toLowerCase();
+    // Compare on the collapsed key so "In Transit" matches an "intransit" tile.
+    const active = alreadyActive ? null : normalizeStatusKey(status);
     if(el && active) el.classList.add('active');
     dataRows(table).forEach(row => {
-      const rowStatus = String(row.dataset.status || '').toLowerCase();
-      row.dataset.statusHidden = (!active || rowStatus === active) ? '' : '1';
+      row.dataset.statusHidden = (!active || normalizeStatusKey(row.dataset.status) === active) ? '' : '1';
     });
     repaginate(table);
   }
@@ -161,12 +211,22 @@
     return cell ? cell.innerText.trim() : '';
   }
 
+  // The word test used to be applied to `a` only, which made the comparator
+  // asymmetric: compare(a,b) could take the numeric branch while compare(b,a)
+  // took the string branch. Array.prototype.sort with an inconsistent
+  // comparator produces engine-defined ordering, not merely a slightly wrong
+  // one. Both operands are now classified the same way.
+  function looksNumeric(v){
+    if(v === '') return false;
+    if(!/\d/.test(v)) return false;
+    if(/[a-z]{3,}/i.test(v)) return false;
+    return !isNaN(Number(v.replace(/[^0-9.\-]/g, '')));
+  }
+
   function compareValues(a, b){
-    const an = Number(a.replace(/[^0-9.\-]/g, ''));
-    const bn = Number(b.replace(/[^0-9.\-]/g, ''));
-    const numeric = a !== '' && b !== '' && !isNaN(an) && !isNaN(bn)
-      && /\d/.test(a) && /\d/.test(b) && !/[a-z]{3,}/i.test(a);
-    if(numeric) return an - bn;
+    if(looksNumeric(a) && looksNumeric(b)){
+      return Number(a.replace(/[^0-9.\-]/g, '')) - Number(b.replace(/[^0-9.\-]/g, ''));
+    }
     const ad = Date.parse(a), bd = Date.parse(b);
     if(!isNaN(ad) && !isNaN(bd)) return ad - bd;
     return a.localeCompare(b, undefined, { numeric: true });
@@ -302,6 +362,165 @@
     clearPanelFilter('requisitions-table', ['req-filter-status', 'req-filter-date-from', 'req-filter-date-to', 'req-filter-priority']);
   }
 
+  /* ---------- Suppliers (cards, not a table) ----------
+   * The Suppliers page renders one card per supplier, so search and filtering
+   * work on cards. Visibility is still the AND of the two independent flags,
+   * same as the tables, so search and the filter panel never clobber each
+   * other. There is no Brand filter any more: the supplier-level Brand field
+   * was removed, and category now belongs to each product. */
+  function supplierCardEls(){
+    return [...document.querySelectorAll('#suppliers-cards .supplier-card')];
+  }
+
+  function applySupplierCardVisibility(card){
+    const hidden = card.dataset.searchHidden === '1'
+      || card.dataset.filterHidden === '1'
+      || card.dataset.pageHidden === '1';
+    card.style.display = hidden ? 'none' : '';
+  }
+
+  // A card the filters kept — eligible to appear on some page.
+  function supplierCardPassesFilters(card){
+    return card.dataset.searchHidden !== '1' && card.dataset.filterHidden !== '1';
+  }
+
+  /* ---------- Supplier pagination (6 cards per page) ----------
+   * Mirrors the table pager: only the cards that survived search and the
+   * filter panel are paged, so paging and filtering compose instead of
+   * fighting. Pure DOM work — changing page never reloads. */
+  const SUPPLIER_PAGE_SIZE = 6;
+
+  function paginateSupplierCards(page){
+    const wrap = document.getElementById('suppliers-cards');
+    if(!wrap) return;
+    const all = supplierCardEls();
+    const eligible = all.filter(supplierCardPassesFilters);
+    const total = eligible.length;
+    const pages = Math.max(1, Math.ceil(total / SUPPLIER_PAGE_SIZE));
+
+    let current = page == null ? Number(wrap.dataset.page || 1) : page;
+    current = Math.min(Math.max(1, current || 1), pages);
+    wrap.dataset.page = String(current);
+
+    const start = (current - 1) * SUPPLIER_PAGE_SIZE;
+    const visible = new Set(eligible.slice(start, start + SUPPLIER_PAGE_SIZE));
+    all.forEach(card => {
+      card.dataset.pageHidden = visible.has(card) ? '' : '1';
+      applySupplierCardVisibility(card);
+    });
+
+    const countEl = document.querySelector('#page-suppliers .table-count');
+    if(countEl){
+      countEl.innerHTML = total
+        ? `Showing <b>${start + 1}</b>–<b>${start + visible.size}</b> of <b>${total}</b> ${total === 1 ? 'supplier' : 'suppliers'}`
+        : 'No suppliers to show';
+    }
+
+    renderSupplierPager(current, pages);
+
+    const empty = document.querySelector('#suppliers-cards .sc-empty-state');
+    if(empty) empty.style.display = all.length ? 'none' : '';
+  }
+
+  function renderSupplierPager(current, pages){
+    const pager = document.querySelector('#page-suppliers .pager');
+    if(!pager) return;
+    pager.innerHTML = '';
+    if(pages <= 1) return; // nothing to page through
+    const btn = (label, page, opts = {}) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'page-btn' + (opts.active ? ' active' : '');
+      b.textContent = label;
+      b.disabled = !!opts.disabled;
+      if(!opts.disabled) b.addEventListener('click', () => paginateSupplierCards(page));
+      return b;
+    };
+    pager.appendChild(btn('‹', current - 1, { disabled: current === 1 }));
+    for(let p = 1; p <= pages; p++) pager.appendChild(btn(String(p), p, { active: p === current }));
+    pager.appendChild(btn('›', current + 1, { disabled: current === pages }));
+  }
+
+  // Cached, layout-free searchable text for a card: its own fields plus every
+  // product name/SKU/category, so searching for a product finds its supplier.
+  function supplierCardSearchText(card){
+    if(card.dataset.searchBlob === undefined || card.dataset.searchDirty === '1'){
+      let products = [];
+      try { products = JSON.parse(card.dataset.products || '[]'); } catch { products = []; }
+      const productText = (Array.isArray(products) ? products : [])
+        .map(p => [p.name, p.sku, p.category].filter(Boolean).join(' '))
+        .join(' ');
+      card.dataset.searchBlob = [
+        card.dataset.name, card.dataset.contact, card.dataset.email,
+        card.dataset.phone, card.dataset.address, card.dataset.category, productText
+      ].filter(Boolean).join(' ').replace(/\s+/g, ' ').toLowerCase();
+      card.dataset.searchDirty = '';
+    }
+    return card.dataset.searchBlob;
+  }
+
+  let supplierSearchDebounce = null;
+  function filterSupplierCards(query){
+    const q = String(query || '').trim().toLowerCase();
+    clearTimeout(supplierSearchDebounce);
+    supplierSearchDebounce = setTimeout(() => {
+      supplierCardEls().forEach(card => {
+        card.dataset.searchHidden = supplierCardSearchText(card).includes(q) ? '' : '1';
+      });
+      paginateSupplierCards(1);
+    }, 120);
+  }
+
+  function supplierCardCategories(card){
+    let products = [];
+    try { products = JSON.parse(card.dataset.products || '[]'); } catch { products = []; }
+    return (Array.isArray(products) ? products : [])
+      .map(p => String(p.category || '').trim().toLowerCase())
+      .filter(Boolean);
+  }
+
+  function applySupplierFilter(){
+    const category = fieldValue('supplier-filter-category').toLowerCase();
+    const status = fieldValue('supplier-filter-status').toLowerCase();
+    supplierCardEls().forEach(card => {
+      let keep = true;
+      if(status && String(card.dataset.status || '').toLowerCase() !== status) keep = false;
+      if(keep && category && !supplierCardCategories(card).includes(category)) keep = false;
+      card.dataset.filterHidden = keep ? '' : '1';
+    });
+    paginateSupplierCards(1);
+  }
+
+  function clearSupplierFilter(){
+    ['supplier-filter-category', 'supplier-filter-status'].forEach(id => {
+      const el = document.getElementById(id);
+      if(el) el.value = '';
+    });
+    supplierCardEls().forEach(card => { card.dataset.filterHidden = ''; });
+    paginateSupplierCards(1);
+  }
+
+  // Build the category dropdown from the categories that actually exist on the
+  // page's products, rather than a hardcoded sample list that matched nothing.
+  function refreshSupplierCategoryOptions(){
+    const select = document.getElementById('supplier-filter-category');
+    if(!select) return;
+    const selected = select.value || '';
+    const seen = new Map();
+    supplierCardEls().forEach(card => {
+      let products = [];
+      try { products = JSON.parse(card.dataset.products || '[]'); } catch { products = []; }
+      (Array.isArray(products) ? products : []).forEach(p => {
+        const label = String(p.category || '').trim();
+        if(label) seen.set(label.toLowerCase(), label);
+      });
+    });
+    const entries = [...seen.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+    select.innerHTML = '<option value="">All Categories</option>'
+      + entries.map(([value, label]) => `<option value="${htmlEscape(value)}">${htmlEscape(label)}</option>`).join('');
+    select.value = seen.has(selected) ? selected : '';
+  }
+
   /* ---------- Date-range presets (Today / This Week / This Month) ---------- */
   function setDatePreset(prefix, preset, el){
     const fromEl = document.getElementById(prefix + '-filter-date-from');
@@ -332,3 +551,16 @@
   // the end of <body>, so the tables are already in the DOM).
   initSortableTables();
   initTablePagination();
+  refreshSupplierCategoryOptions();
+  initSupplierPagination();
+  updateStatusCounts();
+
+  // Cards added (new supplier) or removed (delete) should re-page themselves,
+  // the same way the tables do.
+  function initSupplierPagination(){
+    const wrap = document.getElementById('suppliers-cards');
+    if(!wrap || wrap.__pagingBound) return;
+    wrap.__pagingBound = true;
+    paginateSupplierCards(1);
+    new MutationObserver(() => paginateSupplierCards()).observe(wrap, { childList: true });
+  }

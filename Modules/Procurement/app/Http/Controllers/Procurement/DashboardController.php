@@ -5,7 +5,8 @@ namespace Modules\Procurement\Http\Controllers\Procurement;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
+use Modules\Procurement\Support\RequisitionTally;
+use Modules\Procurement\Support\SchemaProbe;
 
 class DashboardController extends Controller
 {
@@ -34,44 +35,15 @@ class DashboardController extends Controller
     }
 
     /**
-     * Requisitions live on the external Order Fulfillment / Manufacturing
-     * databases — the same source the Requisitions page reads. Counting
-     * procurement.requisitions (which is empty) always returned 0, which is why
-     * the dashboard card read "0".
+     * Requisition counts come from the shared tally so the dashboard card, the
+     * sidebar badge and the live-stats poll can never disagree — they used to
+     * be three separate implementations.
      *
-     * @return array{total:int, pending:int}
+     * @return array{total:int, pending:int, completed:int}
      */
-    private function externalRequisitionCounts(): array
+    private function externalRequisitionCounts(bool $rootTesting = false): array
     {
-        $total = 0;
-        $pending = 0;
-
-        foreach (['order_fulfillment', 'inventory'] as $connectionName) {
-            try {
-                $connection = DB::connection($connectionName);
-                $schema = $connection->getSchemaBuilder();
-
-                if (! $schema->hasTable('requisitions')) {
-                    continue;
-                }
-
-                $total += (int) $connection->table('requisitions')->count();
-
-                if ($schema->hasColumn('requisitions', 'status')) {
-                    $pending += (int) $connection->table('requisitions')
-                        ->whereIn('status', ['Pending', 'pending'])
-                        ->count();
-                } else {
-                    // No status column (Order Fulfillment): those rows surface
-                    // as Pending on the Requisitions page.
-                    $pending += (int) $connection->table('requisitions')->count();
-                }
-            } catch (\Throwable $e) {
-                // Skip broken or unavailable external connections.
-            }
-        }
-
-        return ['total' => $total, 'pending' => $pending];
+        return RequisitionTally::counts((int) session('employee_client_id'), $rootTesting);
     }
 
     /**
@@ -105,19 +77,46 @@ class DashboardController extends Controller
         // Requisitions live on the external Order Fulfillment / Manufacturing
         // databases (same source the Requisitions page and sidebar badge use),
         // never on the procurement connection.
-        $requisitionCounts = $this->externalRequisitionCounts();
+        $requisitionCounts = $this->externalRequisitionCounts($rootTesting);
+
+        $poCount = $safe(fn () => $table('purchase_orders')->count());
+        $supplierCount = $safe(fn () => $table('suppliers')->where('status', 'active')->count());
+        $deliveryCount = $safe(fn () => $table('deliveries')->count());
+        $pendingDeliveries = $safe(fn () => $table('deliveries')->whereIn('status', ['pending', 'scheduled', 'intransit'])->count());
+        $totalSpend = 0.0;
+        try {
+            $totalSpend = (float) $table('purchase_orders')
+                ->whereNotIn('status', ['pending', 'rejected', 'cancelled'])
+                ->sum('amount');
+        } catch (\Throwable $e) {
+            // leave at 0
+        }
 
         return response()->json([
             'cards' => [
-                'activePos' => $safe(fn () => $table('purchase_orders')->count()),
-                'suppliers' => $safe(fn () => $table('suppliers')->where('status', 'active')->count()),
-                'requisitions' => $requisitionCounts['total'],
-                'deliveries' => $safe(fn () => $table('deliveries')->count()),
+                'activePos' => $poCount,
+                'suppliers' => $supplierCount,
+                // The Requisitions card counts what still needs action, not the
+                // full history — same number the sidebar badge shows.
+                'requisitions' => $requisitionCounts['pending'],
+                'deliveries' => $deliveryCount,
+            ],
+            // Sub-labels are polled too, so they stop disagreeing with the
+            // number above them until the next page load.
+            'subs' => [
+                'activePos' => $poCount > 0 ? $this->compactPeso($totalSpend).' total spend' : 'No purchase orders yet',
+                'suppliers' => $supplierCount > 0 ? 'Active suppliers' : 'No supplier data yet',
+                'requisitions' => $requisitionCounts['completed'] > 0
+                    ? $requisitionCounts['completed'].' completed'
+                    : 'None completed yet',
+                'deliveries' => $deliveryCount > 0
+                    ? ($pendingDeliveries > 0 ? $pendingDeliveries.' in progress' : 'All shipments settled')
+                    : 'No deliveries yet',
             ],
             'badges' => [
                 'purchaseOrders' => $safe(fn () => $table('purchase_orders')->where('status', 'pending')->count()),
                 'requisitions' => $requisitionCounts['pending'],
-                'deliveries' => $safe(fn () => $table('deliveries')->whereIn('status', ['pending', 'scheduled', 'intransit'])->count()),
+                'deliveries' => $pendingDeliveries,
             ],
         ]);
     }
@@ -147,7 +146,11 @@ class DashboardController extends Controller
 
         $supplierCount = $table('suppliers')->where('status', 'active')->count();
         // From the external requisition sources, not procurement.requisitions.
-        $requisitionCount = $this->externalRequisitionCounts()['total'];
+        // The card shows what still needs action (Pending); the sub-label shows
+        // how many have been Completed.
+        $requisitionTally = $this->externalRequisitionCounts($rootTesting);
+        $requisitionCount = $requisitionTally['pending'];
+        $requisitionCompletedCount = $requisitionTally['completed'];
         $deliveryCount = $table('deliveries')->count();
         $pendingDeliveries = $table('deliveries')
             ->whereIn('status', ['pending', 'scheduled', 'intransit'])
@@ -178,8 +181,7 @@ class DashboardController extends Controller
         // "Spend by Category" is split per ordered item's category
         // (purchase_order_items.category). Until the schema migration adds that
         // column, fall back to each PO's primary category stored in `brand`.
-        $hasItemCategory = Schema::connection('procurement')
-            ->hasColumn('purchase_order_items', 'category');
+        $hasItemCategory = SchemaProbe::hasColumn('procurement', 'purchase_order_items', 'category');
 
         // Spend figures only count POs that represent committed money. A PO that
         // is still Pending, or was Rejected/Cancelled, must not contribute to
@@ -247,6 +249,7 @@ class DashboardController extends Controller
             'poStatusBreakdown' => $poStatusBreakdown,
             'supplierCount' => $supplierCount,
             'requisitionCount' => $requisitionCount,
+            'requisitionCompletedCount' => $requisitionCompletedCount,
             'deliveryCount' => $deliveryCount,
             'pendingDeliveries' => $pendingDeliveries,
             'recentPOs' => $recentPOs,

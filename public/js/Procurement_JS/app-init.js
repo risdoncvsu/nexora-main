@@ -1,8 +1,6 @@
   /* ---------- Init ---------- */
+  // refreshTabCounts() and initDonut() used to be called here. Both belonged
+  // to the approvals queue / SVG donut, neither of which any Procurement view
+  // renders, so they were removed together with that markup.
   if(typeof initRowActionButtons === 'function') initRowActionButtons();
-  if(typeof refreshTabCounts === 'function') refreshTabCounts();
-  // initDonut() targets the Approvals page's SVG donut (#donut-center-val etc.)
-  // — only call it there, otherwise it throws on the missing IDs and aborts
-  // this script before animateDashboard() below ever draws the dashboard donut.
-  if(typeof initDonut === 'function' && document.getElementById('donut-center')) initDonut();
   if(typeof animateDashboard === 'function') animateDashboard();

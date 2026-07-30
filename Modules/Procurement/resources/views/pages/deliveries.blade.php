@@ -15,7 +15,7 @@
         <p>Track incoming shipments from suppliers in real time.</p>
       </div>
 
-      <div class="status-chart" id="delivery-status-chart">
+      <div class="status-chart" id="delivery-status-chart" data-table="deliveries-table">
         <div class="status-chart-item pending" data-status="pending" style="background:linear-gradient(135deg,#fff3e0,#ffe0b2);border-color:#ff9800;" onclick="filterByStatus('deliveries-table', 'pending', this)">
           <div class="status-label">Pending</div>
           <div class="status-count">{{ $statusCounts->get('pending', 0) }}</div>

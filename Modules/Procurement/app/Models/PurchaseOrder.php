@@ -3,11 +3,16 @@
 namespace Modules\Procurement\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Modules\Procurement\Models\Concerns\BelongsToClient;
 
 class PurchaseOrder extends Model
 {
+    use BelongsToClient;
+
     protected $connection = 'procurement';
+
     protected $fillable = [
+        'client_id',
         'po_number', 'supplier_id', 'qty', 'amount', 'status', 'priority',
         'order_date', 'expected_delivery_date', 'created_by', 'remarks',
         'item', 'brand', 'unit_price', 'requisition_id',

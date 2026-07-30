@@ -3,10 +3,14 @@
 namespace Modules\Procurement\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Modules\Procurement\Models\Concerns\BelongsToClient;
 
 class Delivery extends Model
 {
+    use BelongsToClient;
+
     protected $connection = 'procurement';
+
     protected $fillable = [
         'client_id', 'shipment_number', 'purchase_order_id', 'supplier_id', 'status',
         'qty', 'qty_expected', 'items', 'remarks', 'delivery_date',
