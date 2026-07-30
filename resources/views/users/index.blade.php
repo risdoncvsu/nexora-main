@@ -146,13 +146,6 @@
                                 <input type="search" id="tableSearch" aria-label="Search {{ $entityLabelPlural }}" placeholder="Search {{ $entityLabelPlural }}" class="min-w-0 flex-1 border-0 bg-transparent text-base text-slate-900 outline-none sm:w-48 sm:flex-none sm:text-xl">
                             </label>
 
-                            
-
-                            @if ($portal === 'admin')
-                                <button type="button" id="deleteSelectedButton" disabled class="rounded-full bg-red-500 px-6 py-3 text-xl font-semibold text-white opacity-50 transition enabled:opacity-100 enabled:hover:bg-red-600">
-                                    Delete selected
-                                </button>
-                            @endif
                         </div>
                     </div>
 
@@ -187,12 +180,6 @@
 
                         <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <h2 class="text-xl font-semibold">{{ $active === 'pending-approvals' ? ($portal === 'admin' ? 'Client accounts awaiting root review' : 'Employee accounts awaiting your approval') : 'All ' . $entityLabelPlural }}</h2>
-                            @if ($portal === 'admin' && $active !== 'pending-approvals')
-                                <label class="flex items-center gap-2 text-base">
-                                    <input type="checkbox" id="selectAllCheckbox" class="h-5 w-5 accent-[#346DCB]">
-                                    Select All
-                                </label>
-                            @endif
                         </div>
 
                         <div class="overflow-x-auto">
@@ -223,6 +210,7 @@
                                             data-country-code="{{ $portal === 'admin' ? e($user->country_code ?? 'OTHER') : '' }}"
                                             data-timezone="{{ $portal === 'admin' ? e($user->timezone ?? 'UTC') : '' }}"
                                             data-industry="{{ $portal === 'admin' ? e($user->industry) : '' }}"
+                                            data-logo-url="{{ $portal === 'admin' ? e($user->logoUrl() ?? '') : '' }}"
                                             data-status="{{ e($user->status ?? 'Active') }}"
                                             data-username="{{ $portal === 'client' ? e($user->username ?? '') : '' }}"
                                             data-name="{{ $portal === 'client' ? e($user->name ?? '') : '' }}"
@@ -253,12 +241,9 @@
                                                         <span aria-hidden="true">&#9998;</span> Edit
                                                     </button>
                                                 @else
-                                                    <div class="inline-flex items-center justify-center gap-3">
-                                                        <button type="button" class="edit-employee-button inline-flex items-center gap-2 rounded-md bg-[#132B52] px-4 py-2 font-semibold text-white hover:bg-[#2554a3]" aria-label="Edit {{ $user->company_name ?? 'client' }}">
-                                                            <span aria-hidden="true">&#9998;</span> Edit
-                                                        </button>
-                                                        <input type="checkbox" class="row-checkbox h-5 w-5 accent-[#346DCB]" aria-label="Select {{ $user->company_name ?? 'client' }} for deletion">
-                                                    </div>
+                                                    <button type="button" class="edit-employee-button inline-flex items-center gap-2 rounded-md bg-[#132B52] px-4 py-2 font-semibold text-white hover:bg-[#2554a3]" aria-label="Edit {{ $user->company_name ?? 'client' }}">
+                                                        <span aria-hidden="true">&#9998;</span> Edit
+                                                    </button>
                                                 @endif
                                             </td>
                                         </tr>
@@ -282,7 +267,7 @@
                     <button type="button" id="closeEditModal" class="text-2xl font-bold text-slate-500 hover:text-slate-950">&times;</button>
                 </div>
 
-                <form id="editForm" method="POST" action="#" class="grid grid-cols-1 gap-5 md:grid-cols-2">
+                <form id="editForm" method="POST" action="#" enctype="multipart/form-data" class="grid grid-cols-1 gap-5 md:grid-cols-2">
                     @csrf
                     @method('PATCH')
 
@@ -328,6 +313,15 @@
                         <label class="block">
                             <span class="mb-2 block text-sm font-semibold">Industry</span>
                             <input type="text" name="industry" id="edit_industry" class="h-11 w-full rounded border border-slate-300 px-3">
+                        </label>
+
+                        <label class="block md:col-span-2">
+                            <span class="mb-2 block text-sm font-semibold">Company Logo</span>
+                            <div class="flex flex-wrap items-center gap-4">
+                                <img id="edit_logo_preview" src="" alt="Current company logo" class="hidden h-16 w-16 rounded-md border border-slate-200 object-contain p-1">
+                                <input type="file" name="logo" id="edit_logo" accept="image/png,image/jpeg,image/webp" class="block w-full max-w-md text-sm text-slate-600 file:mr-4 file:rounded-md file:border-0 file:bg-[#132B52] file:px-4 file:py-2 file:font-semibold file:text-white hover:file:bg-[#2554a3]">
+                            </div>
+                            <span class="mt-2 block text-xs text-slate-500">PNG, JPG, or WebP, up to 5 MB. Leaving this blank keeps the current logo.</span>
                         </label>
 
                         <label class="block">
@@ -403,6 +397,9 @@
                     </label>
 
                     <div class="flex justify-end gap-3 pt-5 md:col-span-2">
+                        @if ($portal === 'admin')
+                            <button type="button" id="deleteClientFromEdit" class="mr-auto rounded-md border border-red-300 px-5 py-2 font-semibold text-red-700 hover:bg-red-50">Delete client</button>
+                        @endif
                         <button type="button" id="cancelEditModal" class="rounded-md border border-slate-300 px-5 py-2 font-semibold text-slate-700 hover:bg-slate-100">Cancel</button>
                         <button type="submit" class="rounded-md bg-[#346DCB] px-5 py-2 font-semibold text-white hover:bg-[#2554a3]">Save changes</button>
                     </div>
@@ -455,10 +452,8 @@
         const deleteUrlTemplate = @json($portal === 'admin'
             ? route('admin.itsm.clients.destroy', ['company' => '__ID__'])
             : null);
-        const selectAllCheckbox = document.getElementById('selectAllCheckbox');
         const searchInput = document.getElementById('tableSearch');
         const tableBody = document.querySelector('#usersTable tbody');
-        const deleteSelectedButton = document.getElementById('deleteSelectedButton');
         const editModal = document.getElementById('editModal');
         const editForm = document.getElementById('editForm');
         const deleteModal = document.getElementById('deleteModal');
@@ -466,15 +461,7 @@
         const deleteAdminInput = document.getElementById('delete_admin_name_confirmation');
         const confirmDeleteButton = document.getElementById('confirmDeleteButton');
         let expectedDeleteAdminName = '';
-        const getRowCheckboxes = () => document.querySelectorAll('.row-checkbox');
-        const checkedRows = () => Array.from(getRowCheckboxes())
-            .filter((checkbox) => checkbox.checked)
-            .map((checkbox) => checkbox.closest('tr'));
-
-        function updateSelectionButtonState() {
-            const hasOneSelected = checkedRows().length === 1;
-            if (deleteSelectedButton) deleteSelectedButton.disabled = !hasOneSelected;
-        }
+        let activeEditRow = null;
 
         function setField(id, value) {
             const field = document.getElementById(id);
@@ -533,6 +520,7 @@
 
         function openEditModal(row) {
             const id = row.dataset.rowId;
+            activeEditRow = row;
             editForm.action = updateUrlTemplate.replace('__ID__', id);
 
             if (portal === 'admin') {
@@ -545,6 +533,12 @@
                 setField('edit_industry', row.dataset.industry);
                 setField('edit_admin_password', '');
                 setField('edit_admin_password_confirmation', '');
+                const logoPreview = document.getElementById('edit_logo_preview');
+                if (logoPreview) {
+                    logoPreview.src = row.dataset.logoUrl || '';
+                    logoPreview.classList.toggle('hidden', !row.dataset.logoUrl);
+                }
+                setField('edit_logo', '');
             } else {
                 setField('edit_username', row.dataset.username);
                 setField('edit_name', row.dataset.name);
@@ -594,32 +588,13 @@
         function closeEditModal() {
             editModal.classList.add('hidden');
             editModal.classList.remove('flex');
+            activeEditRow = null;
         }
 
         function closeDeleteModal() {
             deleteModal?.classList.add('hidden');
             deleteModal?.classList.remove('flex');
         }
-
-        if (selectAllCheckbox) {
-            selectAllCheckbox.addEventListener('change', function () {
-                Array.from(getRowCheckboxes())
-                    .filter((checkbox) => !checkbox.closest('tr').classList.contains('hidden'))
-                    .forEach((checkbox) => checkbox.checked = this.checked);
-                updateSelectionButtonState();
-            });
-        }
-
-        getRowCheckboxes().forEach((checkbox) => {
-            checkbox.addEventListener('change', () => {
-                if (checkbox.checked) {
-                    getRowCheckboxes().forEach((other) => {
-                        if (other !== checkbox) other.checked = false;
-                    });
-                }
-                updateSelectionButtonState();
-            });
-        });
 
         document.querySelectorAll('.edit-employee-button').forEach((button) => {
             button.addEventListener('click', () => {
@@ -628,9 +603,10 @@
             });
         });
 
-        deleteSelectedButton?.addEventListener('click', () => {
-            const row = checkedRows()[0];
-            if (row) openDeleteModal(row);
+        document.getElementById('deleteClientFromEdit')?.addEventListener('click', () => {
+            if (!activeEditRow) return;
+            openDeleteModal(activeEditRow);
+            closeEditModal();
         });
 
         document.getElementById('closeEditModal')?.addEventListener('click', closeEditModal);
@@ -669,7 +645,6 @@
                     row.classList.toggle('hidden', !rowText.includes(query));
                 });
 
-                updateSelectionButtonState();
             });
         }
 

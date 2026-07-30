@@ -8,6 +8,7 @@ use App\Services\HrEmployeeProfileProvisioner;
 use App\Services\ErpIntegrationService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -77,15 +78,29 @@ class CompanyController extends Controller
             'admin_name' => ['required', 'string', 'max:255'],
             'status' => ['required', 'string', 'max:50'],
             'admin_password' => ['nullable', 'string', 'min:8', 'confirmed'],
+            'logo' => ['nullable', 'image', 'max:5120'],
         ]);
         $validated = $this->applyLocaleDefaults($validated);
 
         $companyValues = collect($validated)->except([
             'admin_password',
             'admin_password_confirmation',
+            'logo',
         ])->all();
 
+        $previousLogoPath = $company->logo_path;
+        if ($request->hasFile('logo')) {
+            $companyValues['logo_path'] = $request->file('logo')->store('company-logos', 'public');
+        }
+
         $company->update($companyValues);
+
+        if (isset($companyValues['logo_path'])
+            && $previousLogoPath
+            && ! filter_var($previousLogoPath, FILTER_VALIDATE_URL)
+            && $previousLogoPath !== $companyValues['logo_path']) {
+            Storage::disk('public')->delete($previousLogoPath);
+        }
 
         if ($company->adminUser) {
             $company->adminUser->update(['name' => $validated['admin_name']]);
