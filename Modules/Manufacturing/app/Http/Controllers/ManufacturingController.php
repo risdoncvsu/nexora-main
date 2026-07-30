@@ -821,7 +821,7 @@ class ManufacturingController extends Controller
             throw new RuntimeException('The linked Order Fulfillment order can no longer be released for packing.');
         }
 
-        if (strtoupper((string) $fulfillment->status) === 'NEW') {
+        if (in_array(strtoupper((string) $fulfillment->status), ['NEW', 'AWAITING_MANUFACTURING'], true)) {
             DB::connection('order_fulfillment')->table('orders')
                 ->where('id', $fulfillmentOrderId)
                 ->where('client_id', $workOrder->client_id)

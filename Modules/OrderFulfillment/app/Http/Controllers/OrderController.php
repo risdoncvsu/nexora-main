@@ -147,6 +147,24 @@ class OrderController extends Controller
             ], 409);
         }
 
+        // Older Ecommerce orders were created as NEW before the
+        // AWAITING_MANUFACTURING state existed. Do not let their manual
+        // Fulfillment action bypass a still-open production work order.
+        $manufacturingSchema = Schema::connection('manufacturing');
+        if ($manufacturingSchema->hasTable('work_orders')) {
+            $workOrder = DB::connection('manufacturing')->table('work_orders')
+                ->where('client_id', $order->client_id)
+                ->where('fulfillment_order_id', $order->id)
+                ->first();
+
+            if ($workOrder && ! in_array(strtolower((string) $workOrder->status), ['completed', 'cancelled'], true)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This ecommerce order is awaiting completion and QC release from Manufacturing.',
+                ], 409);
+            }
+        }
+
         $order->update([
             'status'     => 'PACKING',
             'updated_at' => now(),

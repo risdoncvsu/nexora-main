@@ -57,15 +57,19 @@ class ErpIntegrationService
             $manufacturingItems = $items->reject(fn ($item) => $this->isPackagingBomLine($clientId, $item))->values();
             $manufacturingProductSummary = $manufacturingItems->pluck('name')->filter()->unique()->implode(', ');
             $manufacturingQuantity = (int) $manufacturingItems->sum('quantity');
+            $requiresManufacturing = $manufacturingItems->isNotEmpty();
 
             // Finance is a required customer-facing record. Create it before
             // operational integrations so a temporary Fulfillment,
             // Procurement, or Manufacturing schema issue cannot suppress an
             // invoice for a successfully accepted storefront order.
             $this->createFinanceInvoice($clientId, (string) $order->id, $amount, (float) $order->shipping_fee, (string) $order->payment_status);
-            $this->createFulfillmentOrder($clientId, (string) $order->id, $customer, $productSummary, $totalQuantity, $amount, $order, $items);
-            if ($manufacturingItems->isNotEmpty()) {
-                $this->createManufacturingWorkOrder($clientId, (string) $order->id, $manufacturingProductSummary, $manufacturingQuantity);
+            // Fulfillment receives an operational record now, but a sellable
+            // BOM must be assembled and pass Manufacturing QC before it can
+            // enter the packing queue.
+            $this->createFulfillmentOrder($clientId, (string) $order->id, $customer, $productSummary, $totalQuantity, $amount, $order, $items, $requiresManufacturing);
+            if ($requiresManufacturing) {
+                $this->createManufacturingWorkOrder($clientId, (string) $order->id, $manufacturingProductSummary, $manufacturingQuantity, $manufacturingItems);
             }
             $this->createProcurementRequisition($clientId, (string) $order->id, $productSummary, $totalQuantity, $amount);
             $this->writeBiSnapshot($clientId);
@@ -418,7 +422,7 @@ class ErpIntegrationService
         });
     }
 
-    private function createFulfillmentOrder(int $clientId, string $orderId, string $customer, string $product, int $quantity, float $amount, object $order, iterable $items): void
+    private function createFulfillmentOrder(int $clientId, string $orderId, string $customer, string $product, int $quantity, float $amount, object $order, iterable $items, bool $requiresManufacturing): void
     {
         $db = DB::connection('order_fulfillment');
         $this->requireTable('order_fulfillment', 'orders');
@@ -445,7 +449,7 @@ class ErpIntegrationService
                 'product_name' => $product ?: 'Storefront order',
                 'qty' => $quantity,
                 'product_amount' => $amount,
-                'status' => 'NEW',
+                'status' => $requiresManufacturing ? 'AWAITING_MANUFACTURING' : 'NEW',
                 'address' => $address,
                 'due_date' => now()->addDays(3)->toDateString(),
                 'created_at' => now(),
@@ -501,12 +505,67 @@ class ErpIntegrationService
         }
     }
 
-    private function createManufacturingWorkOrder(int $clientId, string $orderId, string $product, int $quantity): void
+    private function createManufacturingWorkOrder(int $clientId, string $orderId, string $product, int $quantity, iterable $items): void
     {
         $db = DB::connection('manufacturing');
         $id = 'WO-'.strtoupper(substr(sha1($orderId), 0, 12));
-        if ($db->table('work_orders')->where('id', $id)->exists()) return;
-        $this->insertAvailable('manufacturing', 'work_orders', ['id' => $id, 'client_id' => $clientId, 'fulfillment_order_id' => $orderId, 'name' => $product ?: 'Storefront assembly', 'specs' => "Ecommerce order {$orderId}; quantity {$quantity}", 'status' => 'Pending', 'due' => now()->addDays(3)->toDateString(), 'due_date' => now()->addDays(3)->toDateString(), 'source' => 'Ecommerce '.$orderId, 'assigned' => null, 'work_order_type' => 'production', 'created_at' => now(), 'updated_at' => now()]);
+        $this->requireTable('manufacturing', 'work_orders');
+        $this->requireTable('manufacturing', 'work_order_parts');
+
+        $schema = Schema::connection('manufacturing');
+        $partRows = [];
+
+        foreach ($items as $line) {
+            $configuration = data_get($line, 'configuration');
+            if (! is_array($configuration)) {
+                $configuration = json_decode((string) $configuration, true) ?: [];
+            }
+
+            $bomId = (int) ($configuration['bom_id'] ?? 0);
+            if ($bomId < 1) {
+                continue;
+            }
+
+            $bom = $db->table('product_boms')->where('id', $bomId)->where('client_id', $clientId)->where('status', 'active');
+            if ($schema->hasColumn('product_boms', 'bom_type')) {
+                $bom->where(function ($query): void {
+                    $query->whereNull('bom_type')->orWhere('bom_type', 'prebuilt');
+                });
+            }
+            if (! $bom->exists()) {
+                continue;
+            }
+
+            $units = max(1, (int) data_get($line, 'quantity', 1));
+            foreach ($db->table('product_bom_items')->where('client_id', $clientId)->where('bom_id', $bomId)->get() as $component) {
+                for ($part = 0; $part < max(1, (int) $component->quantity_required) * $units; $part++) {
+                    $partRows[] = [
+                        'client_id' => $clientId,
+                        'wo_id' => $id,
+                        'product_id' => (string) $component->inventory_item_id,
+                        'name' => (string) $component->item_name,
+                        'category' => 'BOM component',
+                        'status' => 'Ready',
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ];
+                }
+            }
+        }
+
+        if ($partRows === []) {
+            throw new RuntimeException('The ordered product has no active Manufacturing BOM components.');
+        }
+
+        if (! $db->table('work_orders')->where('id', $id)->exists()) {
+            $this->insertAvailable('manufacturing', 'work_orders', ['id' => $id, 'client_id' => $clientId, 'fulfillment_order_id' => $orderId, 'name' => $product ?: 'Storefront assembly', 'specs' => "Ecommerce order {$orderId}; quantity {$quantity}; components reserved from its BOM", 'status' => 'Pending', 'due' => now()->addDays(3)->toDateString(), 'due_date' => now()->addDays(3)->toDateString(), 'source' => 'Ecommerce '.$orderId, 'assigned' => null, 'work_order_type' => 'production', 'created_at' => now(), 'updated_at' => now()]);
+        }
+
+        if (! $db->table('work_order_parts')->where('wo_id', $id)->exists()) {
+            foreach ($partRows as $partRow) {
+                $this->insertAvailable('manufacturing', 'work_order_parts', $partRow);
+            }
+        }
     }
 
     private function isPackagingBomLine(int $clientId, mixed $line): bool

@@ -83,7 +83,12 @@ class StorefrontListingController extends Controller
     {
         $listing = StorefrontListing::query()->whereKey($listingId)->firstOrFail();
 
-        abort_unless($listing->status === 'active', 404);
+        // Storefront layouts can deliberately feature a draft listing while
+        // a client prepares its public catalogue. The homepage already
+        // renders that client-scoped record, so the detail route must not
+        // turn its own card into a dead link. Archived listings remain
+        // unavailable everywhere on the storefront.
+        abort_if(strtolower((string) $listing->status) === 'archived', 404);
 
         return $listing;
     }
