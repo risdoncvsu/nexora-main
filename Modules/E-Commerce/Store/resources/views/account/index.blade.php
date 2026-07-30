@@ -964,7 +964,15 @@
                                         case 'PROCESSING':
                                             stepIndex = 2; barWidth = '25%'; break;
                                         case 'BUILDING':
+                                        case 'AWAITING_MANUFACTURING':
+                                        case 'MANUFACTURING':
+                                        case 'MANUFACTURING_FINISHED':
                                         case 'READY_TO_SHIP':
+                                            stepIndex = 3; barWidth = '50%'; break;
+                                        case 'QC CHECK':
+                                        case 'QC_CHECK':
+                                            stepIndex = 4; barWidth = '75%'; break;
+                                        case 'REWORK':
                                             stepIndex = 3; barWidth = '50%'; break;
                                         case 'OUT_FOR_DELIVERY':
                                         case 'SHIPPED':
@@ -1207,7 +1215,7 @@
                                     $filterCat = 'to-ship';
                                     if (($order->payment_status ?? '') === 'unpaid' && strtolower($order->payment_method ?? '') !== 'cod') {
                                         $filterCat = 'to-pay';
-                                    } elseif (in_array($status, ['NEW', 'PENDING', 'PACKING', 'PROCESSING', 'BUILDING', 'READY_TO_SHIP'])) {
+                                    } elseif (in_array($status, ['NEW', 'PENDING', 'AWAITING_MANUFACTURING', 'MANUFACTURING', 'MANUFACTURING_FINISHED', 'BUILDING', 'QC CHECK', 'QC_CHECK', 'REWORK', 'PACKING', 'PROCESSING', 'READY_TO_SHIP'])) {
                                         $filterCat = 'to-ship';
                                     } elseif (in_array($status, ['SHIPPED', 'OUT_FOR_DELIVERY'])) {
                                         $filterCat = 'to-receive';
@@ -1229,8 +1237,16 @@
                                         case 'PROCESSING':
                                             $stepIndex = 2; $badgeText = 'Processing'; $barWidth = '25%'; break;
                                         case 'BUILDING':
+                                        case 'AWAITING_MANUFACTURING':
+                                        case 'MANUFACTURING':
+                                        case 'MANUFACTURING_FINISHED':
                                         case 'READY_TO_SHIP':
                                             $stepIndex = 3; $badgeText = 'Building Phase'; $barWidth = '50%'; break;
+                                        case 'QC CHECK':
+                                        case 'QC_CHECK':
+                                            $stepIndex = 4; $badgeText = 'Quality Check'; $barWidth = '75%'; break;
+                                        case 'REWORK':
+                                            $stepIndex = 3; $badgeText = 'Rework in Progress'; $barWidth = '50%'; break;
                                         case 'OUT_FOR_DELIVERY':
                                             $stepIndex = 4; $badgeText = 'Out for Delivery'; $barWidth = '75%'; break;
                                         case 'SHIPPED':
@@ -2958,7 +2974,15 @@
             case 'PROCESSING':
                 stepIndex = 2; barWidth = '25%'; break;
             case 'BUILDING':
+            case 'AWAITING_MANUFACTURING':
+            case 'MANUFACTURING':
+            case 'MANUFACTURING_FINISHED':
             case 'READY_TO_SHIP':
+                stepIndex = 3; barWidth = '50%'; break;
+            case 'QC CHECK':
+            case 'QC_CHECK':
+                stepIndex = 4; barWidth = '75%'; break;
+            case 'REWORK':
                 stepIndex = 3; barWidth = '50%'; break;
             case 'OUT_FOR_DELIVERY':
             case 'SHIPPED':
