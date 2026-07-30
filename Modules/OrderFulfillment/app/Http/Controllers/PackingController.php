@@ -53,14 +53,7 @@ class PackingController extends Controller
 
     private function findPackingMaterial(string $materialName)
     {
-        $variants = match (strtolower(trim($materialName))) {
-            'silica gel packs' => ['silica gel packs', 'silica gel', 'silica gels', 'gel', 'gels'],
-            'foam inserts' => ['foam inserts', 'foam insert'],
-            'bubble wrap' => ['bubble wrap', 'bubble wraps'],
-            'packing tape' => ['packing tape', 'packing tapes'],
-            'fragile tape' => ['fragile tape', 'fragile tapes'],
-            default => [strtolower(trim($materialName))],
-        };
+        $variants = $this->materialVariants($materialName);
 
         return $this->packingMaterialQuery()
             ->where(function ($query) use ($materialName, $variants) {
@@ -77,6 +70,18 @@ class PackingController extends Controller
             // so an older zero-stock alias cannot block a valid shipment.
             ->orderByDesc('stock_qty')
             ->orderByDesc('id');
+    }
+
+    private function materialVariants(string $materialName): array
+    {
+        return match (strtolower(trim($materialName))) {
+            'silica gel packs' => ['silica gel packs', 'silica gel', 'silica gels', 'gel', 'gels'],
+            'foam inserts' => ['foam inserts', 'foam insert'],
+            'bubble wrap' => ['bubble wrap', 'bubble wraps'],
+            'packing tape' => ['packing tape', 'packing tapes'],
+            'fragile tape' => ['fragile tape', 'fragile tapes'],
+            default => [strtolower(trim($materialName))],
+        };
     }
 
     private function syncCatalogPackingMaterials(): void
@@ -302,7 +307,7 @@ class PackingController extends Controller
 
             // 4. Decrement stock inside its own transaction, with row locks
             //    to guard against a race between the pre-check above and now.
-            DB::connection(self::INVENTORY_CONN)->transaction(function () use ($requiredMaterials) {
+            $inventoryAllocations = DB::connection(self::INVENTORY_CONN)->transaction(function () use ($requiredMaterials) {
                 foreach ($requiredMaterials as $materialName => $quantity) {
                     $row = $this->findPackingMaterial($materialName)
                         ->lockForUpdate()
@@ -316,9 +321,13 @@ class PackingController extends Controller
                 }
 
                 // All materials confirmed in stock — safe to decrement.
+                $allocations = [];
                 foreach ($requiredMaterials as $materialName => $quantity) {
                     $this->findPackingMaterial($materialName)->decrement('stock_qty', $quantity);
+                    $allocations = array_merge($allocations, $this->consumeInventoryMaterial($materialName, $quantity));
                 }
+
+                return $allocations;
             });
 
             // 5. Stock is now decremented and committed on the inventory DB.
@@ -371,7 +380,7 @@ class PackingController extends Controller
                 // Compensating action: give the materials back since the
                 // inventory-side decrement already committed on its own
                 // connection and won't be rolled back by this failure.
-                $this->restoreMaterialStock($requiredMaterials);
+                $this->restoreMaterialStock($requiredMaterials, $inventoryAllocations);
                 throw $e;
             }
         } catch (InsufficientStockException $e) {
@@ -421,12 +430,18 @@ class PackingController extends Controller
      * back the stock that was decremented on the inventory connection when
      * the shipment/order write on the default connection fails afterward.
      */
-    private function restoreMaterialStock(array $requiredMaterials): void
+    private function restoreMaterialStock(array $requiredMaterials, array $inventoryAllocations = []): void
     {
         try {
             DB::connection(self::INVENTORY_CONN)->transaction(function () use ($requiredMaterials) {
                 foreach ($requiredMaterials as $materialName => $quantity) {
                     $this->findPackingMaterial($materialName)->increment('stock_qty', $quantity);
+                }
+
+                foreach ($inventoryAllocations as $allocation) {
+                    DB::connection(self::INVENTORY_CONN)->table('stock_levels')
+                        ->where('id', $allocation['stock_level_id'])
+                        ->increment('stock', $allocation['quantity']);
                 }
             });
         } catch (\Throwable $e) {
@@ -434,6 +449,69 @@ class PackingController extends Controller
             // log loudly rather than losing the discrepancy silently.
             report($e);
         }
+    }
+
+    /** Deduct a packing material from the physical Inventory stock levels. */
+    private function consumeInventoryMaterial(string $materialName, int $quantity): array
+    {
+        $inventory = DB::connection(self::INVENTORY_CONN);
+        $schema = $inventory->getSchemaBuilder();
+        $clientId = (int) session('employee_client_id');
+
+        if (! $schema->hasTable('items') || ! $schema->hasTable('stock_levels')) {
+            throw new InsufficientStockException($materialName);
+        }
+
+        $variants = $this->materialVariants($materialName);
+        $itemIds = $inventory->table('items')
+            ->where('client_id', $clientId)
+            ->where(function ($query) use ($variants): void {
+                foreach ($variants as $index => $variant) {
+                    $method = $index === 0 ? 'whereRaw' : 'orWhereRaw';
+                    $query->{$method}('LOWER(name) = ?', [$variant]);
+                }
+            })
+            ->pluck('id');
+
+        if ($itemIds->isEmpty()) {
+            throw new InsufficientStockException($materialName);
+        }
+
+        $remaining = $quantity;
+        $allocations = [];
+        $levels = $inventory->table('stock_levels')
+            ->where('client_id', $clientId)
+            ->whereIn('item_id', $itemIds)
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get();
+
+        foreach ($levels as $level) {
+            $available = max(0, (int) $level->stock - (int) ($level->reserved_quantity ?? 0));
+            $allocated = min($available, $remaining);
+            if ($allocated < 1) {
+                continue;
+            }
+
+            $allocations[] = ['stock_level_id' => (int) $level->id, 'quantity' => $allocated];
+            $remaining -= $allocated;
+
+            if ($remaining === 0) {
+                break;
+            }
+        }
+
+        if ($remaining > 0) {
+            throw new InsufficientStockException($materialName);
+        }
+
+        foreach ($allocations as $allocation) {
+            $inventory->table('stock_levels')
+                ->where('id', $allocation['stock_level_id'])
+                ->decrement('stock', $allocation['quantity']);
+        }
+
+        return $allocations;
     }
 
     /**

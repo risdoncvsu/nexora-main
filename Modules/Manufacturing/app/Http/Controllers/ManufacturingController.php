@@ -820,10 +820,16 @@ class ManufacturingController extends Controller
             default => 'processing',
         };
 
-        DB::connection('ecommerce')->table('orders')
-            ->where('id', $orderId)
-            ->where('client_id', $workOrder->client_id)
-            ->update(['status' => $status, 'updated_at' => now()]);
+        try {
+            DB::connection('ecommerce')->table('orders')
+                ->where('id', $orderId)
+                ->where('client_id', $workOrder->client_id)
+                ->update(['status' => $status, 'updated_at' => now()]);
+        } catch (\Throwable $exception) {
+            // QC and Manufacturing release are authoritative. A temporary
+            // storefront mirror failure must not roll their transaction back.
+            report($exception);
+        }
     }
 
     /**

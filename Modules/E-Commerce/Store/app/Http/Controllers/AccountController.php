@@ -344,16 +344,36 @@ class AccountController extends Controller
         $order->status = 'delivered';
         $order->save();
 
-        // Also update the fulfillment DB if the order exists there
+        // Mark both Fulfillment records delivered. The Orders dashboard reads
+        // orders while the Shipping dashboard reads shipments, so updating
+        // only one leaves operations with contradictory delivery states.
         try {
-            DB::connection('order_fulfillment')
-                ->table('orders')
-                ->where('id', $order->id)
-                ->update([
-                    'status' => 'DELIVERED',
-                    'delivered_at' => now(),
-                    'updated_at' => now(),
-                ]);
+            $fulfillment = DB::connection('order_fulfillment');
+            $schema = \Illuminate\Support\Facades\Schema::connection('order_fulfillment');
+
+            $orderUpdate = ['status' => 'DELIVERED', 'updated_at' => now()];
+            if ($schema->hasColumn('orders', 'delivered_at')) {
+                $orderUpdate['delivered_at'] = now();
+            }
+
+            $fulfillmentOrder = $fulfillment->table('orders')->where('id', $order->id);
+            if ($schema->hasColumn('orders', 'client_id')) {
+                $fulfillmentOrder->where('client_id', $order->client_id);
+            }
+            $fulfillmentOrder->update($orderUpdate);
+
+            if ($schema->hasTable('shipments')) {
+                $shipmentUpdate = ['status' => 'DELIVERED', 'updated_at' => now()];
+                if ($schema->hasColumn('shipments', 'delivered_at')) {
+                    $shipmentUpdate['delivered_at'] = now();
+                }
+
+                $shipment = $fulfillment->table('shipments')->where('order_id', $order->id);
+                if ($schema->hasColumn('shipments', 'client_id')) {
+                    $shipment->where('client_id', $order->client_id);
+                }
+                $shipment->update($shipmentUpdate);
+            }
         } catch (\Throwable $e) {
             // Fulfillment DB update is best-effort — don't fail the request
             report($e);
