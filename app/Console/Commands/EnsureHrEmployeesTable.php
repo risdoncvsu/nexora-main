@@ -132,6 +132,7 @@ class EnsureHrEmployeesTable extends Command
         $this->backfillClientIds('attendances');
 
         $this->ensureLeaveRequestsTable($schema);
+        $this->ensureDeliveryDriversTable($schema);
 
         $this->info('Verified the HR employees and leave-request tables.');
 
@@ -236,5 +237,31 @@ class EnsureHrEmployeesTable extends Command
                         ->update(['client_id' => $clientId]);
                 }
             });
+    }
+
+    private function ensureDeliveryDriversTable($schema): void
+    {
+        if (! $schema->hasTable('delivery_drivers')) {
+            $schema->create('delivery_drivers', function (Blueprint $table): void {
+                $table->id();
+                $table->unsignedBigInteger('client_id')->index();
+                $table->unsignedBigInteger('employee_id')->index();
+                $table->string('courier_provider');
+                $table->string('vehicle_type')->nullable();
+                $table->string('vehicle_plate_number')->nullable();
+                $table->string('contact_number')->nullable();
+                $table->string('availability')->default('AVAILABLE');
+                $table->timestamps();
+                $table->unique(['client_id', 'employee_id']);
+            });
+
+            return;
+        }
+
+        if (! $schema->hasColumn('delivery_drivers', 'client_id')) {
+            $schema->table('delivery_drivers', function (Blueprint $table): void {
+                $table->unsignedBigInteger('client_id')->nullable()->index();
+            });
+        }
     }
 }

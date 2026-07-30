@@ -1,8 +1,6 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -18,9 +16,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            $table->renameColumn('company_id', 'client_id');
-        });
+        // The schema installer repairs legacy company_id data after every
+        // migration. A direct rename fails on fresh and partial schemas.
     }
 
     /**
@@ -28,8 +25,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            $table->renameColumn('client_id', 'company_id');
-        });
+        // Client ownership must not be removed from deployed storefronts.
     }
 };

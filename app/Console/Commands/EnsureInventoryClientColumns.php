@@ -19,7 +19,7 @@ class EnsureInventoryClientColumns extends Command
         foreach ([
             'categories', 'warehouses', 'items', 'stock_levels', 'stock_movements',
             'stock_adjustments', 'stock_transfers', 'stock_receivings',
-            'packing_materials', 'order_reservations',
+            'packing_materials', 'order_reservations', 'inventory_requisitions', 'defects',
         ] as $tableName) {
             if (! $schema->hasTable($tableName) || $schema->hasColumn($tableName, 'client_id')) {
                 continue;

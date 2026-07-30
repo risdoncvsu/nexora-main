@@ -16,7 +16,7 @@ class EnsureOrderFulfillmentClientColumns extends Command
     {
         $schema = Schema::connection('order_fulfillment');
 
-        foreach (['orders', 'shipments', 'packing_errors', 'requisitions'] as $tableName) {
+        foreach (['orders', 'shipments', 'packing_errors', 'requisitions', 'order_items', 'returns'] as $tableName) {
             if (! $schema->hasTable($tableName) || $schema->hasColumn($tableName, 'client_id')) {
                 continue;
             }

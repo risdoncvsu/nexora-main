@@ -28,6 +28,7 @@ class InstallManufacturingSchema extends Command
         $tables = [
             'work_orders', 'work_order_parts', 'workers', 'qc_sessions', 'qc_results',
             'rework_orders', 'rework_failed_checks', 'rework_required_parts', 'requisitions',
+            'product_boms', 'product_bom_items',
         ];
 
         foreach ($tables as $table) {

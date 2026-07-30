@@ -12,10 +12,14 @@ class InstallProcurementSchema extends Command
 
     public function handle(): int
     {
-        return $this->call('migrate', [
+        $exitCode = $this->call('migrate', [
             '--database' => 'procurement',
             '--path' => 'Modules/Procurement/database/manual-migrations',
             '--force' => (bool) $this->option('force'),
         ]);
+
+        return $exitCode === self::SUCCESS
+            ? $this->call('procurement:ensure-client-columns')
+            : $exitCode;
     }
 }

@@ -18,7 +18,7 @@ class EnsureProcurementClientColumns extends Command
 
         foreach ([
             'suppliers', 'supplier_products', 'requisitions', 'requisition_items',
-            'purchase_orders', 'purchase_order_items', 'deliveries',
+            'purchase_orders', 'purchase_order_items', 'deliveries', 'low_stock_alerts',
         ] as $tableName) {
             if (! $schema->hasTable($tableName) || $schema->hasColumn($tableName, 'client_id')) {
                 continue;

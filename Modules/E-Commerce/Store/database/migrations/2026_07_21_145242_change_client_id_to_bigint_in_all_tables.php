@@ -1,8 +1,6 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
@@ -18,14 +16,14 @@ return new class extends Migration
         
         foreach ($tables as $table) {
             $tableName = $table->table_name;
-            Schema::connection('ecommerce')->table($tableName, function (Blueprint $t) use ($tableName) {
-                if (Schema::connection('ecommerce')->hasColumn($tableName, 'client_id')) {
-                    $t->dropColumn('client_id');
-                }
-            });
-            Schema::connection('ecommerce')->table($tableName, function (Blueprint $t) {
-                $t->unsignedBigInteger('client_id')->nullable()->index();
-            });
+            DB::connection('ecommerce')->statement(<<<SQL
+                ALTER TABLE "{$tableName}"
+                ALTER COLUMN client_id TYPE BIGINT
+                USING CASE
+                    WHEN client_id::text ~ '^[0-9]+$' THEN client_id::text::bigint
+                    ELSE NULL
+                END
+            SQL);
         }
     }
 
@@ -34,11 +32,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        $tables = DB::connection('ecommerce')->select("SELECT table_name FROM information_schema.columns WHERE column_name = 'client_id' AND table_schema = 'public'");
-        
-        foreach ($tables as $table) {
-            $tableName = $table->table_name;
-            DB::connection('ecommerce')->statement("ALTER TABLE \"$tableName\" ALTER COLUMN client_id TYPE uuid USING NULL::uuid");
-        }
+        // Do not destroy numeric tenant ownership during a rollback.
     }
 };

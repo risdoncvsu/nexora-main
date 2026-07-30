@@ -12,10 +12,14 @@ class InstallInventorySchema extends Command
 
     public function handle(): int
     {
-        return $this->call('migrate', [
+        $exitCode = $this->call('migrate', [
             '--database' => 'inventory',
             '--path' => 'Modules/Inventory/database/migrations',
             '--force' => true,
         ]);
+
+        return $exitCode === self::SUCCESS
+            ? $this->call('inventory:ensure-client-columns')
+            : $exitCode;
     }
 }

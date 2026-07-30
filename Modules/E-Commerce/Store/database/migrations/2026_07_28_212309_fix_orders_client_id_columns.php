@@ -26,11 +26,14 @@ return new class extends Migration
 
         // 2. Fix order_items.client_id — change from uuid to unsignedBigInteger
         if ($schema->hasColumn('order_items', 'client_id')) {
-            // Drop the existing uuid column and re-add as bigInteger
-            DB::connection('ecommerce')->statement('ALTER TABLE order_items DROP COLUMN client_id');
-            $schema->table('order_items', function (Blueprint $table): void {
-                $table->unsignedBigInteger('client_id')->nullable()->index()->after('id');
-            });
+            DB::connection('ecommerce')->statement(<<<SQL
+                ALTER TABLE order_items
+                ALTER COLUMN client_id TYPE BIGINT
+                USING CASE
+                    WHEN client_id::text ~ '^[0-9]+$' THEN client_id::text::bigint
+                    ELSE NULL
+                END
+            SQL);
         }
     }
 
@@ -44,12 +47,6 @@ return new class extends Migration
             });
         }
 
-        // Restore uuid column on order_items (approximate)
-        if ($schema->hasColumn('order_items', 'client_id')) {
-            DB::connection('ecommerce')->statement('ALTER TABLE order_items DROP COLUMN client_id');
-            $schema->table('order_items', function (Blueprint $table): void {
-                $table->uuid('client_id')->nullable()->index()->after('id');
-            });
-        }
+        // Client ownership is retained on rollback.
     }
 };
