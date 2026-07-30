@@ -95,6 +95,41 @@ class ItemCatalogController extends Controller
 
         $packingMaterials = OrderFulfillment::orderByDesc('created_at')->get();
 
+        $recentDeletions = new \Illuminate\Pagination\LengthAwarePaginator([], 0, 10, 1);
+        if (\Illuminate\Support\Facades\Schema::hasTable('erp_audit_logs')) {
+            $logs = DB::table('erp_audit_logs')
+                ->where('client_id', (int) session('employee_client_id'))
+                ->where('event', 'inventory.item_deleted')
+                ->where('module', 'inventory')
+                ->orderByDesc('created_at')
+                ->paginate(10, ['*'], 'del_page');
+
+            $actorIds = collect($logs->items())->pluck('actor_id')->filter()->unique()->values()->toArray();
+            $employees = collect();
+            if (!empty($actorIds) && \Illuminate\Support\Facades\Schema::connection('hr')->hasTable('employees')) {
+                $employees = DB::connection('hr')->table('employees')
+                    ->whereIn('id', $actorIds)
+                    ->get()
+                    ->keyBy('id')
+                    ->map(fn ($e) => trim(($e->first_name ?? '') . ' ' . ($e->last_name ?? '')));
+            }
+
+            $mapped = collect($logs->items())->map(fn ($log) => [
+                'sku' => json_decode($log->details, true)['sku'] ?? '—',
+                'name' => json_decode($log->details, true)['name'] ?? 'Unknown',
+                'deleted_by' => $employees[$log->actor_id] ?? 'Unknown',
+                'deleted_at' => $log->created_at,
+            ]);
+
+            $recentDeletions = new \Illuminate\Pagination\LengthAwarePaginator(
+                $mapped,
+                $logs->total(),
+                $logs->perPage(),
+                $logs->currentPage(),
+                ['path' => request()->url(), 'pageName' => 'del_page', 'query' => request()->query()]
+            );
+        }
+
         return view('inventory::item-catalog', [
             'items' => $paginated,
             'warehouses' => $warehouses,
@@ -104,6 +139,7 @@ class ItemCatalogController extends Controller
             'lowStockCount' => $allLevels->filter(fn ($l) => $l->status === 'low_stock')->count(),
             'outOfStockCount' => $allLevels->filter(fn ($l) => $l->status === 'out_of_stock')->count(),
             'activePage' => 'item-catalog',
+            'recentDeletions' => $recentDeletions,
         ]);
     }
 
