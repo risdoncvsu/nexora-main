@@ -115,6 +115,18 @@
     margin-left: -14px;
   }
 
+  .brand-divider {
+    width: 1px;
+    height: 40px;
+    background: var(--header-border);
+    opacity: 0.6;
+    margin: 0 2px;
+  }
+
+  .client-logo {
+    margin-left: 0;
+  }
+
   .brand-text .title { font-size: 20px; font-weight: 700; letter-spacing: 1px; }
   .brand-text .subtitle { font-size: 11px; color: #3B82F6; letter-spacing: 1px; }
 
@@ -896,7 +908,8 @@
     <div class="navbar">
       <div class="brand brand-logo">
         <a href="{{ route('order-fulfillment.dashboard') }}" aria-label="Order Fulfillment dashboard"><img class="logo" src="{{ asset('images/Banner Transparent.png') }}" alt="Nexora Logo"></a>
-        <x-client-logo :size="64" />
+        <div class="brand-divider"></div>
+      <img class="logo client-logo" src="{{ asset('images/procurement-techforge.png') }}" alt="TechForge Logo">
       </div>
       <div class="nav-actions">
         <div class="nav-links">
