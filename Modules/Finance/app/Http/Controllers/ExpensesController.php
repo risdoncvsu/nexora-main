@@ -44,8 +44,7 @@ class ExpensesController extends Controller
                 ->selectRaw("COALESCE(SUM({$amountExpression}), 0) AS total")
                 ->value('total');
             $procurementTotal = (float) (clone $approved)->selectRaw("COALESCE(SUM({$amountExpression}), 0) AS total")->value('total');
-            $liabilityTotal = (float) Account::query()->where('account_type', 'Liability')->sum('balance');
-
+    
             $from = match ($range) {
                 'week' => now()->subDays(6),
                 'month' => now()->subMonth(),
@@ -72,20 +71,19 @@ class ExpensesController extends Controller
                 ->selectRaw("LOWER(COALESCE(status, 'pending')) AS status, COUNT(*) AS total")
                 ->groupByRaw("LOWER(COALESCE(status, 'pending'))")
                 ->pluck('total', 'status');
-            $overallExpenses = $procurementTotal + $liabilityTotal;
+            $overallExpenses = $procurementTotal;
 
             return view('finance::expensesdash', [
                 'expenseData' => [
-                    'expenseThisMonth' => $thisMonthExpenses + $this->monthlyLiabilities(now()),
-                    'previousMonthExpense' => $previousMonthExpense + $this->monthlyLiabilities($previousMonth),
+                    'expenseThisMonth' => $thisMonthExpenses,
+                    'previousMonthExpense' => $previousMonthExpense,
                     'expenseAllTime' => $overallExpenses,
                     'budgetCap' => $procurementTotal,
                     'months' => $monthly->pluck('month')->values()->all(),
                     'selectedRange' => match ($range) { 'week' => 'LAST WEEK', 'month' => 'LAST MONTH', 'year' => 'LAST YEAR', default => 'LAST 6 MONTHS' },
                     'categories' => [
                         ['key' => 'procurement', 'label' => 'Procurement', 'color' => '#4ca6ff', 'capacity' => $overallExpenses, 'value' => $procurementTotal, 'trend' => $monthly->pluck('total')->map(fn($v) => (float)$v)->values()->all()],
-                        ['key' => 'liability', 'label' => 'Liabilities', 'color' => '#ef4444', 'capacity' => $overallExpenses, 'value' => $liabilityTotal, 'trend' => array_fill(0, max(1, count($monthly)), $liabilityTotal)],
-                    ],
+                                      ],
                 ],
                 'materialRequests' => $materialRequests,
                 'pendingCount' => (int) ($statusCounts['pending'] ?? 0),
@@ -151,14 +149,6 @@ class ExpensesController extends Controller
         return $query;
     }
 
-    private function monthlyLiabilities($date): float
-    {
-        return (float) Account::query()
-            ->where('account_type', 'Liability')
-            ->whereMonth('created_at', $date->month)
-            ->whereYear('created_at', $date->year)
-            ->sum('balance');
-    }
 
     private function emptyViewData(string $range): array
     {
