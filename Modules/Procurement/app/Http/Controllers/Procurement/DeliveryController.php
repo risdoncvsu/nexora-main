@@ -76,19 +76,25 @@ class DeliveryController extends Controller
         // Repair expected-delivery rows created before PO approval was mirrored
         // here. This keeps existing approved POs from appearing as Pending in
         // the Deliveries tab after deployment.
-        $approvedDeliveryIds = $this->table('deliveries')
-            ->join('purchase_orders', 'deliveries.purchase_order_id', '=', 'purchase_orders.id')
-            ->where('deliveries.status', 'pending')
-            ->where('purchase_orders.status', 'approved')
-            ->pluck('deliveries.id');
+        try {
+            $approvedDeliveryIds = $this->table('deliveries')
+                ->join('purchase_orders', 'deliveries.purchase_order_id', '=', 'purchase_orders.id')
+                ->where('deliveries.status', 'pending')
+                ->where('purchase_orders.status', 'approved')
+                ->pluck('deliveries.id');
 
-        if ($approvedDeliveryIds->isNotEmpty()) {
-            DB::connection('procurement')->table('deliveries')
-                ->whereIn('id', $approvedDeliveryIds)
-                ->update([
-                    'status' => 'approved',
-                    'updated_at' => now(),
-                ]);
+            if ($approvedDeliveryIds->isNotEmpty()) {
+                DB::connection('procurement')->table('deliveries')
+                    ->whereIn('id', $approvedDeliveryIds)
+                    ->update([
+                        'status' => 'approved',
+                        'updated_at' => now(),
+                    ]);
+            }
+        } catch (\Throwable $exception) {
+            // Historical data repair must never prevent the Deliveries page
+            // from rendering on a partially migrated client database.
+            report($exception);
         }
 
         // Raw tenant-scoped query with joins so the table gets flat
