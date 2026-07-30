@@ -300,12 +300,12 @@
 
         <!-- Top Navigation -->
         <header class="header">
-            <div class="header-brand">
-                <a href="{{ route('finance.dashboard') }}" class="nexora-logo" id="headerLogoBtn">
-                    <img src="{{ asset('images/Banner Transparent.png') }}" alt="Nexora Logo">
-                </a>
-                <x-client-logo :size="64" />
-            </div>
+  <div class="header-brand flex items-center justify-between w-full px-6">
+    <a href="{{ route('finance.dashboard') }}" class="nexora-logo flex items-center w-full">
+      <img src="{{ asset('images/Banner Transparent.png') }}" alt="Nexora Logo" class="h-20">
+      <img src="{{ asset('images/procurement-techforge.png') }}" alt="TechForge Logo" class="h-20 ml-auto">
+    </a>
+  </div>
 
         <button type="button" class="profile-trigger" id="profileTrigger" aria-label="Open profile menu" aria-expanded="false">
             <x-heroicon-s-user-circle />
