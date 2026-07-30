@@ -37,7 +37,11 @@
 
 @php
     // Employee records live in HR, while company branding lives in ITSM.
-    $idCardLogoUrl = \App\Models\Company::find((int) $employee->client_id)?->logoUrl();
+    $idCardCompany = \App\Models\Company::find((int) $employee->client_id);
+    $idCardLogoUrl = $idCardCompany?->logoUrl();
+    $idCardCompanyName = trim((string) ($idCardCompany?->company_name ?: 'Company'));
+    $idCardCompanyWords = preg_split('/\s+/', $idCardCompanyName, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+    $idCardCompanyMark = strtoupper(substr($idCardCompanyWords[0] ?? 'C', 0, 1) . substr($idCardCompanyWords[1] ?? '', 0, 1));
 @endphp
 
     <!-- =====================================================
@@ -56,10 +60,11 @@
 
         <div class="w-full max-w-[108.1875rem] min-h-[45.375rem] relative mt-5 flex justify-center items-center rounded-[18px] overflow-hidden bg-[#0B1E3D] pb-[90px]">
 
-            <!-- BIG NEXORA BACKGROUND -->
-            <img src="{{ asset('images/Nexora_Logo_Transparent(1).png') }}"
-                 class="absolute w-[1325px] h-auto left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rotate-[-5deg] opacity-[.0244] z-0 pointer-events-none"
-                 alt="">
+            @if ($idCardLogoUrl)
+                <img src="{{ $idCardLogoUrl }}"
+                     class="absolute w-[1325px] h-auto left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rotate-[-5deg] opacity-[.0244] z-0 pointer-events-none"
+                     alt="">
+            @endif
 
             <div class="flex justify-center items-center gap-[45px]" id="downloadArea">
 
@@ -68,13 +73,18 @@
 
                     <div class="absolute -left-[10%] w-[120%] h-[110px] bg-[#1B396B] rounded-bl-[60%] rounded-br-[60%] z-[1]"></div>
 
-                    <!-- Background Logo -->
-                    <img src="{{ asset('images/Nexora_Logo_Transparent(1).png') }}"
-                         class="absolute w-[350px] h-auto left-1/2 top-[60%] -translate-x-1/2 -translate-y-1/2 rotate-[-8deg] opacity-[.03] pointer-events-none z-[1]"
-                         alt="">
+                    @if ($idCardLogoUrl)
+                        <img src="{{ $idCardLogoUrl }}"
+                             class="absolute w-[350px] h-auto left-1/2 top-[60%] -translate-x-1/2 -translate-y-1/2 rotate-[-8deg] opacity-[.03] pointer-events-none z-[1]"
+                             alt="">
+                    @endif
 
                     <div class="relative z-[5] flex justify-center pt-[5px]">
-                        <img src="{{ $idCardLogoUrl ?: asset('images/logo.png') }}" class="w-[268px] h-[86px] pb-[2px] object-contain" alt="Company Logo">
+                        @if ($idCardLogoUrl)
+                            <img src="{{ $idCardLogoUrl }}" class="w-[268px] h-[86px] pb-[2px] object-contain" alt="{{ $idCardCompanyName }} logo">
+                        @else
+                            <div class="flex h-[86px] w-[268px] items-center justify-center pb-[2px] text-3xl font-bold tracking-normal">{{ $idCardCompanyMark }}</div>
+                        @endif
                     </div>
 
                     <div class="relative z-[5] w-[120px] h-[120px] mx-auto -mt-[5px] mb-[18px] rounded-full overflow-hidden border-[10px] border-[#0B1E3D] shadow-[0_10px_25px_rgba(0,0,0,.35)]">
@@ -111,15 +121,16 @@
                 <!-- BACK -->
                 <div class="w-[268px] h-[452px] relative overflow-hidden id-card-front-bg text-white shadow-[0_15px_40px_rgba(0,0,0,.4),inset_0_0_0_1px_rgba(255,255,255,.05),inset_0_3px_0_rgba(255,255,255,.05)] px-[9px] pt-[15px] pb-[28%] text-center">
 
-                    <!-- Background Logo -->
-                    <img src="{{ asset('images/Nexora_Logo_Transparent(1).png') }}"
-                         class="absolute w-[340px] h-auto left-1/2 top-[55%] -translate-x-1/2 -translate-y-1/2 rotate-[-8deg] opacity-[.03] pointer-events-none z-[1]"
-                         alt="">
+                    @if ($idCardLogoUrl)
+                        <img src="{{ $idCardLogoUrl }}"
+                             class="absolute w-[340px] h-auto left-1/2 top-[55%] -translate-x-1/2 -translate-y-1/2 rotate-[-8deg] opacity-[.03] pointer-events-none z-[1]"
+                             alt="">
+                    @endif
 
                     <h2 class="relative z-[5] text-[0.625rem]">COMPANY POLICY</h2>
 
                     <p class="relative z-[5] text-[0.6875rem] px-[5px] pt-3 pb-[20%] font-light tracking-[.1px]">
-                        Property of Nexora. If found, please return to the Human
+                        Property of {{ $idCardCompanyName }}. If found, please return to the Human
                         Resources Department. This card is non-transferable and
                         must be surrendered upon separation from the company.
                     </p>

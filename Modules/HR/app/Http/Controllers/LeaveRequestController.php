@@ -23,9 +23,8 @@ class LeaveRequestController extends Controller
     {
         $employee = $this->currentEmployee();
 
-        if (! $employee || session('employee_role') !== 'employee') {
-            return redirect()->route('hr.dashboard')
-                ->with('error', 'Only employee accounts can view leave requests.');
+        if (! $employee) {
+            return redirect()->route('login');
         }
 
         $leaveRequests = LeaveRequest::query()
@@ -41,9 +40,8 @@ class LeaveRequestController extends Controller
     {
         $employee = $this->currentEmployee();
 
-        if (! $employee || session('employee_role') !== 'employee') {
-            return redirect()->route('hr.dashboard')
-                ->with('error', 'Only employee accounts can submit leave requests.');
+        if (! $employee) {
+            return redirect()->route('login');
         }
 
         $validated = $request->validate([

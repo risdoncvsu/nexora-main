@@ -90,7 +90,7 @@ class ReportsAnalyticsController extends Controller
         );
     }
 
-    public function employeeAttendance(Request $request, $employee)
+    public function employeeAttendance(Request $request, $employee, bool $selfService = false)
     {
         $employee = Employee::findOrFail($employee);
         $clientId = $this->currentClientId();
@@ -126,7 +126,7 @@ class ReportsAnalyticsController extends Controller
 
         return view(
             'reports-analytics.employee-attendance',
-            compact('employee', 'attendances', 'stats')
+            compact('employee', 'attendances', 'stats', 'selfService')
         );
     }
 
@@ -143,7 +143,7 @@ class ReportsAnalyticsController extends Controller
             return redirect()->route('login');
         }
 
-        return $this->employeeAttendance($request, $employeeId);
+        return $this->employeeAttendance($request, $employeeId, true);
     }
 
     public function leave(Request $request)

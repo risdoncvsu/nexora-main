@@ -12,7 +12,7 @@
   </head>
   <body class="min-h-screen bg-[#1B3A6B] text-slate-200">
 
-    @include('partials.navbar')
+    @include(($selfService ?? false) ? 'partials.employee-navbar' : 'partials.navbar')
 
     <div class="w-full px-6 py-8" data-ajax-list>
 

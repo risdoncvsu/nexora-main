@@ -29,10 +29,9 @@ class EmployeePortalController extends Controller
             // HR owns these workflows. ITSM is now the employee landing page,
             // so it exposes links while leaving the HR routes and access rules
             // unchanged.
-            // These are employee self-service workflows. HR managers use the
-            // HR management routes, whose permissions are separate from an
-            // employee's own leave/attendance screens.
-            'showHrSelfService' => session('employee_role') === 'employee',
+            // Self-service attendance and leave remain restricted to the
+            // signed-in employee's own records, including HR managers.
+            'showHrSelfService' => (bool) session('employee_logged_in'),
             'attendanceUrl' => route('hr.employee.attendance'),
             'leaveUrl' => route('hr.employee.leave'),
             'tickets' => $tickets,
