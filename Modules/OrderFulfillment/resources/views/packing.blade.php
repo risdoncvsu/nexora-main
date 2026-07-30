@@ -1175,6 +1175,25 @@
     font-weight: 500;
   }
 
+  a.profile-dropdown-row {
+    color: var(--header-text);
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: 6px;
+    padding: 8px 8px 8px 6px;
+    margin: 0 -6px 4px;
+    transition: background 0.15s ease;
+  }
+
+  a.profile-dropdown-row:visited {
+    color: var(--header-text);
+  }
+
+  a.profile-dropdown-row:hover {
+    background: rgba(255,255,255,0.06);
+    color: var(--header-text);
+  }
+
   .theme-switch {
     position: relative;
     display: inline-block;
@@ -1274,7 +1293,7 @@
               </div>
           </div>
           <div class="divider"></div>
-          <a href="{{ route('employee.portal') }}" class="profile-dropdown-row" style="text-decoration:none;">Employee Portal</a>
+          <a href="{{ route('employee.portal') }}" class="profile-dropdown-row" style="text-decoration:none;">🏢 Employee Portal</a>
           <div class="profile-dropdown-row">
               <span class="dark-mode-label">🌙 Dark Mode</span>
               <label class="theme-switch">
