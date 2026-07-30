@@ -7,6 +7,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Modules\Ecommerce\Models\CustomerNotification;
 use Modules\Ecommerce\Models\Order;
 use Modules\Ecommerce\Models\StorefrontLayout;
@@ -473,6 +474,12 @@ class EcommerceAdminController extends Controller
     private function boms()
     {
         $manufacturing = DB::connection('manufacturing');
+        $schema = $manufacturing->getSchemaBuilder();
+
+        if (! $schema->hasTable('product_boms')) {
+            return collect();
+        }
+
         $query = $manufacturing->table('product_boms')
             ->where('client_id', app(EcommerceClientContext::class)->clientId())
             ->where('status', 'active');
@@ -496,7 +503,7 @@ class EcommerceAdminController extends Controller
             ->where('client_id', app(EcommerceClientContext::class)->clientId())
             ->where('status', 'active');
 
-        if ($manufacturing->getSchemaBuilder()->hasColumn('product_boms', 'bom_type')) {
+        if ($schema->hasColumn('product_boms', 'bom_type')) {
             $query->where('bom_type', 'packaging');
         } else {
             // Older Manufacturing schemas have no explicit type yet. Do not
