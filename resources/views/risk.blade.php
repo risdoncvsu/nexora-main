@@ -8,7 +8,7 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <script src="https://unpkg.com/lucide@latest"></script>
 </head>
-<body class="itsm-workspace min-h-screen font-sans text-white">
+<body class="min-h-screen bg-[#1B365D] font-sans text-white">
     <div class="flex min-h-screen flex-col">
         <!-- Main Application Header -->
         <x-itsm-header
@@ -28,7 +28,7 @@
             <!-- Subtle background watermark brand logo -->
             <img src="{{ asset('images/nexora-icon.png') }}" alt="" class="pointer-events-none absolute left-1/2 top-1/2 w-[64rem] -translate-x-1/2 -translate-y-1/2 opacity-10 blur-sm">
 
-            <div class="relative z-10 grid min-h-[calc(100vh-10rem)] grid-cols-1 gap-6 xl:grid-cols-[13.5rem_minmax(0,1fr)]">
+            <div class="relative z-10 grid min-h-[calc(100vh-10rem)] grid-cols-1 gap-6 xl:grid-cols-[22rem_minmax(0,1fr)]">
                 
                 <!-- Left Sidebar Navigation Panel -->
                 <x-risk-sidebar section="register" />

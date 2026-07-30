@@ -8,7 +8,7 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <script src="https://unpkg.com/lucide@latest"></script>
 </head>
-<body class="itsm-workspace min-h-screen font-sans text-white">
+<body class="min-h-screen bg-[#1B365D] font-sans text-white">
     <div class="flex min-h-screen flex-col">
         <!-- Main Application Header -->
         <x-itsm-header
@@ -28,7 +28,7 @@
             <!-- Background Watermark brand logo -->
             <img src="{{ asset('images/nexora-icon.png') }}" alt="" class="pointer-events-none absolute left-1/2 top-1/2 w-[64rem] -translate-x-1/2 -translate-y-1/2 opacity-10 blur-sm">
 
-            <div class="relative z-10 grid min-h-[calc(100vh-10rem)] grid-cols-1 gap-6 xl:grid-cols-[13.5rem_minmax(0,1fr)]">
+            <div class="relative z-10 grid min-h-[calc(100vh-10rem)] grid-cols-1 gap-6 xl:grid-cols-[22rem_minmax(0,1fr)]">
                 
                 <!-- Left Sidebar Navigation Panel -->
                 <x-risk-sidebar section="mitigation" />
@@ -58,7 +58,7 @@
                                 <!-- Metric 2: Mitigation Budget -->
                                 <div class="rounded-xl border border-slate-300/40 bg-white/70 p-3.5 text-center shadow-sm">
                                     <span class="block text-xs font-bold text-slate-700">Total Mitigation Budget</span>
-                                    <span class="block text-2xl font-extrabold text-[#132B52] my-0.5">ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â± {{ number_format($totalBudget, 2) }}</span>
+                                    <span class="block text-2xl font-extrabold text-[#132B52] my-0.5">â‚± {{ number_format($totalBudget, 2) }}</span>
                                     <span class="text-[10px] font-semibold text-slate-500">Allocated financial assets</span>
                                 </div>
                                 <!-- Metric 3: Critical Overdue Plans -->
@@ -150,7 +150,7 @@
                                                         {{ $plan->risk->title ?? 'N/A' }}
                                                     </td>
                                                     <td class="px-6 py-3 text-slate-600 font-medium text-center">{{ $plan->owner }}</td>
-                                                    <td class="px-6 py-3 font-bold text-slate-900 text-center">ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â± {{ number_format($plan->budget, 2) }}</td>
+                                                    <td class="px-6 py-3 font-bold text-slate-900 text-center">â‚± {{ number_format($plan->budget, 2) }}</td>
                                                     <td class="px-6 py-3 text-center">
                                                         @if($plan->status == 'Completed')
                                                             <span class="inline-block px-3 py-1 rounded-full bg-green-100 text-green-800 font-bold text-[10px]">Completed</span>
@@ -223,7 +223,7 @@
                         <input type="text" name="owner" required placeholder="Personnel name" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs text-slate-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500" />
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wide mb-1">Allocated Budget (ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â±)</label>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wide mb-1">Allocated Budget (â‚±)</label>
                         <input type="number" step="0.01" name="budget" required placeholder="0.00" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs text-slate-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500" />
                     </div>
                 </div>

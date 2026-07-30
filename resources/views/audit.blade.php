@@ -8,7 +8,7 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <script src="https://unpkg.com/lucide@latest"></script>
 </head>
-<body class="itsm-workspace min-h-screen font-sans text-white">
+<body class="min-h-screen bg-[#1B365D] font-sans text-white">
     <div class="flex min-h-screen flex-col">
         <x-itsm-header
             :home-route="route('client.itsm.employees')"
@@ -142,7 +142,7 @@
                                                 <td class="px-6 py-4 text-slate-600">{{ $audit['scope'] }}</td>
                                                 <td class="px-6 py-4 text-slate-600">{{ $audit['auditor'] }}</td>
                                                 <td class="px-6 py-4 text-slate-600">{{ $audit['date'] }}</td>
-                                                <td class="px-6 py-4 {{ str_contains($audit['score'], 'Fail') ? 'font-semibold text-red-600' : ($audit['score'] !== 'Ã¢â‚¬â€' ? 'font-semibold text-slate-800' : 'text-slate-600') }}">{{ $audit['score'] }}</td>
+                                                <td class="px-6 py-4 {{ str_contains($audit['score'], 'Fail') ? 'font-semibold text-red-600' : ($audit['score'] !== 'â€”' ? 'font-semibold text-slate-800' : 'text-slate-600') }}">{{ $audit['score'] }}</td>
                                                 <td class="px-6 py-4">
                                                     <span class="inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold {{ $audit['status_class'] }}">
                                                         {{ $audit['status'] }}

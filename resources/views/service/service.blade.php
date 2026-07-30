@@ -40,7 +40,7 @@
     <link rel="icon" type="image/x-icon" href="{{ asset('images/nexora-icon.ico') }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="itsm-workspace min-h-screen font-sans text-white">
+<body class="min-h-screen bg-[#1B365D] font-sans text-white">
     <div class="flex min-h-screen flex-col">
         <x-itsm-header
             :home-route="$portal === 'admin' ? route('admin.itsm.registration') : route('client.itsm.employees')"
@@ -48,34 +48,34 @@
             :nav-items="$navItems"
         />
 
-        <main class="relative flex-1 p-4 lg:p-5">
-            <img src="{{ asset('images/nexora-icon.png') }}" alt="" class="itsm-watermark pointer-events-none absolute left-1/2 top-1/2 w-[64rem] -translate-x-1/2 -translate-y-1/2 opacity-10 blur-sm">
+        <main class="relative flex-1 overflow-hidden p-4 sm:p-6">
+            <img src="{{ asset('images/nexora-icon.png') }}" alt="" class="pointer-events-none absolute left-1/2 top-1/2 w-[64rem] -translate-x-1/2 -translate-y-1/2 opacity-10 blur-sm">
 
-            <section class="relative z-10 mx-auto grid max-w-[1600px] grid-cols-1 gap-4 xl:grid-cols-[13.5rem_minmax(0,1fr)]">
-                <aside class="itsm-density-panel self-start bg-white p-3 text-slate-950 xl:sticky xl:top-24">
-                    <nav class="flex flex-wrap gap-1 text-sm xl:block xl:space-y-1">
+            <section class="relative z-10 grid min-h-[calc(100vh-10rem)] grid-cols-1 gap-6 xl:grid-cols-[22rem_minmax(0,1fr)]">
+                <aside class="self-start min-h-[calc(100vh-10rem)] rounded-[1.875rem] bg-white p-5 text-slate-950 sm:p-8">
+                    <nav class="flex flex-wrap gap-x-6 gap-y-3 text-base sm:text-xl xl:block xl:space-y-6">
                         @if ($portal === 'admin')
-                            <a href="{{ route('admin.itsm.service-desk') }}" class="block rounded-md bg-[#132B52] px-3 py-2.5 font-bold text-white">Nexora Support Queue</a>
-                            <a href="{{ route('admin.itsm.service-desk.assigned') }}" class="block rounded-md px-3 py-2.5 font-medium text-slate-700 hover:bg-slate-100 hover:text-[#132B52]">Assigned Requests</a>
-                            <a href="{{ route('admin.itsm.service-desk.knowledge-base') }}" class="block rounded-md px-3 py-2.5 font-medium text-slate-700 hover:bg-slate-100 hover:text-[#132B52]">Knowledge Base</a>
+                            <a href="{{ route('admin.itsm.service-desk') }}" class="block font-extrabold text-slate-950">Nexora Support Queue</a>
+                            <a href="{{ route('admin.itsm.service-desk.assigned') }}" class="block font-medium text-slate-700 hover:text-[#346DCB]">Assigned Requests</a>
+                            <a href="{{ route('admin.itsm.service-desk.knowledge-base') }}" class="block font-medium text-slate-700 hover:text-[#346DCB]">Knowledge Base</a>
                         @else
-                            <a href="{{ route('client.itsm.service-desk') }}" class="block rounded-md px-3 py-2.5 {{ $ticketType === 'erp_module' ? 'bg-[#132B52] font-bold text-white' : 'font-medium text-slate-700 hover:bg-slate-100 hover:text-[#132B52]' }}">Module Ticket Dashboard</a>
-                            <a href="{{ route('client.itsm.service-desk.support') }}" class="block rounded-md px-3 py-2.5 {{ $ticketType === 'client_password_reset' ? 'bg-[#132B52] font-bold text-white' : 'font-medium text-slate-700 hover:bg-slate-100 hover:text-[#132B52]' }}">Account Recovery</a>
-                            <a href="{{ route('client.itsm.service-desk.knowledgebase') }}" class="block rounded-md px-3 py-2.5 font-medium text-slate-700 hover:bg-slate-100 hover:text-[#132B52]">Knowledge Base</a>
+                            <a href="{{ route('client.itsm.service-desk') }}" class="block {{ $ticketType === 'erp_module' ? 'font-extrabold text-slate-950' : 'font-medium text-slate-700 hover:text-[#346DCB]' }}">Module Ticket Dashboard</a>
+                            <a href="{{ route('client.itsm.service-desk.support') }}" class="block {{ $ticketType === 'client_password_reset' ? 'font-extrabold text-slate-950' : 'font-medium text-slate-700 hover:text-[#346DCB]' }}">Account Recovery</a>
+                            <a href="{{ route('client.itsm.service-desk.knowledgebase') }}" class="block font-medium text-slate-700 hover:text-[#346DCB]">Knowledge Base</a>
                         @endif
                     </nav>
                 </aside>
 
-                <div class="space-y-4">
-                    <div class="itsm-density-panel bg-white px-5 py-4 text-slate-950">
-                        <p class="text-xs font-bold uppercase tracking-wide text-[#346DCB]">{{ $portal === 'admin' ? 'Nexora admin portal' : 'Company admin portal' }}</p>
+                <div class="space-y-6">
+                    <div class="rounded-[1.875rem] bg-white/90 px-10 py-8 text-slate-950">
+                        <p class="text-sm font-semibold uppercase tracking-wide text-[#346DCB]">{{ $portal === 'admin' ? 'Nexora admin portal' : 'Company admin portal' }}</p>
                         <div class="mt-2 flex flex-wrap items-center justify-between gap-4">
-                            <h1 class="text-2xl font-bold sm:text-3xl">{{ $title }}</h1>
+                            <h1 class="text-5xl font-bold">{{ $title }}</h1>
                             @if ($canCreateTicket)
                                 <button type="button" id="openCreateTicket" class="rounded-full bg-[#346DCB] px-5 py-2 font-semibold text-white transition hover:bg-[#2554a3]">{{ $createLabel }}</button>
                             @endif
                         </div>
-                        <p class="mt-2 text-sm text-slate-600">{{ $subtitle }}</p>
+                        <p class="mt-3 text-lg text-slate-600">{{ $subtitle }}</p>
                     </div>
 
                     @if ($errors->any())
@@ -99,32 +99,32 @@
                         </div>
                     @endif
 
-                    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                        <div class="itsm-density-panel bg-white p-4 text-slate-950">
+                    <div class="grid gap-6 xl:grid-cols-4">
+                        <div class="rounded-2xl bg-white p-6 text-slate-950">
                             <p class="text-sm font-semibold text-slate-500">Open Tickets</p>
-                            <p class="mt-1 text-3xl font-bold">{{ $tickets->where('status', 'Open')->count() }}</p>
+                            <p class="mt-3 text-4xl font-bold">{{ $tickets->where('status', 'Open')->count() }}</p>
                         </div>
-                        <div class="itsm-density-panel bg-white p-4 text-slate-950">
+                        <div class="rounded-2xl bg-white p-6 text-slate-950">
                             <p class="text-sm font-semibold text-slate-500">In Progress</p>
-                            <p class="mt-1 text-3xl font-bold">{{ $tickets->where('status', 'In Progress')->count() }}</p>
+                            <p class="mt-3 text-4xl font-bold">{{ $tickets->where('status', 'In Progress')->count() }}</p>
                         </div>
-                        <div class="itsm-density-panel bg-white p-4 text-slate-950">
+                        <div class="rounded-2xl bg-white p-6 text-slate-950">
                             <p class="text-sm font-semibold text-slate-500">Pending Review</p>
-                            <p class="mt-1 text-3xl font-bold">{{ $tickets->where('status', 'Pending Review')->count() }}</p>
+                            <p class="mt-3 text-4xl font-bold">{{ $tickets->where('status', 'Pending Review')->count() }}</p>
                         </div>
-                        <div class="itsm-density-panel bg-white p-4 text-slate-950">
+                        <div class="rounded-2xl bg-white p-6 text-slate-950">
                             <p class="text-sm font-semibold text-slate-500">Resolved</p>
-                            <p class="mt-1 text-3xl font-bold">{{ $tickets->where('status', 'Resolved')->count() }}</p>
+                            <p class="mt-3 text-4xl font-bold">{{ $tickets->where('status', 'Resolved')->count() }}</p>
                         </div>
                     </div>
 
-                    <div class="itsm-density-panel bg-white p-5 text-slate-950">
-                        <div class="mb-4 flex items-center justify-between gap-4">
-                            <h2 class="text-lg font-bold">Recent Requests</h2>
+                    <div class="rounded-[1.875rem] bg-white p-8 text-slate-950">
+                        <div class="mb-6 flex items-center justify-between gap-4">
+                            <h2 class="text-2xl font-bold">Recent Requests</h2>
                             <input type="text" id="ticketSearch" placeholder="Search" class="h-10 w-64 rounded border border-slate-300 px-3 text-sm">
                         </div>
 
-                        <div class="itsm-table-shell overflow-x-auto">
+                        <div class="overflow-x-auto">
                             <table class="w-full border-collapse" id="ticketsTable">
                                 <thead>
                                     <tr class="border-b-2 border-slate-200 text-left text-sm uppercase tracking-wide text-slate-500">

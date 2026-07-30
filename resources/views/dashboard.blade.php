@@ -13,7 +13,7 @@
     <link rel="icon" type="image/x-icon" href="{{ asset('images/nexora-icon.ico') }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="itsm-workspace min-h-screen font-sans text-white">
+<body class="min-h-screen bg-[#1B365D] font-sans text-white">
     <div class="flex min-h-screen flex-col">
         <x-itsm-header
             :home-route="route('admin.itsm.registration')"
@@ -26,17 +26,11 @@
             ]"
         />
 
-        <main class="relative flex flex-1 items-start justify-center px-4 py-6 lg:px-6">
-            <img src="{{ asset('images/nexora-icon.png') }}" alt="" class="itsm-watermark pointer-events-none absolute left-1/2 top-1/2 w-[64rem] -translate-x-1/2 -translate-y-1/2 opacity-10 blur-sm">
+        <main class="relative flex flex-1 items-center justify-center overflow-hidden px-6 py-12">
+            <img src="{{ asset('images/nexora-icon.png') }}" alt="" class="pointer-events-none absolute left-1/2 top-1/2 w-[64rem] -translate-x-1/2 -translate-y-1/2 opacity-10 blur-sm">
 
-            <section class="itsm-density-panel relative z-10 grid w-full max-w-6xl gap-6 bg-white p-5 text-slate-950 lg:grid-cols-[.72fr_1.28fr] lg:p-7">
-                <div class="border-b border-slate-200 pb-5 lg:border-b-0 lg:border-r lg:pb-0 lg:pr-7">
-                    <p class="text-xs font-bold uppercase tracking-wider text-[#346DCB]">Root administration</p>
-                    <h1 class="mt-2 text-3xl font-bold">Register a new company</h1>
-                    <p class="mt-3 text-sm leading-6 text-slate-600">Create the client account, set its locale, and generate its system-admin access in one workspace.</p>
-                </div>
-
-                <div>
+            <section class="relative z-10 w-full max-w-3xl">
+                <h1 class="mb-12 text-center text-5xl font-light">Register <span class="font-semibold italic">a new</span> company</h1>
 
                 @if ($errors->any())
                     <div class="mb-6 rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -44,17 +38,17 @@
                     </div>
                 @endif
 
-                <form action="{{ route('admin.itsm.registration.store') }}" method="POST" class="grid grid-cols-1 gap-x-5 gap-y-4 md:grid-cols-2">
+                <form action="{{ route('admin.itsm.registration.store') }}" method="POST" class="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-2">
                     @csrf
 
                     <label class="block">
-                        <span class="mb-1 block text-xs font-semibold text-slate-700">Company Name</span>
-                        <input type="text" name="company_name" value="{{ old('company_name') }}" placeholder="Type here.." class="h-10 w-full rounded border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none placeholder:text-slate-400">
+                        <span class="mb-2 block text-sm font-light text-white">Company Name</span>
+                        <input type="text" name="company_name" value="{{ old('company_name') }}" placeholder="Type here.." class="h-11 w-full rounded-sm border-0 bg-white px-4 text-sm text-slate-900 outline-none placeholder:italic placeholder:text-slate-400">
                     </label>
 
                     <label class="block">
-                        <span class="mb-1 block text-xs font-semibold text-slate-700">Industry</span>
-                        <select name="industry" class="h-10 w-full rounded border border-slate-300 bg-white px-3 text-sm text-slate-700 outline-none">
+                        <span class="mb-2 block text-sm font-light text-white">Industry</span>
+                        <select name="industry" class="h-11 w-full rounded-sm border-0 bg-white px-4 text-sm text-slate-500 outline-none">
                             <option value="" disabled selected hidden>Please Select</option>
                             <option value="tech" @selected(old('industry') === 'tech')>Technology</option>
                             <option value="finance" @selected(old('industry') === 'finance')>Finance</option>
@@ -64,18 +58,18 @@
                     </label>
 
                     <label class="block">
-                        <span class="mb-1 block text-xs font-semibold text-slate-700">Company E-mail</span>
-                        <input type="email" name="company_email" value="{{ old('company_email') }}" placeholder="sample@company.com" class="h-10 w-full rounded border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none placeholder:text-slate-400">
+                        <span class="mb-2 block text-sm font-light text-white">Company E-mail</span>
+                        <input type="email" name="company_email" value="{{ old('company_email') }}" placeholder="sample@company.com" class="h-11 w-full rounded-sm border-0 bg-white px-4 text-sm text-slate-900 outline-none placeholder:italic placeholder:text-slate-400">
                     </label>
 
                     <label class="block">
-                        <span class="mb-1 block text-xs font-semibold text-slate-700">Phone No.</span>
-                        <input type="text" name="phone_no" id="phone_no" value="{{ old('phone_no') }}" placeholder="Select a country to prefill its dial code" class="h-10 w-full rounded border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none placeholder:text-slate-400">
+                        <span class="mb-2 block text-sm font-light text-white">Phone No.</span>
+                        <input type="text" name="phone_no" id="phone_no" value="{{ old('phone_no') }}" placeholder="Select a country to prefill its dial code" class="h-11 w-full rounded-sm border-0 bg-white px-4 text-sm text-slate-900 outline-none placeholder:italic placeholder:text-slate-400">
                     </label>
 
                     <label class="block">
-                        <span class="mb-1 block text-xs font-semibold text-slate-700">Country / Region</span>
-                        <select name="country_code" id="country_code" required class="h-10 w-full rounded border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none">
+                        <span class="mb-2 block text-sm font-light text-white">Country / Region</span>
+                        <select name="country_code" id="country_code" required class="h-11 w-full rounded-sm border-0 bg-white px-4 text-sm text-slate-900 outline-none">
                             @foreach ($clientLocales as $code => $locale)
                                 <option value="{{ $code }}" @selected($selectedCountry === $code)>{{ $locale['name'] }} ({{ $locale['dial_code'] ?: 'no default prefix' }})</option>
                             @endforeach
@@ -83,24 +77,23 @@
                     </label>
 
                     <label class="block">
-                        <span class="mb-1 block text-xs font-semibold text-slate-700">Client Time Zone</span>
-                        <select name="timezone" id="timezone" required class="h-10 w-full rounded border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none">
+                        <span class="mb-2 block text-sm font-light text-white">Client Time Zone</span>
+                        <select name="timezone" id="timezone" required class="h-11 w-full rounded-sm border-0 bg-white px-4 text-sm text-slate-900 outline-none">
                             @foreach ($clientTimezones as $timezone)
                                 <option value="{{ $timezone }}" @selected($selectedTimezone === $timezone)>{{ $timezone }}</option>
                             @endforeach
                         </select>
                     </label>
 
-                    <label class="block md:col-span-2">
-                        <span class="mb-1 block text-xs font-semibold text-slate-700">Admin Name</span>
-                        <input type="text" name="admin_name" value="{{ old('admin_name') }}" placeholder="Type here.." class="h-10 w-full rounded border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none placeholder:text-slate-400">
+                    <label class="block md:col-span-2 md:max-w-[calc(50%-1rem)]">
+                        <span class="mb-2 block text-sm font-light text-white">Admin Name</span>
+                        <input type="text" name="admin_name" value="{{ old('admin_name') }}" placeholder="Type here.." class="h-11 w-full rounded-sm border-0 bg-white px-4 text-sm text-slate-900 outline-none placeholder:italic placeholder:text-slate-400">
                     </label>
 
-                    <div class="flex justify-end pt-2 md:col-span-2">
-                        <button type="submit" class="rounded-md bg-[#132B52] px-6 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-[#0B1E3D]">Register company</button>
+                    <div class="pt-20 text-center md:col-span-2">
+                        <button type="submit" class="rounded-md bg-white px-10 py-3 text-2xl font-bold text-[#0B1E3D] shadow-lg transition hover:-translate-y-0.5 hover:bg-slate-100">Register</button>
                     </div>
                 </form>
-                </div>
             </section>
         </main>
     </div>

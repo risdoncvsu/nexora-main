@@ -418,7 +418,7 @@
         <img src="{{ asset('images/nexora-icon.png') }}" alt="" class="bg-watermark">
 
         <!-- 1. INTEGRATED SIDEBAR GRID SYSTEM -->
-        <div class="relative z-10 grid min-h-[calc(100vh-10rem)] grid-cols-1 gap-6 xl:grid-cols-[13.5rem_minmax(0,1fr)]">
+        <div class="relative z-10 grid min-h-[calc(100vh-10rem)] grid-cols-1 gap-6 xl:grid-cols-[22rem_minmax(0,1fr)]">
             
             <!-- LEFT SIDEBAR -->
             <aside class="self-start min-h-[calc(100vh-10rem)] rounded-[1.875rem] bg-white p-5 text-slate-950 sm:p-8">

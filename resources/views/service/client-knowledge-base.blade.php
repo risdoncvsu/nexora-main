@@ -7,7 +7,7 @@
     <link rel="icon" href="{{ asset('images/nexora-icon.ico') }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="itsm-workspace min-h-screen font-sans text-white">
+<body class="min-h-screen bg-[#1B365D] font-sans text-white">
     <div class="flex min-h-screen flex-col">
         <x-itsm-header
             :home-route="route('client.itsm.employees')"
@@ -23,7 +23,7 @@
 
         <main class="relative flex-1 p-4 sm:p-6">
             <img src="{{ asset('images/nexora-icon.png') }}" alt="" class="pointer-events-none absolute left-1/2 top-1/2 w-[64rem] -translate-x-1/2 -translate-y-1/2 opacity-10 blur-sm">
-            <section class="relative z-10 grid min-h-[calc(100vh-10rem)] grid-cols-1 gap-6 xl:grid-cols-[13.5rem_minmax(0,1fr)]">
+            <section class="relative z-10 grid min-h-[calc(100vh-10rem)] grid-cols-1 gap-6 xl:grid-cols-[22rem_minmax(0,1fr)]">
                 <aside class="self-start min-h-[calc(100vh-10rem)] rounded-[1.875rem] bg-white p-5 text-slate-950 sm:p-8">
                     <nav class="flex flex-wrap gap-x-6 gap-y-3 text-base sm:text-xl xl:block xl:space-y-6">
                         <a href="{{ route('client.itsm.service-desk') }}" class="block font-medium text-slate-700 transition hover:text-[#346DCB]">Module Ticket Dashboard</a>
@@ -74,7 +74,7 @@
         <div id="articleModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/60 p-4">
             <div class="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 text-slate-950 shadow-2xl sm:p-8">
                 <div class="mb-6 flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
-                    <div><h2 class="text-2xl font-bold">Create company article</h2><p class="mt-1 text-sm text-slate-500">This article is available only to your companyÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢s IT staff.</p></div>
+                    <div><h2 class="text-2xl font-bold">Create company article</h2><p class="mt-1 text-sm text-slate-500">This article is available only to your companyâ€™s IT staff.</p></div>
                     <button type="button" data-close-article-modal class="text-2xl font-bold text-slate-500 hover:text-slate-950" aria-label="Close">&times;</button>
                 </div>
                 <form method="POST" action="{{ route('client.itsm.service-desk.knowledgebase.store') }}" class="grid gap-5 md:grid-cols-2">
