@@ -133,7 +133,7 @@
         </div>
 
         <div class="form-field">
-          <label>Total Amount (₱)</label>
+          <label>Total Amount (&#8369;)</label>
           <input type="number" name="amount" value="0.00" readonly>
         </div>
         <div class="form-field">
@@ -190,12 +190,12 @@
       <input type="number" class="po-item-qty" min="1" step="1" value="1" required>
     </div>
     <div class="form-field">
-      <label>Unit Price (₱)</label>
+      <label>Unit Price (&#8369;)</label>
       <input type="number" class="po-item-price" min="0" step="0.01" placeholder="0.00" readonly>
     </div>
     <div class="form-field">
       <label>Amount</label>
-      <input type="text" class="po-item-amount" value="₱0.00" readonly>
+      <input type="text" class="po-item-amount" value="&#8369;0.00" readonly>
     </div>
     <button type="button" class="po-item-remove" title="Remove item" onclick="removePoItemRow(this)">×</button>
   </div>
@@ -221,12 +221,12 @@
       <input type="number" class="po-item-qty" readonly>
     </div>
     <div class="form-field">
-      <label>Unit Price (₱)</label>
+      <label>Unit Price (&#8369;)</label>
       <input type="number" class="po-item-price" readonly>
     </div>
     <div class="form-field">
       <label>Amount</label>
-      <input type="text" class="po-item-amount" value="₱0.00" readonly>
+      <input type="text" class="po-item-amount" value="&#8369;0.00" readonly>
     </div>
   </div>
 </template>
@@ -256,12 +256,12 @@
       <input type="number" class="po-item-qty" readonly>
     </div>
     <div class="form-field">
-      <label>Unit Price (₱)</label>
+      <label>Unit Price (&#8369;)</label>
       <input type="number" class="po-item-price" min="0" step="0.01" placeholder="0.00" readonly>
     </div>
     <div class="form-field">
       <label>Amount</label>
-      <input type="text" class="po-item-amount" value="₱0.00" readonly>
+      <input type="text" class="po-item-amount" value="&#8369;0.00" readonly>
     </div>
   </div>
 </template>
@@ -355,7 +355,7 @@
           <input name="productSku" readonly>
         </div>
         <div class="form-field">
-          <label>Supply price (₱) <span class="req">*</span></label>
+          <label>Supply price (&#8369;) <span class="req">*</span></label>
           <input type="number" name="productPrice" min="0" step="0.01" placeholder="0.00" required>
         </div>
       </div>
@@ -405,7 +405,7 @@
 
        <div class="form-field">
           <label>Total Amount</label>
-          <input type="text" name="amount" placeholder="₱0.00" readonly>
+          <input type="text" name="amount" placeholder="&#8369;0.00" readonly>
         </div>
         </div>
       <div class="form-field full">

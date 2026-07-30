@@ -543,6 +543,25 @@ class PurchaseOrderController extends Controller
             'updated_at' => now(),
         ]);
 
+        // The delivery row is the same expected shipment shown to Inventory.
+        // Once its PO is approved, show that approval in Deliveries as well;
+        // DeliveryController will promote this row to intransit when the
+        // supplier shipment is logged.
+        if ($status === 'approved') {
+            $deliveryQuery = DB::connection('procurement')->table('deliveries')
+                ->where('purchase_order_id', $purchaseOrder)
+                ->where('status', 'pending');
+
+            if (! (config('nexora.root_admin_module_testing') && auth()->user()?->role === 'root_admin')) {
+                $deliveryQuery->where('client_id', (int) session('employee_client_id'));
+            }
+
+            $deliveryQuery->update([
+                'status' => 'approved',
+                'updated_at' => now(),
+            ]);
+        }
+
         return response()->json(['status' => 'ok', 'purchase_order_id' => (int) $purchaseOrder]);
     }
 

@@ -73,6 +73,24 @@ class DeliveryController extends Controller
 
     public function index(): View
     {
+        // Repair expected-delivery rows created before PO approval was mirrored
+        // here. This keeps existing approved POs from appearing as Pending in
+        // the Deliveries tab after deployment.
+        $approvedDeliveryIds = $this->table('deliveries')
+            ->join('purchase_orders', 'deliveries.purchase_order_id', '=', 'purchase_orders.id')
+            ->where('deliveries.status', 'pending')
+            ->where('purchase_orders.status', 'approved')
+            ->pluck('deliveries.id');
+
+        if ($approvedDeliveryIds->isNotEmpty()) {
+            DB::connection('procurement')->table('deliveries')
+                ->whereIn('id', $approvedDeliveryIds)
+                ->update([
+                    'status' => 'approved',
+                    'updated_at' => now(),
+                ]);
+        }
+
         // Raw tenant-scoped query with joins so the table gets flat
         // supplier_name / po_number columns (the Blade reads $d->supplier_name
         // and $d->po_number; the eager-loaded model relations don't expose
@@ -163,7 +181,7 @@ class DeliveryController extends Controller
             ? Delivery::query()
                 ->where('client_id', (int) session('employee_client_id'))
                 ->where('purchase_order_id', $purchaseOrder->id)
-                ->where('status', 'pending')
+                ->whereIn('status', ['pending', 'approved'])
                 ->first()
             : null;
 

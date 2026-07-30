@@ -10,8 +10,6 @@
         <img src="{{ asset('images/Banner Transparent.png') }}" alt="Nexora ERP">
     </a>
     <x-client-logo :size="52" />
-    <div class="divider-v"></div>
-    <strong style="color:#fff;">Procurement</strong>
 
     <div class="nav-right">
         <div class="profile-menu">

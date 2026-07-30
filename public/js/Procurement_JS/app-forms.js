@@ -532,7 +532,7 @@
       if(hidden) hidden.value = '';
       return;
     }
-    wrap.innerHTML = items.map(it => `<span class="product-chip"><span>${htmlEscape(it.name || 'Item')}</span><span class="meta">Qty ${Number(it.qty || 0)}${it.unitPrice ? ' Â· â‚±' + Number(it.unitPrice).toFixed(2) : ''}</span></span>`).join('');
+    wrap.innerHTML = items.map(it => `<span class="product-chip"><span>${htmlEscape(it.name || 'Item')}</span><span class="meta">Qty ${Number(it.qty || 0)}${it.unitPrice ? ' &middot; &#8369;' + Number(it.unitPrice).toFixed(2) : ''}</span></span>`).join('');
     if(hidden) hidden.value = items.map(it => it.name).filter(Boolean).join(', ');
   }
   function resetDeliveryItemChips(){
@@ -809,7 +809,7 @@
             <input type="text" class="product-chip-category-input" value="${htmlEscape(item.category || '')}" placeholder="Category" oninput="updateSupplierProduct(${idx}, 'category', this.value)">
             <input type="text" class="product-chip-category-input" value="${htmlEscape(item.brand || '')}" placeholder="Brand" oninput="updateSupplierProduct(${idx}, 'brand', this.value)">
             <span class="product-chip-sku">${htmlEscape(item.sku || 'SKU pending')}</span>
-            <span class="product-chip-price">â‚±<input type="number" min="0" step="0.01" class="product-chip-price-input" value="${Number(item.price || 0)}" placeholder="0.00" oninput="updateSupplierProduct(${idx}, 'price', this.value)"></span>
+            <span class="product-chip-price">&#8369;<input type="number" min="0" step="0.01" class="product-chip-price-input" value="${Number(item.price || 0)}" placeholder="0.00" oninput="updateSupplierProduct(${idx}, 'price', this.value)"></span>
             <button type="button" class="remove" onclick="removeSupplierProduct(${idx})" title="Remove">×</button>
           </div>
         `).join('');
