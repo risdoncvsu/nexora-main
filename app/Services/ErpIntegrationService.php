@@ -469,8 +469,9 @@ class ErpIntegrationService
         $lines = collect($items)->map(function ($item) use ($clientId, $orderId): array {
             $quantity = max(1, (int) data_get($item, 'quantity', 1));
             $unitPrice = (float) (data_get($item, 'price') ?? data_get($item, 'unit_price', 0));
+            $schema = Schema::connection('order_fulfillment');
 
-            return [
+            $line = [
                 'client_id'      => $clientId,
                 'order_id'       => $orderId,
                 'product_name'   => (string) data_get($item, 'name', 'Storefront item'),
@@ -479,6 +480,20 @@ class ErpIntegrationService
                 'created_at'     => now(),
                 'updated_at'     => now(),
             ];
+
+            // Keep storefront metadata with the fulfillment line. This is
+            // what lets Packing resolve the product's attached packaging BOM.
+            if ($schema->hasColumn('order_items', 'product_type')) {
+                $line['product_type'] = data_get($item, 'product_type');
+            }
+            if ($schema->hasColumn('order_items', 'configuration')) {
+                $configuration = data_get($item, 'configuration');
+                $line['configuration'] = is_string($configuration)
+                    ? $configuration
+                    : json_encode($configuration);
+            }
+
+            return $line;
         })->all();
 
         if ($lines) {

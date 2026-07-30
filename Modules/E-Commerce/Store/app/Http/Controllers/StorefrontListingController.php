@@ -34,7 +34,11 @@ class StorefrontListingController extends Controller
             'quantity' => 1,
             'price' => $listing->price,
             'image_url' => $listing->image_url,
-            'configuration' => json_encode(['bom_id' => $listing->bom_id, 'listing_id' => $listing->id]),
+            'configuration' => json_encode([
+                'bom_id' => $listing->bom_id,
+                'listing_id' => $listing->id,
+                'packaging_bom_id' => $listing->packaging_bom_id,
+            ]),
         ];
 
         if (Auth::guard('ecommerce')->check()) {

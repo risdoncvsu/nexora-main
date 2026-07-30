@@ -1749,6 +1749,8 @@
       // reset box/courier selection each time the modal opens
       document.querySelectorAll('.box-option').forEach(el => el.classList.remove('selected'));
       document.querySelectorAll('.courier-option').forEach(el => el.classList.remove('selected'));
+      selectedBox = null;
+      selectedCourier = null;
 
       document.getElementById('pageContent').classList.add('blurred');
       document.getElementById('packingOverlay').classList.add('active');
@@ -1861,12 +1863,6 @@
 
     async function completePacking() {
       console.log("Sending order ID:", currentOrderId);
-    if(!selectedBox)
-    {
-        alert('Select a box');
-        return;
-    }
-
     if(!selectedCourier)
     {
         alert('Select a courier');

@@ -492,6 +492,21 @@
                         @endif
                     </div>
 
+                    <div class="form-group {{ $errors->has('packaging_bom_id') ? 'input-error' : '' }}">
+                        <label for="packaging_bom_id">Packing Bill of Materials</label>
+                        <select name="packaging_bom_id" id="packaging_bom_id">
+                            <option value="">No packing BOM attached</option>
+                            @foreach ($packagingBoms as $packagingBom)
+                                <option value="{{ $packagingBom->id }}" @selected(old('packaging_bom_id', $listing->packaging_bom_id) == $packagingBom->id)>{{ $packagingBom->sku }} &middot; {{ $packagingBom->name }}</option>
+                            @endforeach
+                        </select>
+                        @if($errors->has('packaging_bom_id'))
+                            <span class="field-error">{{ $errors->first('packaging_bom_id') }}</span>
+                        @else
+                            <span class="hint">When this listing is ordered, Order Fulfillment consumes the materials and quantities defined by this packaging BOM.</span>
+                        @endif
+                    </div>
+
                     <div class="form-group {{ $errors->has('sku') ? 'input-error' : '' }}">
                         <label for="sku">SKU</label>
                         <input name="sku" id="sku" value="{{ old('sku', $listing->sku) }}" required>

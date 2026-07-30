@@ -198,7 +198,7 @@ class PackingController extends Controller
     {
         // 1. Validate input before doing anything else.
         $validated = $request->validate([
-            'box'     => ['required', 'string'],
+            'box'     => ['nullable', 'string'],
             'courier' => ['required', 'string'],
         ]);
 
@@ -244,20 +244,38 @@ class PackingController extends Controller
         try {
             $this->syncCatalogPackingMaterials();
 
-            // Standard packing requires the selected box, foam inserts, and
-            // silica gel. Every tenth shipment also consumes the additional
-            // protective supplies below.
-            $shipmentCount = Shipment::count();
-            $isBonusShipment = (($shipmentCount + 1) % 10 === 0);
-            $requiredMaterials = [$validated['box'], 'Foam Inserts', 'Silica Gel Packs'];
+            $order->loadMissing('items');
+            $requiredMaterials = $this->packagingBomRequirements($order);
 
-            if ($isBonusShipment) {
-                $requiredMaterials = array_merge($requiredMaterials, [
-                    'Packing Tape',
-                    'Bubble Wrap',
-                    'Fragile Tape',
-                ]);
+            if ($requiredMaterials === []) {
+                // Listings created before packaging BOMs were available keep
+                // the established packing workflow. New listings with an
+                // attached packaging BOM never reach this fallback.
+                if (empty($validated['box'])) {
+                    $this->revertOrderClaim($order);
+
+                    return response()->json([
+                        'success' => false,
+                        'error' => 'box_required',
+                    ], 422);
+                }
+
+                $shipmentCount = Shipment::count();
+                $isBonusShipment = (($shipmentCount + 1) % 10 === 0);
+                $requiredMaterials = [
+                    $validated['box'] => 1,
+                    'Foam Inserts' => 1,
+                    'Silica Gel Packs' => 1,
+                ];
+
+                if ($isBonusShipment) {
+                    foreach (['Packing Tape', 'Bubble Wrap', 'Fragile Tape'] as $materialName) {
+                        $requiredMaterials[$materialName] = 1;
+                    }
+                }
             }
+
+            $boxUsed = $this->boxFromRequirements($requiredMaterials) ?? $validated['box'] ?? 'Packaging BOM';
 
             // 3. Check stock BEFORE opening any transaction. This is
             //    intentionally outside DB::transaction() — logging a packing
@@ -265,10 +283,10 @@ class PackingController extends Controller
             //    that failed. packing_materials lives on the separate
             //    "inventory" Neon database, so this read goes through that
             //    connection.
-            foreach ($requiredMaterials as $materialName) {
+            foreach ($requiredMaterials as $materialName => $quantity) {
                 $row = $this->findPackingMaterial($materialName)->first();
 
-                if (!$row || $row->stock_qty <= 0) {
+                if (!$row || $row->stock_qty < $quantity) {
                     $this->logPackingError((string) $order->id, $materialName, $row ? 'out_of_stock' : 'material_not_found');
                     $this->revertOrderClaim($order);
 
@@ -285,12 +303,12 @@ class PackingController extends Controller
             // 4. Decrement stock inside its own transaction, with row locks
             //    to guard against a race between the pre-check above and now.
             DB::connection(self::INVENTORY_CONN)->transaction(function () use ($requiredMaterials) {
-                foreach ($requiredMaterials as $materialName) {
+                foreach ($requiredMaterials as $materialName => $quantity) {
                     $row = $this->findPackingMaterial($materialName)
                         ->lockForUpdate()
                         ->first();
 
-                    if (!$row || $row->stock_qty <= 0) {
+                    if (!$row || $row->stock_qty < $quantity) {
                         // Throw so this transaction rolls back cleanly; we log
                         // the error AFTER the transaction exits (see catch below).
                         throw new InsufficientStockException($materialName);
@@ -298,8 +316,8 @@ class PackingController extends Controller
                 }
 
                 // All materials confirmed in stock — safe to decrement.
-                foreach ($requiredMaterials as $materialName) {
-                    $this->findPackingMaterial($materialName)->decrement('stock_qty', 1);
+                foreach ($requiredMaterials as $materialName => $quantity) {
+                    $this->findPackingMaterial($materialName)->decrement('stock_qty', $quantity);
                 }
             });
 
@@ -307,7 +325,7 @@ class PackingController extends Controller
             //    Create the shipment + update the order on the default DB.
             //    If anything here fails, we must give the materials back.
             try {
-                $result = DB::connection('order_fulfillment')->transaction(function () use ($validated, $order, $id) {
+                $result = DB::connection('order_fulfillment')->transaction(function () use ($validated, $order, $id, $boxUsed) {
 
                     $trackingNumber = strtoupper($validated['courier']) . '-' . time();
                     $shipmentId = $this->generateUniqueShipmentId();
@@ -334,7 +352,7 @@ class PackingController extends Controller
                         'qty'             => $totalQty,
                         'amount'          => $totalAmount,
                         'courier'         => $validated['courier'],
-                        'box_used'        => $validated['box'],
+                        'box_used'        => $boxUsed,
                         'tracking_number' => $trackingNumber,
                         'status'          => 'SHIPPED',
                         'address'         => $order->address,
@@ -407,8 +425,8 @@ class PackingController extends Controller
     {
         try {
             DB::connection(self::INVENTORY_CONN)->transaction(function () use ($requiredMaterials) {
-                foreach ($requiredMaterials as $materialName) {
-                    $this->findPackingMaterial($materialName)->increment('stock_qty', 1);
+                foreach ($requiredMaterials as $materialName => $quantity) {
+                    $this->findPackingMaterial($materialName)->increment('stock_qty', $quantity);
                 }
             });
         } catch (\Throwable $e) {
@@ -416,6 +434,80 @@ class PackingController extends Controller
             // log loudly rather than losing the discrepancy silently.
             report($e);
         }
+    }
+
+    /**
+     * Resolve packing materials from the BOM attached to each storefront
+     * listing. A material is multiplied by the quantity of its order line,
+     * then combined with matching materials from the rest of the order.
+     *
+     * An empty array intentionally means this is a legacy order with no
+     * packaging attachment, so processOrder() can retain its old fallback.
+     */
+    private function packagingBomRequirements(Order $order): array
+    {
+        $bomQuantities = [];
+
+        foreach ($order->items as $item) {
+            $configuration = $item->configuration;
+            if (! is_array($configuration)) {
+                $configuration = json_decode((string) $configuration, true) ?: [];
+            }
+
+            $bomId = (int) ($configuration['packaging_bom_id'] ?? 0);
+            if ($bomId > 0) {
+                $bomQuantities[$bomId] = ($bomQuantities[$bomId] ?? 0) + max(1, (int) $item->qty);
+            }
+        }
+
+        if ($bomQuantities === []) {
+            return [];
+        }
+
+        $manufacturingSchema = Schema::connection('manufacturing');
+        if (! $manufacturingSchema->hasTable('product_boms') || ! $manufacturingSchema->hasTable('product_bom_items')) {
+            throw new \RuntimeException('Packaging BOM tables are unavailable.');
+        }
+
+        $clientId = (int) session('employee_client_id');
+        $components = DB::connection('manufacturing')->table('product_bom_items as items')
+            ->join('product_boms as boms', 'boms.id', '=', 'items.bom_id')
+            ->where('items.client_id', $clientId)
+            ->where('boms.client_id', $clientId)
+            ->whereIn('items.bom_id', array_keys($bomQuantities))
+            ->where('boms.status', 'active');
+
+        if ($manufacturingSchema->hasColumn('product_boms', 'bom_type')) {
+            $components->where('boms.bom_type', 'packaging');
+        }
+
+        $requirements = [];
+        foreach ($components->get(['items.bom_id', 'items.item_name', 'items.quantity_required']) as $component) {
+            $name = trim((string) $component->item_name);
+            if ($name === '') {
+                continue;
+            }
+
+            $quantity = max(1, (int) $component->quantity_required) * $bomQuantities[(int) $component->bom_id];
+            $requirements[$name] = ($requirements[$name] ?? 0) + $quantity;
+        }
+
+        if ($requirements === []) {
+            throw new \RuntimeException('The packaging Bill of Materials for this order is unavailable or has no components.');
+        }
+
+        return $requirements;
+    }
+
+    private function boxFromRequirements(array $requiredMaterials): ?string
+    {
+        foreach (array_keys($requiredMaterials) as $materialName) {
+            if (PackingMaterialCatalog::definition($materialName)['is_box'] ?? false) {
+                return $materialName;
+            }
+        }
+
+        return null;
     }
 
     /**

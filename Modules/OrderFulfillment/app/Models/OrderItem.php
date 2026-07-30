@@ -23,11 +23,14 @@ class OrderItem extends Model
         'product_name',
         'qty',
         'product_amount',
+        'product_type',
+        'configuration',
     ];
 
     protected $casts = [
         'qty' => 'integer',
         'product_amount' => 'decimal:2',
+        'configuration' => 'array',
     ];
 
     public function order()

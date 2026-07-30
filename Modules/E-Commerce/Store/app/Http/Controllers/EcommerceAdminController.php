@@ -41,7 +41,7 @@ class EcommerceAdminController extends Controller
     }
 
     public function listings() { return view('ecommerce::admin.listings', ['listings' => StorefrontListing::latest()->get()]); }
-    public function createListing() { return view('ecommerce::admin.listing-form', ['listing' => new StorefrontListing(), 'boms' => $this->boms()]); }
+    public function createListing() { return view('ecommerce::admin.listing-form', ['listing' => new StorefrontListing(), 'boms' => $this->boms(), 'packagingBoms' => $this->packagingBoms()]); }
 
     public function storeListing(Request $request): RedirectResponse
     {
@@ -56,7 +56,7 @@ class EcommerceAdminController extends Controller
         $listing = StorefrontListing::withoutGlobalScope('ecommerce-client')
             ->where('client_id', app(EcommerceClientContext::class)->clientId())
             ->findOrFail($id);
-        return view('ecommerce::admin.listing-form', ['listing' => $listing, 'boms' => $this->boms()]);
+        return view('ecommerce::admin.listing-form', ['listing' => $listing, 'boms' => $this->boms(), 'packagingBoms' => $this->packagingBoms()]);
     }
 
     public function updateListing(Request $request, $id): RedirectResponse
@@ -489,10 +489,28 @@ class EcommerceAdminController extends Controller
         return $query->orderBy('name')->get();
     }
 
+    private function packagingBoms()
+    {
+        $manufacturing = DB::connection('manufacturing');
+        $query = $manufacturing->table('product_boms')
+            ->where('client_id', app(EcommerceClientContext::class)->clientId())
+            ->where('status', 'active');
+
+        if ($manufacturing->getSchemaBuilder()->hasColumn('product_boms', 'bom_type')) {
+            $query->where('bom_type', 'packaging');
+        } else {
+            // Older Manufacturing schemas have no explicit type yet. Do not
+            // expose arbitrary product BOMs as packaging in that case.
+            $query->whereRaw('1 = 0');
+        }
+
+        return $query->orderBy('name')->get();
+    }
+
     private function listingData(Request $request): array
     {
         return $request->validate([
-            'bom_id' => ['required', 'integer'], 'sku' => ['required', 'string', 'max:100'],
+            'bom_id' => ['required', 'integer'], 'packaging_bom_id' => ['nullable', 'integer'], 'sku' => ['required', 'string', 'max:100'],
             'name' => ['required', 'string', 'max:160'], 'description' => ['nullable', 'string'],
             'price' => ['required', 'numeric', 'min:0'], 'status' => ['required', 'in:draft,active,archived'],
             'image' => ['nullable', 'image', 'max:4096'],

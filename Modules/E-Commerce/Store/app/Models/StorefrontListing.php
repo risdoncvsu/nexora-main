@@ -12,7 +12,7 @@ class StorefrontListing extends Model
 {
     use BelongsToClient;
 
-    protected $fillable = ['bom_id', 'sku', 'name', 'description', 'price', 'image_url', 'status'];
+    protected $fillable = ['bom_id', 'packaging_bom_id', 'sku', 'name', 'description', 'price', 'image_url', 'status'];
 
     protected $casts = ['price' => 'decimal:2'];
 
@@ -37,6 +37,25 @@ class StorefrontListing extends Model
 
             if (! $clientId || ! $bom->exists()) {
                 throw new \LogicException('Select an active Bill of Materials owned by this client.');
+            }
+
+            if (! $listing->packaging_bom_id) {
+                return;
+            }
+
+            $packagingBom = $manufacturing->table('product_boms')
+                ->where('id', $listing->packaging_bom_id)
+                ->where('client_id', $clientId)
+                ->where('status', 'active');
+
+            if (! $manufacturing->getSchemaBuilder()->hasColumn('product_boms', 'bom_type')) {
+                throw new \LogicException('Packaging BOMs require the Manufacturing BOM type migration.');
+            }
+
+            $packagingBom->where('bom_type', 'packaging');
+
+            if (! $packagingBom->exists()) {
+                throw new \LogicException('Select an active packaging Bill of Materials owned by this client.');
             }
         });
     }
