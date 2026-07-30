@@ -9,7 +9,7 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
-<body class="min-h-screen bg-[#1B365D] font-sans text-white" x-data="{ openUploadModal: false, renewId: null, title: '', issuer: '', expiryDate: '', status: 'Active' }">
+<body class="itsm-workspace min-h-screen font-sans text-white" x-data="{ openUploadModal: false, renewId: null, title: '', issuer: '', expiryDate: '', status: 'Active' }">
     <div class="flex min-h-screen flex-col">
         <x-itsm-header
             :home-route="route('client.itsm.employees')"

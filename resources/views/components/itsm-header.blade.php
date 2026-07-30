@@ -4,30 +4,31 @@
     'active' => null,
 ])
 
-<header class="flex min-h-24 flex-col items-center justify-center gap-4 bg-[#0B1E3D] px-4 py-4 shadow-lg lg:h-32 lg:flex-row lg:justify-between lg:pl-4 lg:pr-12 lg:py-0">
-    <div class="flex shrink-0 items-center gap-3">
-        <a href="{{ $homeRoute }}" class="block h-16 transition hover:scale-[1.02] sm:h-20 lg:h-24">
+<header class="sticky top-0 z-40 flex min-h-16 flex-col items-center justify-center gap-3 border-b border-white/10 bg-[#0B1E3D] px-4 py-3 shadow-lg lg:h-[72px] lg:flex-row lg:justify-between lg:px-6 lg:py-0">
+    <div class="flex shrink-0 items-center gap-2">
+        <a href="{{ $homeRoute }}" class="block h-10 transition hover:scale-[1.02] sm:h-11">
             <img src="{{ asset('images/Banner Transparent.png') }}" alt="Nexora Logo" class="h-full object-contain">
         </a>
-        <x-client-logo :size="64" />
+        <span class="h-7 w-px bg-white/20"></span>
+        <x-client-logo :size="36" />
     </div>
 
-    <div class="flex w-full flex-wrap items-center justify-center gap-4 sm:gap-6 lg:w-auto lg:flex-nowrap lg:justify-end lg:gap-16">
-        <nav class="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-sm font-medium sm:gap-x-6 sm:text-base lg:flex-nowrap lg:gap-8">
+    <div class="flex w-full flex-wrap items-center justify-center gap-3 lg:w-auto lg:flex-nowrap lg:justify-end">
+        <nav class="flex max-w-full flex-wrap items-center justify-center gap-1 text-xs font-semibold sm:text-sm lg:flex-nowrap">
             @foreach ($navItems as $item)
                 @php
                     $isActive = $active === $item['key']
                         || ($item['key'] === 'employees' && request()->routeIs('client.itsm.employees'));
                 @endphp
-                <a href="{{ $item['route'] }}" @if ($isActive) aria-current="page" @endif class="{{ $isActive ? 'font-bold text-[#60A5FA]' : 'text-white/70 transition hover:text-white' }}">
+                <a href="{{ $item['route'] }}" @if ($isActive) aria-current="page" @endif class="rounded-md px-3 py-2 {{ $isActive ? 'bg-white/12 text-white shadow-sm' : 'text-white/70 transition hover:bg-white/8 hover:text-white' }}">
                     {{ $item['label'] }}
                 </a>
             @endforeach
         </nav>
 
         <div class="relative" data-user-menu>
-            <button type="button" class="flex items-center transition hover:scale-105" data-user-menu-button aria-label="Open user menu">
-                <img src="{{ asset('images/icon.png') }}" alt="User" class="h-9 w-9 object-contain">
+            <button type="button" class="flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-white/10 transition hover:bg-white/20" data-user-menu-button aria-label="Open user menu">
+                <img src="{{ asset('images/icon.png') }}" alt="User" class="h-7 w-7 object-contain">
             </button>
 
             <div class="invisible absolute right-0 top-12 z-50 w-[200px] translate-y-[-10px] overflow-hidden rounded-lg bg-white opacity-0 shadow-2xl transition data-[open=true]:visible data-[open=true]:translate-y-0 data-[open=true]:opacity-100" data-user-menu-dropdown>

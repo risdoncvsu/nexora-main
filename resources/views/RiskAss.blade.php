@@ -10,7 +10,7 @@
     <!-- Alpine.js for Modals, Search, and Filtering without changing the layout -->
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
-<body class="min-h-screen bg-[#1B365D] font-sans text-white" 
+<body class="itsm-workspace min-h-screen font-sans text-white"
       x-data="{ 
           searchQuery: '', 
           activeFilter: 'All', 

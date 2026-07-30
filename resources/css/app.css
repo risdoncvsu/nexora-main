@@ -9,3 +9,55 @@
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
 }
+
+/* Shared operational shell for the ITSM root and client workspaces. */
+.itsm-workspace {
+    background: #edf2f7 !important;
+    color: #17233d;
+}
+
+.itsm-workspace .itsm-watermark {
+    display: none;
+}
+
+.itsm-workspace main > img.pointer-events-none.absolute {
+    display: none;
+}
+
+.itsm-workspace [class*="rounded-[1.875rem]"],
+.itsm-workspace [class*="rounded-[2rem]"] {
+    border-radius: 8px;
+}
+
+.itsm-workspace main > .relative.z-10 {
+    margin-inline: auto;
+    max-width: 1600px;
+}
+
+.itsm-workspace .itsm-density-panel {
+    border: 1px solid #d9e2ec;
+    border-radius: 8px;
+    box-shadow: 0 12px 28px rgb(15 23 42 / 8%);
+}
+
+.itsm-workspace .itsm-density-panel > * {
+    min-width: 0;
+}
+
+.itsm-workspace .itsm-table-shell {
+    border: 1px solid #d9e2ec;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.itsm-workspace table th {
+    background: #f5f7fa;
+    color: #52627b;
+    font-size: .72rem;
+}
+
+.itsm-workspace table td,
+.itsm-workspace table th {
+    padding-top: .7rem;
+    padding-bottom: .7rem;
+}

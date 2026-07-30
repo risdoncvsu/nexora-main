@@ -10,7 +10,7 @@
     <!-- Include AlpineJS for seamless dynamic form & interaction submittals -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
-<body class="min-h-screen bg-[#1B365D] font-sans text-white">
+<body class="itsm-workspace min-h-screen font-sans text-white">
     <div class="flex min-h-screen flex-col">
         <!-- Main Application Header -->
         <x-itsm-header
@@ -30,7 +30,7 @@
             <!-- Background Watermark brand logo -->
             <img src="{{ asset('images/nexora-icon.png') }}" alt="" class="pointer-events-none absolute left-1/2 top-1/2 w-[64rem] -translate-x-1/2 -translate-y-1/2 opacity-10 blur-sm">
 
-            <div class="relative z-10 grid min-h-[calc(100vh-10rem)] grid-cols-1 gap-6 xl:grid-cols-[22rem_minmax(0,1fr)]">
+            <div class="relative z-10 grid min-h-[calc(100vh-10rem)] grid-cols-1 gap-6 xl:grid-cols-[13.5rem_minmax(0,1fr)]">
                 
                 <!-- Left Sidebar Navigation Panel -->
                 <x-risk-sidebar section="analytics" />
@@ -184,7 +184,7 @@
                                             </div>
 
                                             <div class="text-right pt-2 border-t border-slate-100 shrink-0">
-                                                <a href="{{ route('client.itsm.risk') }}" class="text-[11px] font-bold text-[#1A73E8] hover:underline transition">View Detailed Logs â†’</a>
+                                                <a href="{{ route('client.itsm.risk') }}" class="text-[11px] font-bold text-[#1A73E8] hover:underline transition">View Detailed Logs ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢</a>
                                             </div>
                                         </div>
 

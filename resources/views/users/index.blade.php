@@ -110,7 +110,7 @@
     <link rel="icon" type="image/x-icon" href="{{ asset('images/nexora-icon.ico') }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="min-h-screen bg-[#1B365D] font-sans text-white">
+<body class="itsm-workspace min-h-screen font-sans text-white">
     <div class="flex min-h-screen flex-col">
         <x-itsm-header
             :home-route="$portal === 'admin' ? route('admin.itsm.registration') : route('client.itsm.employees')"
@@ -118,28 +118,28 @@
             :nav-items="$navItems"
         />
 
-        <main class="relative flex-1 overflow-hidden p-4 sm:p-6">
-            <img src="{{ asset('images/nexora-icon.png') }}" alt="" class="pointer-events-none absolute left-1/2 top-1/2 w-[64rem] -translate-x-1/2 -translate-y-1/2 opacity-10 blur-sm">
+        <main class="relative flex-1 p-4 lg:p-5">
+            <img src="{{ asset('images/nexora-icon.png') }}" alt="" class="itsm-watermark pointer-events-none absolute left-1/2 top-1/2 w-[64rem] -translate-x-1/2 -translate-y-1/2 opacity-10 blur-sm">
 
-            <div class="relative z-10 grid min-h-[calc(100vh-10rem)] grid-cols-1 gap-6 xl:grid-cols-[22rem_minmax(0,1fr)]">
-                <aside class="self-start min-h-[calc(100vh-10rem)] rounded-[1.875rem] bg-white p-5 text-slate-950 sm:p-8">
-                    <nav class="flex flex-wrap gap-x-6 gap-y-3 text-base sm:text-xl xl:block xl:space-y-6">
-                        <a href="{{ $portal === 'admin' ? route('admin.itsm.clients') : route('client.itsm.employees') }}" class="block {{ $active === 'employees' || $active === 'clients' ? 'font-extrabold text-slate-950' : 'font-medium text-slate-700 hover:text-[#346DCB]' }}">All {{ $portal === 'admin' ? ucfirst($entityLabelPlural) : 'Employees' }}</a>
+            <div class="relative z-10 mx-auto grid max-w-[1600px] grid-cols-1 gap-4 xl:grid-cols-[13.5rem_minmax(0,1fr)]">
+                <aside class="itsm-density-panel self-start bg-white p-3 text-slate-950 xl:sticky xl:top-24">
+                    <nav class="flex flex-wrap gap-1 text-sm xl:block xl:space-y-1">
+                        <a href="{{ $portal === 'admin' ? route('admin.itsm.clients') : route('client.itsm.employees') }}" class="block rounded-md px-3 py-2.5 {{ $active === 'employees' || $active === 'clients' ? 'bg-[#132B52] font-bold text-white' : 'font-medium text-slate-700 hover:bg-slate-100 hover:text-[#132B52]' }}">All {{ $portal === 'admin' ? ucfirst($entityLabelPlural) : 'Employees' }}</a>
                         @if ($portal === 'admin')
-                            <a href="{{ route('admin.itsm.pending-approvals') }}" class="block {{ $active === 'pending-approvals' ? 'font-extrabold text-slate-950' : 'font-medium text-slate-700 hover:text-[#346DCB]' }}">Pending Approvals</a>
+                            <a href="{{ route('admin.itsm.pending-approvals') }}" class="block rounded-md px-3 py-2.5 {{ $active === 'pending-approvals' ? 'bg-[#132B52] font-bold text-white' : 'font-medium text-slate-700 hover:bg-slate-100 hover:text-[#132B52]' }}">Pending Approvals</a>
                         @else
-                            <a href="{{ route('client.itsm.pending-approvals') }}" class="block {{ $active === 'pending-approvals' ? 'font-extrabold text-slate-950' : 'font-medium text-slate-700 hover:text-[#346DCB]' }}">Pending Approvals</a>
+                            <a href="{{ route('client.itsm.pending-approvals') }}" class="block rounded-md px-3 py-2.5 {{ $active === 'pending-approvals' ? 'bg-[#132B52] font-bold text-white' : 'font-medium text-slate-700 hover:bg-slate-100 hover:text-[#132B52]' }}">Pending Approvals</a>
                         @endif
                         @if ($portal === 'admin')
-                            <a href="{{ route('admin.itsm.roles') }}" class="block {{ $active === 'roles' ? 'font-extrabold text-slate-950' : 'font-medium text-slate-700 hover:text-[#346DCB]' }}">Roles & Permissions</a>
+                            <a href="{{ route('admin.itsm.roles') }}" class="block rounded-md px-3 py-2.5 {{ $active === 'roles' ? 'bg-[#132B52] font-bold text-white' : 'font-medium text-slate-700 hover:bg-slate-100 hover:text-[#132B52]' }}">Roles & Permissions</a>
                         @endif
 
                     </nav>
                 </aside>
 
                 <section class="flex flex-col gap-6">
-                    <div class="flex flex-col gap-4 rounded-[1.875rem] bg-white/90 px-5 py-5 text-slate-950 sm:px-8 sm:py-6 2xl:flex-row 2xl:items-center 2xl:justify-between">
-                        <h1 class="text-3xl font-bold sm:text-4xl xl:text-5xl">{{ $title }}</h1>
+                    <div class="itsm-density-panel flex flex-col gap-3 bg-white px-5 py-4 text-slate-950 lg:flex-row lg:items-center lg:justify-between">
+                        <h1 class="text-2xl font-bold sm:text-3xl">{{ $title }}</h1>
 
                         <div class="flex flex-wrap items-center gap-3 sm:gap-4">
                             <label class="flex min-w-0 flex-1 items-center gap-3 rounded-full bg-slate-200 px-4 py-3 text-base text-slate-500 sm:flex-none sm:px-6 sm:text-xl">
@@ -149,7 +149,7 @@
                         </div>
                     </div>
 
-                    <div class="flex-1 rounded-[1.875rem] bg-white p-8 text-slate-950">
+                    <div class="itsm-density-panel flex-1 bg-white p-5 text-slate-950">
                         @if ($errors->any())
                             <div class="mb-6 rounded-md bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
                                 {{ $errors->first() }}
@@ -182,7 +182,7 @@
                             <h2 class="text-xl font-semibold">{{ $active === 'pending-approvals' ? ($portal === 'admin' ? 'Client accounts awaiting root review' : 'Employee accounts awaiting your approval') : 'All ' . $entityLabelPlural }}</h2>
                         </div>
 
-                        <div class="overflow-x-auto">
+                        <div class="itsm-table-shell overflow-x-auto">
                             <table class="w-full border-collapse" id="usersTable">
                                 <thead>
                                     <tr class="border-b-2 border-slate-200 text-left text-lg font-semibold">

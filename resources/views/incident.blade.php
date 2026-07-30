@@ -8,7 +8,7 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <script src="https://unpkg.com/lucide@latest"></script>
 </head>
-<body class="min-h-screen bg-[#1B365D] font-sans text-white">
+<body class="itsm-workspace min-h-screen font-sans text-white">
     <div class="flex min-h-screen flex-col">
         <!-- Main Application Header -->
         <x-itsm-header
@@ -27,7 +27,7 @@
         <main class="relative flex-1 overflow-hidden p-4 sm:p-6">
             <img src="{{ asset('images/nexora-icon.png') }}" alt="" class="pointer-events-none absolute left-1/2 top-1/2 w-[64rem] -translate-x-1/2 -translate-y-1/2 opacity-10 blur-sm">
 
-            <div class="relative z-10 grid min-h-[calc(100vh-10rem)] grid-cols-1 gap-6 xl:grid-cols-[22rem_minmax(0,1fr)]">
+            <div class="relative z-10 grid min-h-[calc(100vh-10rem)] grid-cols-1 gap-6 xl:grid-cols-[13.5rem_minmax(0,1fr)]">
                 
                 <!-- Left Sidebar Navigation Panel -->
                 <x-risk-sidebar section="incident" />
@@ -164,13 +164,13 @@
                                                     <td class="px-6 py-3 text-center">
                                                         @switch($incident['status'])
                                                             @case('Resolved')
-                                                                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700 font-bold text-[10px]">âœ“ Resolved</span>
+                                                                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700 font-bold text-[10px]">ÃƒÂ¢Ã…â€œÃ¢â‚¬Å“ Resolved</span>
                                                                 @break
                                                             @case('Investigating')
-                                                                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-blue-50 text-blue-700 font-bold text-[10px] animate-pulse">âš² Investigating</span>
+                                                                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-blue-50 text-blue-700 font-bold text-[10px] animate-pulse">ÃƒÂ¢Ã…Â¡Ã‚Â² Investigating</span>
                                                                 @break
                                                             @default
-                                                                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-amber-100 text-amber-800 font-bold text-[10px]">â— Open</span>
+                                                                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-amber-100 text-amber-800 font-bold text-[10px]">ÃƒÂ¢Ã¢â‚¬â€Ã‚Â Open</span>
                                                         @endswitch
                                                     </td>
                                                     <td class="px-6 py-3 text-center">
@@ -218,7 +218,7 @@
         <div class="bg-white rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden text-slate-900 border border-slate-100 transform transition-all">
             <div class="bg-[#DDE4EC] px-8 py-5 flex justify-between items-center">
                 <h3 class="text-xl font-bold text-slate-950">Log New System Incident</h3>
-                <button onclick="toggleModal(false)" class="text-slate-500 hover:text-slate-800 text-lg font-bold">Ã—</button>
+                <button onclick="toggleModal(false)" class="text-slate-500 hover:text-slate-800 text-lg font-bold">ÃƒÆ’Ã¢â‚¬â€</button>
             </div>
             <form action="{{ route('client.itsm.risk.incident.store') }}" method="POST" class="p-8 space-y-4">
                 @csrf
