@@ -26,6 +26,7 @@ class OrderController extends Controller
     public function show($id)
     {
         $order = Order::findOrFail($id);
+        $this->reconcileStorefrontPrices(collect([$order]));
         $this->attachLineItems(collect([$order]));
 
         return view('orders.show', compact('order'));
@@ -37,6 +38,7 @@ class OrderController extends Controller
     public function index()
     {
         $orders       = Order::orderByDesc('created_at')->get();
+        $this->reconcileStorefrontPrices($orders);
         $this->attachLineItems($orders);
         $this->attachShipmentInfo($orders);
         $total        = Order::count();
@@ -276,6 +278,66 @@ class OrderController extends Controller
                 ]),
             ]));
         });
+    }
+
+    /**
+     * Older storefront orders saved their tier discount only on orders.total
+     * while their Fulfillment lines retained catalog prices. The Ecommerce
+     * total is the immutable amount the customer paid, so use it to repair
+     * only lines that are provably higher than that amount.
+     */
+    public function reconcileStorefrontPrices(Collection $orders): void
+    {
+        if ($orders->isEmpty()) {
+            return;
+        }
+
+        try {
+            $fulfillmentSchema = Schema::connection('order_fulfillment');
+            $ecommerceSchema = Schema::connection('ecommerce');
+            if (! $fulfillmentSchema->hasTable('order_items')
+                || ! $ecommerceSchema->hasTable('orders')
+                || ! $ecommerceSchema->hasColumn('orders', 'total')
+                || ! $ecommerceSchema->hasColumn('orders', 'shipping_fee')) {
+                return;
+            }
+
+            $storefrontOrders = DB::connection('ecommerce')->table('orders')
+                ->whereIn('id', $orders->pluck('id')->all())
+                ->get(['id', 'total', 'shipping_fee'])
+                ->keyBy('id');
+
+            foreach ($storefrontOrders as $storefrontOrder) {
+                $expectedItemsTotal = max(0, (float) $storefrontOrder->total - (float) $storefrontOrder->shipping_fee);
+                $lines = DB::connection('order_fulfillment')->table('order_items')
+                    ->where('order_id', $storefrontOrder->id)
+                    ->orderBy('id')
+                    ->get(['id', 'qty', 'product_amount']);
+                $currentItemsTotal = (float) $lines->sum(fn (object $line): float => (int) $line->qty * (float) $line->product_amount);
+
+                if ($lines->isEmpty() || $currentItemsTotal <= $expectedItemsTotal + 0.01) {
+                    continue;
+                }
+
+                $remainingTotal = $expectedItemsTotal;
+                $lastIndex = $lines->count() - 1;
+                foreach ($lines->values() as $index => $line) {
+                    $quantity = max(1, (int) $line->qty);
+                    $lineTotal = $index === $lastIndex
+                        ? $remainingTotal
+                        : round(((float) $line->product_amount * $quantity / $currentItemsTotal) * $expectedItemsTotal, 2);
+                    $unitPrice = round($lineTotal / $quantity, 2);
+                    $remainingTotal = round($remainingTotal - ($unitPrice * $quantity), 2);
+
+                    DB::connection('order_fulfillment')->table('order_items')
+                        ->where('id', $line->id)
+                        ->update(['product_amount' => $unitPrice, 'updated_at' => now()]);
+                }
+            }
+        } catch (\Throwable) {
+            // A temporary Ecommerce schema issue must never block the
+            // Fulfillment workspace.
+        }
     }
 
     /**

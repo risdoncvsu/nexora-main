@@ -137,6 +137,10 @@ class PackingController extends Controller
         $packingOrders = Order::where('status', 'PACKING')
             ->when($this->fulfillmentSchema()->hasTable('order_items'), fn ($q) => $q->with('items'))
             ->get();
+        app(OrderController::class)->reconcileStorefrontPrices($packingOrders);
+        if ($this->fulfillmentSchema()->hasTable('order_items')) {
+            $packingOrders->load('items');
+        }
 
         $inPackingCount = $packingOrders->count();
         // Every non-delivered shipping status — dispatched but not yet

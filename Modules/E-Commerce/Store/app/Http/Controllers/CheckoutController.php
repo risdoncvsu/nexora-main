@@ -61,12 +61,17 @@ class CheckoutController extends Controller
         // Tier-based item discount
         $tierBenefits = CrmCustomer::benefitsForUser($user->id);
         $tierDiscountPct = $tierBenefits['item_discount_pct'];
-        $tierDiscountAmount = $tierDiscountPct > 0 ? round($subtotal * ($tierDiscountPct / 100), 2) : 0;
+        $discountedSubtotal = collect($cartItems)->sum(function (array $item) use ($tierDiscountPct): float {
+            $discountedUnitPrice = round((float) $item['price'] * (1 - ((float) $tierDiscountPct / 100)), 2);
+
+            return $discountedUnitPrice * (int) $item['quantity'];
+        });
+        $tierDiscountAmount = round($subtotal - $discountedSubtotal, 2);
 
         // Simple default shipping fee
         $shipping = 150; 
         $discount = $tierDiscountAmount;
-        $total = $subtotal + $shipping - $discount;
+        $total = $discountedSubtotal + $shipping;
 
         return view('ecommerce::checkout', compact('cartItems', 'subtotal', 'shipping', 'discount', 'total', 'addresses', 'paymentMethods', 'tierBenefits', 'tierDiscountPct', 'tierDiscountAmount'));
     }
@@ -133,9 +138,14 @@ class CheckoutController extends Controller
 
         // Apply tier item discount
         $tierDiscountPct = $tierBenefits['item_discount_pct'] ?? 0;
-        $tierDiscountAmount = $tierDiscountPct > 0 ? round($subtotal * ($tierDiscountPct / 100), 2) : 0;
-
-        $total = $subtotal + $shippingFee - $tierDiscountAmount;
+        // Lock the applied tier price into every order line. Downstream
+        // modules must receive the customer-paid price, not the catalog price.
+        $discountedSubtotal = $cart->items->sum(function ($item) use ($tierDiscountPct): float {
+            return round((float) $item->price * (1 - ((float) $tierDiscountPct / 100)), 2)
+                * (int) $item->quantity;
+        });
+        $tierDiscountAmount = round($subtotal - $discountedSubtotal, 2);
+        $total = $discountedSubtotal + $shippingFee;
 
         $clientId = app(EcommerceClientContext::class)->clientId();
         if (! $clientId) {
@@ -158,7 +168,7 @@ class CheckoutController extends Controller
 
         try {
             // 1. Create the order within its own ecommerce transaction
-            $order = DB::connection('ecommerce')->transaction(function () use ($cart, $request, $subtotal, $shippingFee, $total, $paymentLabel, $shippingAddress) {
+            $order = DB::connection('ecommerce')->transaction(function () use ($cart, $request, $shippingFee, $total, $paymentLabel, $shippingAddress, $tierDiscountPct) {
                 $order = Order::create([
                     'user_id' => Auth::guard('ecommerce')->id(),
                     'status' => 'processing',
@@ -171,11 +181,13 @@ class CheckoutController extends Controller
                 ]);
 
                 foreach ($cart->items as $item) {
+                    $discountedUnitPrice = round((float) $item->price * (1 - ((float) $tierDiscountPct / 100)), 2);
+
                     $order->items()->create([
                         'product_id' => $item->product_id,
                         'product_type' => $item->product_type,
                         'name' => $item->name,
-                        'price' => $item->price,
+                        'price' => $discountedUnitPrice,
                         'quantity' => $item->quantity,
                         'configuration' => $item->configuration,
                     ]);
@@ -232,9 +244,14 @@ class CheckoutController extends Controller
         $tierBenefits = $user ? \Modules\Ecommerce\CRM\Models\Customer::benefitsForUser($user->id) : null;
         $tierDiscountPct = $tierBenefits['item_discount_pct'] ?? 0;
 
-        // Recalculate the original subtotal from order items
-        $originalSubtotal = $order->items->sum(fn($i) => $i->price * $i->quantity);
-        $tierDiscountAmount = $tierDiscountPct > 0 ? round($originalSubtotal * ($tierDiscountPct / 100), 2) : 0;
+        // Order line prices are the locked customer-paid tier prices. Recover
+        // the catalog subtotal only for this receipt's discount display.
+        $discountedSubtotal = (float) $order->items->sum(fn($i) => $i->price * $i->quantity);
+        $discountFactor = 1 - ((float) $tierDiscountPct / 100);
+        $originalSubtotal = $tierDiscountPct > 0 && $discountFactor > 0
+            ? round($discountedSubtotal / $discountFactor, 2)
+            : $discountedSubtotal;
+        $tierDiscountAmount = round($originalSubtotal - $discountedSubtotal, 2);
 
         return view('ecommerce::checkout-success', compact(
             'order', 'tierBenefits', 'tierDiscountPct', 'tierDiscountAmount', 'originalSubtotal'
