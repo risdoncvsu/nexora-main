@@ -94,7 +94,7 @@
             ['label' => 'Audit Trail', 'route' => route('admin.itsm.audit-trail'), 'key' => 'audit-trail'],
         ]
         : [
-            ['label' => 'User Management', 'route' => route('client.itsm.employees'), 'key' => 'employees'],
+            ['label' => 'Employee Management', 'route' => route('client.itsm.employees'), 'key' => 'employees'],
             ['label' => 'Service Desk', 'route' => route('client.itsm.service-desk'), 'key' => 'service-desk'],
             ['label' => 'Compliance Tracking', 'route' => route('client.itsm.compliance'), 'key' => 'compliance'],
             ['label' => 'Risk Management', 'route' => route('client.itsm.risk'), 'key' => 'risk'],
@@ -187,12 +187,14 @@
                                 <thead>
                                     <tr class="border-b-2 border-slate-200 text-left text-lg font-semibold">
                                         <th class="sortable cursor-pointer whitespace-nowrap px-2 py-4">{{ $primaryIdLabel }}</th>
-                                        <th class="sortable cursor-pointer whitespace-nowrap px-2 py-4">{{ $portal === 'admin' ? 'Company' : 'Username' }}</th>
+                                        <th class="sortable cursor-pointer whitespace-nowrap px-2 py-4">{{ $portal === 'admin' ? 'Company' : 'Company Email' }}</th>
                                         <th class="sortable cursor-pointer whitespace-nowrap px-2 py-4">{{ $portal === 'admin' ? 'Primary Contact' : 'Full Name' }}</th>
-                                        <th class="sortable cursor-pointer whitespace-nowrap px-2 py-4">{{ $portal === 'admin' ? 'Admin Login' : 'Email' }}</th>
+                                        @if ($portal === 'admin')
+                                            <th class="sortable cursor-pointer whitespace-nowrap px-2 py-4">Admin Login</th>
+                                        @endif
                                         <th class="sortable cursor-pointer whitespace-nowrap px-2 py-4">{{ $portal === 'admin' ? 'Industry' : 'Department' }}</th>
                                         @if ($portal === 'client')
-                                            <th class="sortable cursor-pointer whitespace-nowrap px-2 py-4">ERP Role</th>
+                                            <th class="sortable cursor-pointer whitespace-nowrap px-2 py-4">Role</th>
                                         @endif
                                         <th class="sortable cursor-pointer whitespace-nowrap px-2 py-4">Status</th>
                                         <th class="px-2 py-4 text-center">Action</th>
@@ -222,7 +224,9 @@
                                             <td class="px-2 py-4">{{ $portal === 'admin' ? 'CL-' . str_pad((string) $user->id, 5, '0', STR_PAD_LEFT) : 'EMP-' . str_pad((string) $user->id, 5, '0', STR_PAD_LEFT) }}</td>
                                             <td class="px-2 py-4">{{ $portal === 'admin' ? $user->company_name : ($user->username ?? 'employee') }}</td>
                                             <td class="px-2 py-4">{{ $portal === 'admin' ? $user->admin_name : ($user->name ?? $user->full_name ?? 'Employee') }}</td>
-                                            <td class="px-2 py-4">{{ $portal === 'admin' ? ($user->adminUser?->username ?? 'Not generated') : ($user->email ?? 'employee@company.com') }}</td>
+                                            @if ($portal === 'admin')
+                                                <td class="px-2 py-4">{{ $user->adminUser?->username ?? 'Not generated' }}</td>
+                                            @endif
                                             <td class="px-2 py-4">{{ $portal === 'admin' ? ($user->industry ?? 'ERP Client') : ($user->department ?? 'General') }}</td>
                                             @if ($portal === 'client')
                                                 <td class="px-2 py-4">{{ $accessRoleLabels[$user->access_role ?? 'department_employee'] ?? 'Department Employee' }}</td>
@@ -335,18 +339,13 @@
                         </label>
                     @else
                         <label class="block">
-                            <span class="mb-2 block text-sm font-semibold">Username</span>
-                            <input type="text" name="username" id="edit_username" class="h-11 w-full rounded border border-slate-300 px-3">
+                            <span class="mb-2 block text-sm font-semibold">Company Email</span>
+                            <input type="email" id="edit_employee_company_email" readonly class="h-11 w-full rounded border border-slate-300 bg-slate-100 px-3 text-slate-600">
                         </label>
 
                         <label class="block">
                             <span class="mb-2 block text-sm font-semibold">Full Name</span>
                             <input type="text" name="name" id="edit_name" class="h-11 w-full rounded border border-slate-300 px-3">
-                        </label>
-
-                        <label class="block">
-                            <span class="mb-2 block text-sm font-semibold">Email</span>
-                            <input type="email" name="email" id="edit_email" class="h-11 w-full rounded border border-slate-300 px-3">
                         </label>
 
                         <label class="block">
@@ -356,7 +355,7 @@
                         </label>
 
                         <label class="block">
-                            <span class="mb-2 block text-sm font-semibold">ERP access role</span>
+                            <span class="mb-2 block text-sm font-semibold">Role</span>
                             <select name="access_role" id="edit_access_role" class="h-11 w-full rounded border border-slate-300 px-3">
                                 @foreach ($accessRoleLabels as $value => $label)
                                     <option value="{{ $value }}">{{ $label }}</option>
@@ -540,9 +539,8 @@
                 }
                 setField('edit_logo', '');
             } else {
-                setField('edit_username', row.dataset.username);
+                setField('edit_employee_company_email', row.dataset.username);
                 setField('edit_name', row.dataset.name);
-                setField('edit_email', row.dataset.email);
                 setField('edit_department', row.dataset.department);
                 setField('edit_access_role', row.dataset.accessRole || 'department_employee');
                 let permissions = [];

@@ -547,11 +547,6 @@
                                 <input type="email" id="email" name="email" value="{{ old('email') }}" placeholder="Type here..." required>
                             </div>
 
-                            <div class="input-group">
-                                <label for="employee_id">Employee ID</label>
-                                <input type="text" id="employee_id" name="employee_id" value="{{ old('employee_id') }}" placeholder="Type here..." required>
-                            </div>
-
                             <div class="button-container">
                                 <button type="submit" class="submit-btn">Submit</button>
                             </div>

@@ -86,7 +86,9 @@ class AuthController extends Controller
     {
         abort_unless(session('hr_password_change_employee_id'), 403);
 
-        return view('auth.first-login-password');
+        return view('auth.first-login-password', [
+            'department' => trim((string) session('hr_password_change_department')) ?: 'assigned',
+        ]);
     }
 
     public function storeHrFirstLoginPassword(Request $request)

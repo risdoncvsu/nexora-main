@@ -15,7 +15,7 @@
             :home-route="route('client.itsm.employees')"
             active="risk"
             :nav-items="[
-                ['label' => 'User Management', 'route' => route('client.itsm.employees'), 'key' => 'employees'],
+                ['label' => 'Employee Management', 'route' => route('client.itsm.employees'), 'key' => 'employees'],
                 ['label' => 'Service Desk', 'route' => route('client.itsm.service-desk'), 'key' => 'service-desk'],
                 ['label' => 'Compliance Tracking', 'route' => route('client.itsm.compliance'), 'key' => 'compliance'],
                 ['label' => 'Risk Management', 'route' => route('client.itsm.risk'), 'key' => 'risk'],
@@ -58,7 +58,7 @@
                                 <!-- Metric 2: Mitigation Budget -->
                                 <div class="rounded-xl border border-slate-300/40 bg-white/70 p-3.5 text-center shadow-sm">
                                     <span class="block text-xs font-bold text-slate-700">Total Mitigation Budget</span>
-                                    <span class="block text-2xl font-extrabold text-[#132B52] my-0.5">₱ {{ number_format($totalBudget, 2) }}</span>
+                                    <span class="block text-2xl font-extrabold text-[#132B52] my-0.5">â‚± {{ number_format($totalBudget, 2) }}</span>
                                     <span class="text-[10px] font-semibold text-slate-500">Allocated financial assets</span>
                                 </div>
                                 <!-- Metric 3: Critical Overdue Plans -->
@@ -150,7 +150,7 @@
                                                         {{ $plan->risk->title ?? 'N/A' }}
                                                     </td>
                                                     <td class="px-6 py-3 text-slate-600 font-medium text-center">{{ $plan->owner }}</td>
-                                                    <td class="px-6 py-3 font-bold text-slate-900 text-center">₱ {{ number_format($plan->budget, 2) }}</td>
+                                                    <td class="px-6 py-3 font-bold text-slate-900 text-center">â‚± {{ number_format($plan->budget, 2) }}</td>
                                                     <td class="px-6 py-3 text-center">
                                                         @if($plan->status == 'Completed')
                                                             <span class="inline-block px-3 py-1 rounded-full bg-green-100 text-green-800 font-bold text-[10px]">Completed</span>
@@ -223,7 +223,7 @@
                         <input type="text" name="owner" required placeholder="Personnel name" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs text-slate-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500" />
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wide mb-1">Allocated Budget (₱)</label>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wide mb-1">Allocated Budget (â‚±)</label>
                         <input type="number" step="0.01" name="budget" required placeholder="0.00" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs text-slate-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500" />
                     </div>
                 </div>

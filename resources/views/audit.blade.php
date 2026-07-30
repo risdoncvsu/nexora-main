@@ -14,7 +14,7 @@
             :home-route="route('client.itsm.employees')"
             active="compliance"
             :nav-items="[
-                ['label' => 'User Management', 'route' => route('client.itsm.employees'), 'key' => 'employees'],
+                ['label' => 'Employee Management', 'route' => route('client.itsm.employees'), 'key' => 'employees'],
                 ['label' => 'Service Desk', 'route' => route('client.itsm.service-desk'), 'key' => 'service-desk'],
                 ['label' => 'Compliance Tracking', 'route' => route('client.itsm.compliance'), 'key' => 'compliance'],
                 ['label' => 'Risk Management', 'route' => route('client.itsm.risk'), 'key' => 'risk'],
@@ -142,7 +142,7 @@
                                                 <td class="px-6 py-4 text-slate-600">{{ $audit['scope'] }}</td>
                                                 <td class="px-6 py-4 text-slate-600">{{ $audit['auditor'] }}</td>
                                                 <td class="px-6 py-4 text-slate-600">{{ $audit['date'] }}</td>
-                                                <td class="px-6 py-4 {{ str_contains($audit['score'], 'Fail') ? 'font-semibold text-red-600' : ($audit['score'] !== '—' ? 'font-semibold text-slate-800' : 'text-slate-600') }}">{{ $audit['score'] }}</td>
+                                                <td class="px-6 py-4 {{ str_contains($audit['score'], 'Fail') ? 'font-semibold text-red-600' : ($audit['score'] !== 'â€”' ? 'font-semibold text-slate-800' : 'text-slate-600') }}">{{ $audit['score'] }}</td>
                                                 <td class="px-6 py-4">
                                                     <span class="inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold {{ $audit['status_class'] }}">
                                                         {{ $audit['status'] }}

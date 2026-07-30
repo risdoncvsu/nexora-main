@@ -33,7 +33,7 @@ class HrEmployeeProfileProvisioner
         }
 
         return $this->upsertEmployee([
-            'employee_id' => $manager['employee_id'],
+            'employee_id' => null,
             'first_name' => $manager['first_name'],
             'last_name' => $manager['last_name'],
             'email' => $manager['personal_email'],
@@ -135,6 +135,7 @@ class HrEmployeeProfileProvisioner
             session([
                 'hr_password_change_employee_id' => (int) $employee->id,
                 'hr_password_change_client_id' => (int) $employee->client_id,
+                'hr_password_change_department' => (string) ($employee->department ?? ''),
             ]);
 
             return ['success' => true, 'requires_password_change' => true];
@@ -170,7 +171,11 @@ class HrEmployeeProfileProvisioner
             'updated_at' => now(),
         ]);
 
-        session()->forget(['hr_password_change_employee_id', 'hr_password_change_client_id']);
+        session()->forget([
+            'hr_password_change_employee_id',
+            'hr_password_change_client_id',
+            'hr_password_change_department',
+        ]);
         $this->putEmployeeSession($employee);
 
         return true;
@@ -226,7 +231,7 @@ class HrEmployeeProfileProvisioner
         $this->hrDb()->table('employees')->where('id', $employeeId)->update($this->onlyExistingEmployeeColumns([
             'first_name' => $names[0] ?: 'Employee',
             'last_name' => $names[1] ?? '',
-            'email' => $values['email'],
+            'email' => $values['email'] ?? $employee->email,
             'department' => $values['department'],
             'approval_status' => $values['status'],
             'updated_at' => now(),
@@ -255,9 +260,10 @@ class HrEmployeeProfileProvisioner
     {
         $companyEmail = $attributes['company_email'];
         $email = $attributes['email'];
+        $employeeCode = $attributes['employee_id'] ?? null;
 
         $values = $this->onlyExistingEmployeeColumns([
-            'employee_id' => $attributes['employee_id'],
+            'employee_id' => $employeeCode,
             'first_name' => $attributes['first_name'],
             'last_name' => $attributes['last_name'],
             'email' => $email,
@@ -290,12 +296,24 @@ class HrEmployeeProfileProvisioner
             ->first();
 
         if ($existing) {
+            if (! $employeeCode) {
+                unset($values['employee_id']);
+            }
+
             $this->hrDb()->table('employees')->where('id', $existing->id)->update($values);
 
             return (int) $existing->id;
         }
 
-        return (int) $this->hrDb()->table('employees')->insertGetId($values + ['created_at' => now()]);
+        $employeeId = (int) $this->hrDb()->table('employees')->insertGetId($values + ['created_at' => now()]);
+
+        if (! $employeeCode && $this->hrSchema()->hasColumn('employees', 'employee_id')) {
+            $this->hrDb()->table('employees')->where('id', $employeeId)->update([
+                'employee_id' => now()->year . str_pad((string) $employeeId, 4, '0', STR_PAD_LEFT),
+            ]);
+        }
+
+        return $employeeId;
     }
 
     public function putHrSessionFor(User $admin): void

@@ -15,7 +15,7 @@
             :home-route="route('client.itsm.employees')"
             active="risk"
             :nav-items="[
-                ['label' => 'User Management', 'route' => route('client.itsm.employees'), 'key' => 'employees'],
+                ['label' => 'Employee Management', 'route' => route('client.itsm.employees'), 'key' => 'employees'],
                 ['label' => 'Service Desk', 'route' => route('client.itsm.service-desk'), 'key' => 'service-desk'],
                 ['label' => 'Compliance Tracking', 'route' => route('client.itsm.compliance'), 'key' => 'compliance'],
                 ['label' => 'Risk Management', 'route' => route('client.itsm.risk'), 'key' => 'risk'],
@@ -164,13 +164,13 @@
                                                     <td class="px-6 py-3 text-center">
                                                         @switch($incident['status'])
                                                             @case('Resolved')
-                                                                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700 font-bold text-[10px]">✓ Resolved</span>
+                                                                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700 font-bold text-[10px]">âœ“ Resolved</span>
                                                                 @break
                                                             @case('Investigating')
-                                                                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-blue-50 text-blue-700 font-bold text-[10px] animate-pulse">⚲ Investigating</span>
+                                                                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-blue-50 text-blue-700 font-bold text-[10px] animate-pulse">âš² Investigating</span>
                                                                 @break
                                                             @default
-                                                                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-amber-100 text-amber-800 font-bold text-[10px]">● Open</span>
+                                                                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-amber-100 text-amber-800 font-bold text-[10px]">â— Open</span>
                                                         @endswitch
                                                     </td>
                                                     <td class="px-6 py-3 text-center">
@@ -218,7 +218,7 @@
         <div class="bg-white rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden text-slate-900 border border-slate-100 transform transition-all">
             <div class="bg-[#DDE4EC] px-8 py-5 flex justify-between items-center">
                 <h3 class="text-xl font-bold text-slate-950">Log New System Incident</h3>
-                <button onclick="toggleModal(false)" class="text-slate-500 hover:text-slate-800 text-lg font-bold">×</button>
+                <button onclick="toggleModal(false)" class="text-slate-500 hover:text-slate-800 text-lg font-bold">Ã—</button>
             </div>
             <form action="{{ route('client.itsm.risk.incident.store') }}" method="POST" class="p-8 space-y-4">
                 @csrf

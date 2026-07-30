@@ -22,7 +22,7 @@
 <body>
     <main class="card">
         <h1>Create your password</h1>
-        <p>This is your first sign-in. Choose a new password to continue to the HR module.</p>
+        <p>This is your first sign-in. Choose a new password to continue to the {{ $department }} module.</p>
 
         <form method="POST" action="{{ route('hr.first-login.password.store') }}">
             @csrf
@@ -33,7 +33,7 @@
             <label for="password_confirmation">Confirm New Password</label>
             <input id="password_confirmation" type="password" name="password_confirmation" autocomplete="new-password" required>
 
-            <button type="submit">Continue to HR</button>
+            <button type="submit">Continue to {{ $department }}</button>
         </form>
     </main>
 </body>

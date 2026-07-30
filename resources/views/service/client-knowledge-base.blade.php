@@ -13,7 +13,7 @@
             :home-route="route('client.itsm.employees')"
             active="service-desk"
             :nav-items="[
-                ['label' => 'User Management', 'route' => route('client.itsm.employees'), 'key' => 'employees'],
+                ['label' => 'Employee Management', 'route' => route('client.itsm.employees'), 'key' => 'employees'],
                 ['label' => 'Service Desk', 'route' => route('client.itsm.service-desk'), 'key' => 'service-desk'],
                 ['label' => 'Compliance Tracking', 'route' => route('client.itsm.compliance'), 'key' => 'compliance'],
                 ['label' => 'Risk Management', 'route' => route('client.itsm.risk'), 'key' => 'risk'],
@@ -74,7 +74,7 @@
         <div id="articleModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/60 p-4">
             <div class="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 text-slate-950 shadow-2xl sm:p-8">
                 <div class="mb-6 flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
-                    <div><h2 class="text-2xl font-bold">Create company article</h2><p class="mt-1 text-sm text-slate-500">This article is available only to your company’s IT staff.</p></div>
+                    <div><h2 class="text-2xl font-bold">Create company article</h2><p class="mt-1 text-sm text-slate-500">This article is available only to your companyâ€™s IT staff.</p></div>
                     <button type="button" data-close-article-modal class="text-2xl font-bold text-slate-500 hover:text-slate-950" aria-label="Close">&times;</button>
                 </div>
                 <form method="POST" action="{{ route('client.itsm.service-desk.knowledgebase.store') }}" class="grid gap-5 md:grid-cols-2">

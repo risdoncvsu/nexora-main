@@ -86,7 +86,6 @@ class NewUserSetupController extends Controller
             'first_name' => ['required', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255'],
-            'employee_id' => ['required', 'string', 'max:255'],
         ]);
 
         // The HR module owns the profile and its approval state. ITSM keeps

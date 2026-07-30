@@ -188,9 +188,7 @@ class UserController extends Controller
         $company = $this->clientCompany();
         abort_unless($company, 403);
         $validated = $request->validate([
-            'username' => ['nullable', 'string', 'max:255'],
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['nullable', 'email', 'max:255'],
             'department' => ['nullable', 'string', 'max:255'],
             'status' => ['required', 'in:Active,Inactive,Pending,Suspended'],
             'access_role' => ['nullable', 'in:department_employee,department_manager,auditor'],

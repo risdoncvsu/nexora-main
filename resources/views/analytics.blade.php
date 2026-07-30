@@ -17,7 +17,7 @@
             :home-route="route('client.itsm.employees')"
             active="risk"
             :nav-items="[
-                ['label' => 'User Management', 'route' => route('client.itsm.employees'), 'key' => 'employees'],
+                ['label' => 'Employee Management', 'route' => route('client.itsm.employees'), 'key' => 'employees'],
                 ['label' => 'Service Desk', 'route' => route('client.itsm.service-desk'), 'key' => 'service-desk'],
                 ['label' => 'Compliance Tracking', 'route' => route('client.itsm.compliance'), 'key' => 'compliance'],
                 ['label' => 'Risk Management', 'route' => route('client.itsm.risk'), 'key' => 'risk'],
@@ -184,7 +184,7 @@
                                             </div>
 
                                             <div class="text-right pt-2 border-t border-slate-100 shrink-0">
-                                                <a href="{{ route('client.itsm.risk') }}" class="text-[11px] font-bold text-[#1A73E8] hover:underline transition">View Detailed Logs →</a>
+                                                <a href="{{ route('client.itsm.risk') }}" class="text-[11px] font-bold text-[#1A73E8] hover:underline transition">View Detailed Logs â†’</a>
                                             </div>
                                         </div>
 
