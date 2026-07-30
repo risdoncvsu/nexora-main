@@ -143,6 +143,22 @@
                 <option value="year">Last Year</option>
 
             </select>
+            <div class="flex items-center gap-2 bg-navy-700 rounded-lg px-3 py-2">
+
+    <label class="text-sm text-muted">
+        VAT
+    </label>
+
+    <input 
+        id="vatRate"
+        type="number"
+        value="12"
+        class="bg-transparent outline-none text-sm w-16 text-white"
+    >
+
+    <span class="text-sm text-muted">%</span>
+
+</div>
           <button onclick="exportCSV()"
                   class="flex items-center gap-1 bg-blue-500 hover:bg-blue-600 transition text-sm rounded-lg px-3 py-2 font-medium">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
@@ -198,14 +214,6 @@
         </div>
       </div>
 
-      <div class="bg-navy-800 rounded-xl p-5">
-        <div class="flex items-center justify-between mb-3">
-          <h3 class="text-lg font-semibold">Recent Activity</h3>
-          <button class="text-xs bg-navy-700 rounded-md px-2 py-1">View All</button>
-        </div>
-        <ul id="activityList" class="space-y-3 text-sm"></ul>
-      </div>
-
     </div>
   </div>
 
@@ -245,7 +253,7 @@
 <div id="editInvoiceModal"
      class="fixed inset-0 bg-black/60 hidden items-center justify-center p-4 z-50">
 
-    <div class="bg-navy-800 w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-xl shadow-2xl border border-navy-600">
+    <div class="bg-navy-800 w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-xl shadow-2xl border border-navy-600">
 
         <!-- Header -->
         <div class="flex items-center justify-between px-6 py-4 border-b border-navy-600">
@@ -567,6 +575,13 @@ function getInvoiceStatus(inv) {
     const today = new Date();
 
 
+    // Rejected
+    if (
+        inv.status === "Rejected" || inv.payment_status === "Rejected"
+    ) {
+        return "Rejected";
+    }
+
     // Fully paid
     if (
         inv.payment_status === "Paid" ||
@@ -582,14 +597,6 @@ function getInvoiceStatus(inv) {
         dueDate < today
     ) {
         return "Overdue";
-    }
-
-
-    // Rejected
-    if (
-        inv.status === "Rejected"
-    ) {
-        return "Rejected";
     }
 
 
@@ -807,7 +814,7 @@ function renderInvoices() {
     renderPageNumbers(totalPages);
 
     renderSummary();
-    renderActivity();
+    
 }
 
 function renderPageNumbers(totalPages) {
@@ -1069,7 +1076,20 @@ const segments = [
 
 
 document.addEventListener("DOMContentLoaded", renderInvoices);
+function getVatRate() {
 
+    const vatInput = document.getElementById("vatRate");
+
+    let rate = Number(vatInput.value);
+
+    if (isNaN(rate) || rate < 0) {
+        rate = 12;
+        vatInput.value = 12;
+    }
+
+    return rate / 100;
+
+}
 
 function printInvoice(id) {
 
@@ -1157,7 +1177,7 @@ const shipping = Number(invoice.shipping_fee || 0);
 
 
 // VAT 12%
-const vat = subtotal * 0.12;
+const vat = subtotal * getVatRate();
 
 
 const grandTotal = subtotal + vat - discount + shipping;
@@ -1167,7 +1187,9 @@ const paid = Number(invoice.paid_amount || 0);
 
 const balance = grandTotal - paid;
 
+const vatPercent = Number((getVatRate() * 100).toFixed(2));
 
+document.getElementById("printVATs").textContent ="VAT "+ vatPercent + "%";
 
 document.getElementById("printSubtotal").textContent =
     fmtPeso(subtotal);
@@ -1467,7 +1489,7 @@ body{
 </tr>
 
 <tr>
-<td>VAT (12%)</td>
+<td id="printVATs"></td>
 <td id="printVAT"></td>
 </tr>
 
