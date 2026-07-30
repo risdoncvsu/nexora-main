@@ -4,9 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Models\Company;
 use App\Models\ServiceTicket;
+use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
+use Modules\HR\Models\Attendance;
+use Modules\HR\Models\Employee;
+use Modules\HR\Models\LeaveRequest;
 
 class EmployeePortalController extends Controller
 {
@@ -26,16 +31,113 @@ class EmployeePortalController extends Controller
             'company' => Company::find($clientId),
             'department' => $department,
             'moduleUrl' => $moduleUrl,
-            // HR owns these workflows. ITSM is now the employee landing page,
-            // so it exposes links while leaving the HR routes and access rules
-            // unchanged.
-            // Self-service attendance and leave remain restricted to the
-            // signed-in employee's own records, including HR managers.
-            'showHrSelfService' => (bool) session('employee_logged_in'),
-            'attendanceUrl' => route('hr.employee.attendance'),
-            'leaveUrl' => route('hr.employee.leave'),
+            'showEmployeeSelfService' => (bool) session('employee_logged_in'),
+            'attendanceUrl' => route('employee.portal.attendance'),
+            'leaveUrl' => route('employee.portal.leave'),
             'tickets' => $tickets,
         ]);
+    }
+
+    public function attendance(Request $request)
+    {
+        $employee = $this->currentEmployee();
+        abort_unless($employee, 403);
+
+        $attendances = Attendance::query()
+            ->where('employee_id', $employee->id)
+            ->orderByDesc('attendance_date')
+            ->orderByDesc('id')
+            ->paginate(15)
+            ->withQueryString();
+
+        $attendances->getCollection()->each(
+            fn (Attendance $attendance) => $attendance->setRelation('employee', $employee)
+        );
+
+        $records = Attendance::query()
+            ->where('employee_id', $employee->id)
+            ->get();
+
+        return view('employee-portal.attendance', [
+            'employee' => $employee,
+            'attendances' => $attendances,
+            'stats' => [
+                'present' => $records->filter(fn (Attendance $record) => $record->displayStatus() === 'Present')->count(),
+                'absent' => $records->filter(fn (Attendance $record) => $record->displayStatus() === 'Absent' && $record->status !== 'Leave')->count(),
+                'leave' => $records->where('status', 'Leave')->count(),
+                'total' => $records->count(),
+            ],
+        ]);
+    }
+
+    public function leave()
+    {
+        $employee = $this->currentEmployee();
+        abort_unless($employee, 403);
+
+        return view('employee-portal.leave', [
+            'employee' => $employee,
+            'leaveRequests' => LeaveRequest::query()
+                ->where('employee_id', $employee->id)
+                ->latest('id')
+                ->paginate(10)
+                ->withQueryString(),
+        ]);
+    }
+
+    public function storeLeave(Request $request): RedirectResponse
+    {
+        $employee = $this->currentEmployee();
+        abort_unless($employee, 403);
+
+        $validated = $request->validate([
+            'type' => ['required', 'string', Rule::in(['vacation', 'sick', 'maternity', 'paternity', 'bereavement', 'others'])],
+            'from_date' => ['required', 'date'],
+            'to_date' => ['required', 'date', 'after_or_equal:from_date'],
+            'reason' => ['nullable', 'string', 'max:1000'],
+            'attachments' => ['nullable', 'array', 'max:5'],
+            'attachments.*' => ['file', 'mimes:pdf,doc,docx,jpg,jpeg,png', 'max:10240'],
+        ]);
+
+        $fromDate = Carbon::parse($validated['from_date'])->startOfDay();
+        $toDate = Carbon::parse($validated['to_date'])->startOfDay();
+        $totalDays = $fromDate->diffInDays($toDate) + 1;
+        $durationRules = [
+            'vacation' => [5, 15],
+            'sick' => [5, 15],
+            'maternity' => [1, 105],
+            'paternity' => [1, 7],
+            'bereavement' => [1, 5],
+        ];
+
+        if (isset($durationRules[$validated['type']])) {
+            [$minimumDays, $maximumDays] = $durationRules[$validated['type']];
+            if ($totalDays < $minimumDays || $totalDays > $maximumDays) {
+                return back()->withInput()->withErrors([
+                    'to_date' => ucfirst($validated['type'])." leave must be between {$minimumDays} and {$maximumDays} days long.",
+                ]);
+            }
+        }
+
+        $attachments = [];
+        foreach ($request->file('attachments', []) as $attachment) {
+            $attachments[] = $attachment->store('hr/leave-attachments/'.(int) $employee->client_id, 'public');
+        }
+
+        $leaveRequest = LeaveRequest::create([
+            'client_id' => $employee->client_id,
+            'employee_id' => $employee->id,
+            'type' => $validated['type'],
+            'from_date' => $fromDate->toDateString(),
+            'to_date' => $toDate->toDateString(),
+            'total_days' => $totalDays,
+            'reason' => $validated['reason'] ?? null,
+            'attachments' => $attachments ?: null,
+            'status' => 'pending',
+        ]);
+        $leaveRequest->update(['reference_id' => sprintf('LR-%s-%04d', now()->format('Y'), $leaveRequest->id)]);
+
+        return redirect()->route('employee.portal.leave')->with('success', 'Your leave request has been submitted for HR review.');
     }
 
     public function storeTicket(Request $request): RedirectResponse
@@ -70,6 +172,16 @@ class EmployeePortalController extends Controller
         $email = trim((string) session('employee_email', ''));
 
         return $email !== '' ? "{$name} <{$email}>" : $name;
+    }
+
+    private function currentEmployee(): ?Employee
+    {
+        $employeeId = (int) session('employee_id');
+        $clientId = (int) session('employee_client_id');
+
+        return $employeeId > 0 && $clientId > 0
+            ? Employee::query()->whereKey($employeeId)->where('client_id', $clientId)->first()
+            : null;
     }
 
     private function nextTicketNo(): string

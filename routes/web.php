@@ -55,6 +55,9 @@ Route::post('/first-login/password', [AuthController::class, 'storeHrFirstLoginP
 // first, where they can enter their assigned module or contact their client ITSM team.
 Route::middleware('employee.portal')->prefix('employee')->name('employee.')->group(function () {
     Route::get('/portal', [EmployeePortalController::class, 'index'])->name('portal');
+    Route::get('/portal/attendance', [EmployeePortalController::class, 'attendance'])->name('portal.attendance');
+    Route::get('/portal/leave', [EmployeePortalController::class, 'leave'])->name('portal.leave');
+    Route::post('/portal/leave', [EmployeePortalController::class, 'storeLeave'])->name('portal.leave.store');
     Route::post('/support-tickets', [EmployeePortalController::class, 'storeTicket'])->name('support-tickets.store');
 });
 

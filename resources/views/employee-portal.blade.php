@@ -56,7 +56,7 @@
             <div class="mt-6 rounded-xl border border-red-200 bg-red-50 px-5 py-4 font-medium text-red-800">{{ $errors->first() }}</div>
         @endif
 
-        <div class="mt-8 grid gap-8 {{ $showHrSelfService ? 'lg:grid-cols-[1.45fr_0.85fr]' : '' }}">
+        <div class="mt-8 grid gap-8 {{ $showEmployeeSelfService ? 'lg:grid-cols-[1.45fr_0.85fr]' : '' }}">
             <section class="rounded-[1.75rem] bg-white p-7 shadow-sm ring-1 ring-slate-200">
                 <div class="flex flex-wrap items-center justify-between gap-4">
                     <div>
@@ -97,12 +97,12 @@
                 </div>
             </section>
 
-            @if ($showHrSelfService)
+            @if ($showEmployeeSelfService)
                 <aside>
                     <section class="rounded-[1.75rem] bg-white p-7 shadow-sm ring-1 ring-slate-200">
-                        <p class="text-sm font-bold uppercase tracking-wide text-[#346DCB]">HR self-service</p>
-                        <h2 class="mt-1 text-2xl font-bold">Your HR records</h2>
-                        <p class="mt-2 text-sm leading-6 text-slate-600">Attendance and leave remain HR workflows, now reached from your ITSM portal.</p>
+                        <p class="text-sm font-bold uppercase tracking-wide text-[#346DCB]">Employee self-service</p>
+                        <h2 class="mt-1 text-2xl font-bold">Your records</h2>
+                        <p class="mt-2 text-sm leading-6 text-slate-600">View your attendance and submit leave requests without leaving the Employee Portal.</p>
                         <a href="{{ $attendanceUrl }}" class="mt-5 flex items-center justify-between rounded-xl bg-[#132B52] px-4 py-4 font-semibold text-white transition hover:bg-[#0d2141]">
                             <span>My attendance</span><span aria-hidden="true">&rarr;</span>
                         </a>
