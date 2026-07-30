@@ -849,12 +849,18 @@
   function collectSupplierProductRows(){
     const list = supplierProductListEl();
     if(!list) return [];
-    return [...list.querySelectorAll('.product-row')].map(row => ({
-      name: (row.querySelector('.sp-name')?.value || '').trim(),
-      sku: (row.querySelector('.sp-sku')?.value || '').trim(),
-      price: Number(row.querySelector('.sp-price')?.value || 0),
-      category: (row.querySelector('.sp-category')?.value || '').trim()
-    })).filter(p => p.name);
+    return [...list.querySelectorAll('.product-row')].map(row => {
+      const name = (row.querySelector('.sp-name')?.value || '').trim();
+      return {
+        name,
+        // Last-resort fallback: a row whose SKU field is still empty at submit
+        // time (pasted name, autofill, JS-set value) still gets one.
+        sku: (row.querySelector('.sp-sku')?.value || '').trim()
+          || (name ? generateSupplierProductSku(name, supplierRowSkuSeq(row)) : ''),
+        price: Number(row.querySelector('.sp-price')?.value || 0),
+        category: (row.querySelector('.sp-category')?.value || '').trim()
+      };
+    }).filter(p => p.name);
   }
 
   // Mirror the blocks into the hidden field. Deliberately does NOT re-render:
@@ -881,12 +887,19 @@
     const template = document.getElementById('supplier-product-row-template');
     if(!list || !template) return null;
     const row = template.content.firstElementChild.cloneNode(true);
+    // A stable per-row number, assigned once. Using the row's position instead
+    // would renumber every SKU whenever a row above it is removed.
+    row.dataset.skuSeq = String(supplierProductCounter++);
     if(values){
       const set = (sel, v) => { const el = row.querySelector(sel); if(el) el.value = v ?? ''; };
       set('.sp-name', values.name);
       set('.sp-sku', values.sku);
       set('.sp-price', values.price != null ? Number(values.price) : '');
       set('.sp-category', values.category);
+      // An existing product already has its SKU; typing in its name must not
+      // silently rewrite it.
+      const skuField = row.querySelector('.sp-sku');
+      if(skuField && String(values.sku || '').trim() !== '') skuField.dataset.touched = '1';
     }
     list.appendChild(row);
     syncSupplierProductRows();
@@ -939,7 +952,12 @@
 
     form.reset();
     const skuInput = form.querySelector('[name="productSku"]');
-    if(skuInput) skuInput.value = generateSupplierProductSku('');
+    if(skuInput){
+      // reset() clears values, not data attributes — without this a SKU typed
+      // during a previous open would stay "user-owned" forever.
+      delete skuInput.dataset.touched;
+      skuInput.value = generateSupplierProductSku('');
+    }
     modal.classList.add('open');
     setTimeout(() => form.querySelector('[name="productName"]')?.focus(), 60);
   }
@@ -955,6 +973,31 @@
 
   // SKU is suggested from the product name but stays editable — the old
   // auto/manual dropdown was an extra control for no benefit.
+  function supplierRowSkuSeq(row){
+    return Number(row?.dataset.skuSeq || 0) || 1;
+  }
+
+  // Marks a SKU field as user-owned. Only real typing fires oninput, so a
+  // value assigned from script never counts as "touched".
+  function markSupplierSkuTouched(input){
+    if(!input) return;
+    input.dataset.touched = '1';
+    // Only inline rows feed the hidden productsJson field.
+    if(input.classList.contains('sp-sku')) syncSupplierProductRows();
+  }
+
+  // Called while typing a product name in an inline row: fills that row's SKU
+  // from the name unless the user has typed their own.
+  function syncSupplierProductRow(nameInput){
+    const row = nameInput?.closest('.product-row');
+    const skuField = row?.querySelector('.sp-sku');
+    if(skuField && skuField.dataset.touched !== '1'){
+      const name = (nameInput.value || '').trim();
+      skuField.value = name ? generateSupplierProductSku(name, supplierRowSkuSeq(row)) : '';
+    }
+    syncSupplierProductRows();
+  }
+
   function syncSupplierProductSku(nameInput){
     const form = document.getElementById('add-supplier-product-form');
     const skuInput = form?.querySelector('[name="productSku"]');
@@ -962,10 +1005,13 @@
     skuInput.value = generateSupplierProductSku(nameInput.value);
   }
 
-  function generateSupplierProductSku(name){
+  // "Bond Paper A4" + 2 -> BONDPAPE002. The sequence keeps two rows with the
+  // same product name from producing the same code.
+  function generateSupplierProductSku(name, seq){
     const trimmed = (name || '').trim();
     const base = trimmed ? trimmed.toUpperCase().replace(/[^A-Z0-9]+/g, '').slice(0, 8) : 'PRD';
-    return `${base}${String(supplierProductCounter).padStart(3, '0')}`;
+    const n = Number(seq) > 0 ? Number(seq) : supplierProductCounter;
+    return `${base}${String(n).padStart(3, '0')}`;
   }
 
   function submitSupplierProduct(e){

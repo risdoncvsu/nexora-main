@@ -374,7 +374,7 @@
           </div>
           <div class="form-field">
             <label>SKU / Code</label>
-            <input name="productSku" placeholder="e.g. BP-A4">
+            <input name="productSku" placeholder="Auto-generated" oninput="markSupplierSkuTouched(this)">
           </div>
           <div class="form-field">
             <label>Unit Price (&#8369;) <span class="req">*</span></label>
@@ -406,11 +406,12 @@
     <div class="form-grid">
       <div class="form-field full">
         <label>Product Name <span class="req">*</span></label>
-        <input class="sp-name" placeholder="e.g. Bond Paper A4" oninput="syncSupplierProductRows()">
+        <input class="sp-name" placeholder="e.g. Bond Paper A4" oninput="syncSupplierProductRow(this)">
       </div>
       <div class="form-field">
         <label>SKU / Code</label>
-        <input class="sp-sku" placeholder="e.g. BP-A4" oninput="syncSupplierProductRows()">
+        {{-- Auto-filled from the product name; typing here takes it over. --}}
+        <input class="sp-sku" placeholder="Auto-generated" oninput="markSupplierSkuTouched(this)">
       </div>
       <div class="form-field">
         <label>Unit Price (&#8369;) <span class="req">*</span></label>
