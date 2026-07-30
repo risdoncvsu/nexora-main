@@ -76,9 +76,15 @@
                     $badgeColor = $colors[$h % count($colors)];
                   }
                 @endphp
+                @php
+                  $brand = trim((string) ($s->brand ?? ''));
+                  // Older browser code stored a mojibake dash as the empty
+                  // brand fallback. Do not render that broken placeholder.
+                  $displayBrand = $brand !== '' && ! preg_match('/^\\x{00E2}/u', $brand) ? $brand : '-';
+                @endphp
                 <tr data-id="{{ $s->id }}" data-brand="{{ $s->brand ?? '' }}" data-warehouse-id="{{ $s->warehouse_id ?? '' }}" data-products='@json($s->product_items ? json_decode($s->product_items, true) : [])'>
                   <td><div class="supplier-pill-cell"><span class="supplier-pill"><span class="supplier-badge" style="background: {{ $badgeColor }}">{{ $initials }}</span>{{ $s->name }}</span></div></td>
-                  <td>{{ $s->brand ?? '—' }}</td>
+                  <td>{{ $displayBrand }}</td>
                   <td>{{ $s->contact_person ?? '—' }}</td>
                   <td>{{ $s->email ?? '—' }}</td>
                   <td>{{ $s->phone ?? '—' }}</td>

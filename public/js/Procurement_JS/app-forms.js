@@ -1059,9 +1059,9 @@
     e.preventDefault();
     const d = Object.fromEntries(new FormData(e.target).entries());
     const products = Array.isArray(JSON.parse(d.productsJson || '[]')) ? JSON.parse(d.productsJson || '[]') : [];
-    // Brand now lives on each product; the supplier's brand column keeps the
-    // distinct product brands joined for the existing "Spend by Category" fallback.
-    const supplierBrand = [...new Set(products.map(p => (p.brand || '').trim()).filter(Boolean))].join(', ');
+    // The supplier form owns the supplier brand. Product rows do not collect a
+    // separate brand, so retain the value entered in the form.
+    const supplierBrand = (d.brand || '').trim();
 
     fetch(procurementUrl('suppliers'), {
       method: 'POST',
@@ -1099,7 +1099,7 @@
         tr.dataset.products = JSON.stringify(products);
         tr.innerHTML = `
           <td><div class="supplier-pill-cell">${supplierPill(d.name)}</div></td>
-          <td>${htmlEscape(supplierBrand || 'â€”')}</td>
+          <td>${htmlEscape(supplierBrand || '-')}</td>
           <td>${htmlEscape(d.contact || 'â€”')}</td>
           <td>${htmlEscape(d.email || 'â€”')}</td>
           <td>${htmlEscape(d.phone || 'â€”')}</td>

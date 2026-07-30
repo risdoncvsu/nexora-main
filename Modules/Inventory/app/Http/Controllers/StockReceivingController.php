@@ -15,9 +15,42 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Modules\Inventory\Services\PackingMaterialCatalog;
 
 class StockReceivingController extends Controller
 {
+    private function syncPackingMaterialReceipt($inventory, int $clientId, string $itemName, int $quantity): void
+    {
+        $definition = PackingMaterialCatalog::definition($itemName);
+        if (! $definition || ! $inventory->getSchemaBuilder()->hasTable('packing_materials')) {
+            return;
+        }
+
+        $material = $inventory->table('packing_materials')
+            ->where('client_id', $clientId)
+            ->whereRaw('LOWER(name) = LOWER(?)', [$definition['name']])
+            ->first();
+
+        if ($material) {
+            $inventory->table('packing_materials')
+                ->where('id', $material->id)
+                ->increment('stock_qty', $quantity, ['updated_at' => now()]);
+
+            return;
+        }
+
+        $inventory->table('packing_materials')->insert([
+            'client_id' => $clientId,
+            'name' => $definition['name'],
+            'stock_qty' => $quantity,
+            'low_stock_threshold' => 5,
+            'is_box' => $definition['is_box'],
+            'box_size' => $definition['box_size'],
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
     private function procurementDeliveriesQuery()
     {
         $schema = Schema::connection('procurement');
@@ -329,6 +362,13 @@ class StockReceivingController extends Controller
                 'client_id' => $clientId,
                 'created_at' => now(),
             ]);
+
+            $this->syncPackingMaterialReceipt(
+                $inv,
+                $clientId,
+                (string) $product->item_name,
+                (int) $product->qty
+            );
         }
 
         $inv->table('warehouses')

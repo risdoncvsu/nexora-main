@@ -7,6 +7,7 @@ use Modules\OrderFulfillment\Models\Order;
 use Modules\OrderFulfillment\Models\PackingError;
 use Modules\OrderFulfillment\Models\PackingMaterial;
 use Modules\OrderFulfillment\Models\Shipment;
+use Modules\Inventory\Services\PackingMaterialCatalog;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -78,17 +79,52 @@ class PackingController extends Controller
             ->orderByDesc('id');
     }
 
-    /**
-     * Retained as a compatibility hook for older callers. Packing materials
-     * are no longer inferred from catalog items because an explicit delete
-     * must remain deleted across every module.
-     */
     private function syncCatalogPackingMaterials(): void
     {
-        // Packing materials are explicit Inventory records.  Recreating them
-        // from loosely matched catalog items made a delete look successful,
-        // then silently brought the box back on the next packing request.
-        // A legacy import must now be performed deliberately, not at runtime.
+        $inventory = DB::connection(self::INVENTORY_CONN);
+        $schema = $inventory->getSchemaBuilder();
+
+        if (! $schema->hasTable('items')
+            || ! $schema->hasTable('stock_levels')
+            || ! $schema->hasTable('packing_materials')) {
+            return;
+        }
+
+        $clientId = (int) session('employee_client_id');
+        $receivedItems = $inventory->table('items')
+            ->leftJoin('stock_levels', function ($join) use ($clientId) {
+                $join->on('stock_levels.item_id', '=', 'items.id')
+                    ->where('stock_levels.client_id', '=', $clientId);
+            })
+            ->where('items.client_id', $clientId)
+            ->select('items.name', DB::raw('COALESCE(SUM(stock_levels.stock), 0) as stock_qty'))
+            ->groupBy('items.id', 'items.name')
+            ->get();
+
+        foreach ($receivedItems as $item) {
+            $definition = PackingMaterialCatalog::definition((string) $item->name);
+            if (! $definition || (int) $item->stock_qty <= 0) {
+                continue;
+            }
+
+            $exists = $inventory->table('packing_materials')
+                ->where('client_id', $clientId)
+                ->whereRaw('LOWER(name) = LOWER(?)', [$definition['name']])
+                ->exists();
+
+            if (! $exists) {
+                $inventory->table('packing_materials')->insert([
+                    'client_id' => $clientId,
+                    'name' => $definition['name'],
+                    'stock_qty' => (int) $item->stock_qty,
+                    'low_stock_threshold' => 5,
+                    'is_box' => $definition['is_box'],
+                    'box_size' => $definition['box_size'],
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+        }
     }
 
     public function index()
