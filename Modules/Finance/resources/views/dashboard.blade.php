@@ -182,7 +182,7 @@ tailwind.config = { theme: { extend: { colors: { navy: {900:'#0b1e3b',800:'#132b
     </div>
 
     <div class="bg-navy-800 rounded-xl p-5">
-      <h3 class="text-lg font-semibold mb-4">Accounts</h3>
+      <h3 class="text-lg font-semibold mb-4">Activities</h3>
       <div class="space-y-3 text-sm" id="activitiesCounters"></div>
     </div>
 
@@ -243,15 +243,11 @@ function setCashFlowData(balance, dates, seriesA, seriesB){
 }
 
 function selectCashFlowPeriod(period){
-     const map = {
-        "Today":"today",
-        "This week":"this_week",
-        "This month":"this_month",
-        "This year":"this_year"
-    };
-
-    window.location = "?period=" + map[period];
-
+  document.getElementById("cashFlowPeriodLabel").textContent = period;
+  const dates = getPeriodLabels(period);
+  cashFlowData = { balance: cashFlowData.balance, dates, seriesA: Array(dates.length).fill(0), seriesB: Array(dates.length).fill(0) };
+  closeAllMenus();
+  renderCashFlowChart();
 }
 
 function renderCashFlow(){
@@ -314,21 +310,12 @@ function renderCashFlowChart(){
     barB.setAttribute("fill", "#7ec8ff");
     svg.appendChild(barB);
 
-    if (
-    dates.length <= 10 ||
-    i === 0 ||
-    i === dates.length - 1 ||
-    i % 5 === 0
-) {
     const label = document.createElementNS("http://www.w3.org/2000/svg","text");
-    label.setAttribute("x", groupX);
-    label.setAttribute("y", h - 4);
-    label.setAttribute("fill", "#9bb0d1");
-    label.setAttribute("font-size", "10");
+    label.setAttribute("x", groupX); label.setAttribute("y", h - 4);
+    label.setAttribute("fill", "#9bb0d1"); label.setAttribute("font-size", "10");
     label.setAttribute("text-anchor", "middle");
     label.textContent = d;
     svg.appendChild(label);
-}
   });
 }
 
@@ -340,15 +327,10 @@ function setExpensesData(total, breakdown){
 }
 
 function selectExpensesPeriod(period){
-      const map = {
-        "Today":"today",
-        "This week":"this_week",
-        "This month":"this_month",
-        "This year":"this_year"
-    };
-
-    window.location = "?period=" + map[period];
-
+  document.getElementById("expensesPeriodLabel").textContent = period;
+  expensesData = { total: 0, breakdown: [] };
+  closeAllMenus();
+  renderExpenses();
 }
 
 function renderExpenses(){
@@ -435,16 +417,11 @@ function setRevenueData(total, changePct, changeSub, months, values){
 }
 
 function selectRevenuePeriod(period){
-
-    const map = {
-        "Today":"today",
-        "This week":"this_week",
-        "This month":"this_month",
-        "This year":"this_year"
-    };
-
-    window.location = "?period=" + map[period];
-
+  document.getElementById("revenuePeriodLabel").textContent = period;
+  const months = getPeriodLabels(period);
+  revenueData = { total: 0, changePct: 0, changeSub: "", months, values: Array(months.length).fill(0) };
+  closeAllMenus();
+  renderMonthlyRevenue();
 }
 
 function renderMonthlyRevenue(){
@@ -453,6 +430,7 @@ function renderMonthlyRevenue(){
   const badge = document.getElementById("revenueChangeBadge");
   const up = d.changePct >= 0;
   badge.textContent = `${up ? "₱" : "₱"} ${Math.abs(d.changePct)}%`;
+  badge.textContent = `${up ? "UP" : "DOWN"} ${Math.abs(d.changePct)}%`;
   badge.className = `text-xs font-semibold rounded-full px-2 py-0.5 ${up ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"}`;
   document.getElementById("revenueChangeSub").textContent = d.changeSub;
   renderRevenueChart();
@@ -465,7 +443,7 @@ function renderRevenueChart(){
   const hasData = values.some(v => v > 0);
 
   const rect = svg.getBoundingClientRect();
-const w = Math.max(rect.width, months.length * 25);
+  const w = Math.round(Math.max(rect.width, 200));
   const h = Math.round(Math.max(rect.height, 120));
   svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
   svg.innerHTML = "";
@@ -506,36 +484,15 @@ const w = Math.max(rect.width, months.length * 25);
     svg.appendChild(dot);
   });
 
- months.forEach((m, i) => {
-
-    if (
-        months.length <= 10 ||
-        i === 0 ||
-        i === months.length - 1 ||
-        i % 5 === 0
-    ) {
-
-        const anchor =
-            i === 0 ? "start" :
-            i === months.length - 1 ? "end" :
-            "middle";
-
-        const label = document.createElementNS(
-            "http://www.w3.org/2000/svg",
-            "text"
-        );
-
-        label.setAttribute("x", xFor(i));
-        label.setAttribute("y", h - 6);
-        label.setAttribute("fill", "#9bb0d1");
-        label.setAttribute("font-size", "10");
-        label.setAttribute("text-anchor", anchor);
-        label.textContent = m;
-
-        svg.appendChild(label);
-    }
-
-});
+  months.forEach((m,i) => {
+    const anchor = i === 0 ? "start" : (i === months.length - 1 ? "end" : "middle");
+    const label = document.createElementNS("http://www.w3.org/2000/svg","text");
+    label.setAttribute("x", xFor(i)); label.setAttribute("y", h - 6);
+    label.setAttribute("fill", "#9bb0d1"); label.setAttribute("font-size", "10");
+    label.setAttribute("text-anchor", anchor);
+    label.textContent = m;
+    svg.appendChild(label);
+  });
 }
 
 let invoiceTrendPeriod = "This month";
@@ -551,15 +508,12 @@ let invoiceTrendData = (() => {
 })();
 
 function selectInvoiceTrendPeriod(period){
-     const map = {
-        "Today":"today",
-        "This week":"this_week",
-        "This month":"this_month",
-        "This year":"this_year"
-    };
-
-    window.location = "?period=" + map[period];
-
+  invoiceTrendPeriod = period;
+  document.getElementById("invoiceTrendPeriodLabel").textContent = period;
+  const months = getInvoiceTrendLabels(period);
+  invoiceTrendData = { months, invoiceAmt: Array(months.length).fill(0), paidAmt: Array(months.length).fill(0) };
+  closeAllMenus();
+  renderInvoiceTrendChart();
 }
 
 function setInvoiceTrendData(months, invoiceAmt, paidAmt){
@@ -624,36 +578,15 @@ function renderInvoiceTrendChart(){
     makeLine(paidAmt, "#ffffff40");
   }
 
-  months.forEach((m, i) => {
-
-    if (
-        months.length <= 10 ||
-        i === 0 ||
-        i === months.length - 1 ||
-        i % 5 === 0
-    ) {
-
-        const anchor =
-            i === 0 ? "start" :
-            i === months.length - 1 ? "end" :
-            "middle";
-
-        const label = document.createElementNS(
-            "http://www.w3.org/2000/svg",
-            "text"
-        );
-
-        label.setAttribute("x", xFor(i));
-        label.setAttribute("y", h - 4);
-        label.setAttribute("fill", "#9bb0d1");
-        label.setAttribute("font-size", "9");
-        label.setAttribute("text-anchor", anchor);
-        label.textContent = m;
-
-        svg.appendChild(label);
-    }
-
-});
+  months.forEach((m,i) => {
+    const anchor = i === 0 ? "start" : (i === months.length - 1 ? "end" : "middle");
+    const label = document.createElementNS("http://www.w3.org/2000/svg","text");
+    label.setAttribute("x", xFor(i)); label.setAttribute("y", h - 4);
+    label.setAttribute("fill", "#9bb0d1"); label.setAttribute("font-size", "9");
+    label.setAttribute("text-anchor", anchor);
+    label.textContent = m;
+    svg.appendChild(label);
+  });
 }
 
 let activitiesCountData = [
@@ -725,26 +658,23 @@ requestAnimationFrame(() => {
   const overduePct = invoiceTotal ? Math.round((overdue / invoiceTotal) * 100) : 0;
   const paidPct = invoiceTotal ? Math.round((paid / invoiceTotal) * 100) : 0;
 
-setCashFlowData(
-    Number(financeDashboard.cash_on_hand || 0),
+  const cashOnHand = Number(financeDashboard.cash_on_hand || 0);
+  const cashOutflow = Number(financeDashboard.cash_outflow || 0);
+  const netIncome = Number(financeDashboard.net_income || 0);
+  const revenueChangePct = Number(financeDashboard.revenue_change_pct || 0);
+
+  setCashFlowData(
+    cashOnHand,
     financeDashboard.week_labels || [],
     financeDashboard.invoice_values || [],
     financeDashboard.paid_values || []
-);
-  
-  const incomeVal = paid;
-  const expVal = Number(financeDashboard.expenses || 0);
-  const totalPL = incomeVal + expVal;
-  const incPct = totalPL ? Math.round((incomeVal / totalPL) * 100) : 0;
-  const expPct = totalPL ? Math.round((expVal / totalPL) * 100) : 0;
-  setProfitLossData(incomeVal - expVal, incomeVal, incPct, expVal, expPct);
-
-  setExpensesData(
-    Number(financeDashboard.expenses || 0),
-    financeDashboard.expenses_breakdown || []
   );
+  setProfitLossData(netIncome, paid, 100, cashOutflow, paid + cashOutflow ? Math.round((cashOutflow / (paid + cashOutflow)) * 100) : 0);
+  setExpensesData(cashOutflow, cashOutflow > 0 ? [
+    { label: 'Procurement', value: cashOutflow, color: '#4ca6ff' }
+  ] : []);
   setInvoicesData(unpaid, overdue, overduePct, paid, paid, paidPct);
-  setRevenueData(paid, 0, 'Paid invoice revenue', financeDashboard.week_labels || [], financeDashboard.paid_values || []);
+  setRevenueData(paid, revenueChangePct, 'Compared with last month', financeDashboard.week_labels || [], financeDashboard.paid_values || []);
   setInvoiceTrendData(financeDashboard.week_labels || [], financeDashboard.invoice_values || [], financeDashboard.paid_values || []);
   setActivitiesCountData([
     { label: "Assets", count: Number(financeDashboard.assets || 0) },

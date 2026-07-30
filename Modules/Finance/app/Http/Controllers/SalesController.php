@@ -12,9 +12,7 @@ class SalesController extends Controller
     {
         $range = $request->string('range', 'week')->toString();
         $range = in_array($range, ['week', 'last_week', 'month', 'year'], true) ? $range : 'week';
-        $allTimeSales = (float) Invoice::query()
-    ->whereRaw("LOWER(COALESCE(payment_status,'')) = ?", ['paid'])
-    ->sum('paid_amount');
+
         try {
             $query = Invoice::query()->with('order');
 
@@ -54,8 +52,7 @@ class SalesController extends Controller
             $trendValues = $this->trendValues($paidInvoices, $range);
 
             return view('finance::salesdash', [
-                'totalSales' => $totalSales,          // filtered
-                'allTimeSales' => $allTimeSales,      // never filtered
+                'totalSales' => $totalSales,
                 'topProducts' => $topProducts,
                 'revenueStreams' => $revenueStreams,
                 'trendValues' => $trendValues,

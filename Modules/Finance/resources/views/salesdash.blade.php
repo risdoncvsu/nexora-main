@@ -50,7 +50,7 @@ tailwind.config = { theme: { extend: { colors: { navy: {900:'#0b1e3b',800:'#132b
 
     <div class="space-y-3">
       <div class="bg-navy-700 rounded-lg p-4 flex items-center justify-between">
-        <span class="text-sm text-muted">Total Sales All Time:</span>
+        <span class="text-sm text-muted">Total Sales</span>
         <span class="text-lg font-bold" id="totalSalesSidebar">₱0</span>
       </div>
       <div id="topProductsList" class="space-y-3 min-h-[220px]"></div>
@@ -96,7 +96,7 @@ let salesData = {
   },
   range: @json($rangeLabel ?? "This week"),
   trend: { months: ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"], series: [] },
-  totalSalesSidebar: Number(@json($allTimeSales ?? 0)),
+  totalSalesSidebar: Number(@json($totalSales ?? 0)),
   topProducts: @json($topProducts ?? []),
   revenueStreams: @json($revenueStreams ?? [])
 };
