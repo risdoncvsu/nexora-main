@@ -4,7 +4,10 @@ namespace Modules\OrderFulfillment\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Modules\OrderFulfillment\Models\Order;
+use Modules\OrderFulfillment\Models\OrderItem;
+use Modules\OrderFulfillment\Models\PackingError;
 use Modules\OrderFulfillment\Models\ReturnItem;
 use Modules\OrderFulfillment\Models\Shipment;
 
@@ -150,5 +153,72 @@ class TestPanelController extends Controller
             'resolution' => $return->resolution,
             'reason'     => $return->reason,
         ]);
+    }
+
+    /**
+     * DELETE /test-panel/orders/{id}
+     * Hard-deletes an Order row and everything the schema doesn't have a
+     * DB-level FK for (order_items, shipments, returns, packing_errors all
+     * store order_id as a plain string column, no cascade). Deleting the
+     * order without also clearing these would leave orphan rows that still
+     * show up on the Shipping/Returns tabs pointing at a dead order_id, so
+     * the test panel cleans them up in one transaction. Demo/testing only,
+     * same as the rest of this controller.
+     */
+    public function deleteOrder(string $id): JsonResponse
+    {
+        $order = Order::find($id);
+
+        if (! $order) {
+            return response()->json(['success' => false, 'message' => 'Order not found.'], 404);
+        }
+
+        DB::connection('order_fulfillment')->transaction(function () use ($order): void {
+            OrderItem::where('order_id', $order->id)->delete();
+            Shipment::where('order_id', $order->id)->delete();
+            ReturnItem::where('order_id', $order->id)->delete();
+            PackingError::where('order_id', $order->id)->delete();
+            $order->delete();
+        });
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * DELETE /test-panel/shipments/{shipmentId}
+     * Hard-deletes a single Shipment row only. Unlike deleteOrder(), this
+     * does not touch the parent Order — the point of exposing shipment
+     * delete separately is to let a demo clear a bad/duplicate shipment
+     * row without losing the order itself.
+     */
+    public function deleteShipment(string $shipmentId): JsonResponse
+    {
+        $shipment = Shipment::where('shipment_id', $shipmentId)->first();
+
+        if (! $shipment) {
+            return response()->json(['success' => false, 'message' => 'Shipment not found.'], 404);
+        }
+
+        $shipment->delete();
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * DELETE /test-panel/returns/{id}
+     * Hard-deletes a single ReturnItem row only. Does not touch the parent
+     * Order, same reasoning as deleteShipment().
+     */
+    public function deleteReturn(string $id): JsonResponse
+    {
+        $return = ReturnItem::find($id);
+
+        if (! $return) {
+            return response()->json(['success' => false, 'message' => 'Return not found.'], 404);
+        }
+
+        $return->delete();
+
+        return response()->json(['success' => true]);
     }
 }

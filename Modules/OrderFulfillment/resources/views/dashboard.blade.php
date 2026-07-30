@@ -789,7 +789,7 @@
             }
           @endphp
           <div class="order-card">
-            <div class="order-id">{{ $order->id }}</div>
+            <div class="order-id">{{ \Modules\OrderFulfillment\Helpers\OrderCode::format($order->order_number) }}</div>
             <div class="order-details">
               <div class="order-item">{{ $order->customer_name }}</div>
               <div class="tag-row">
@@ -841,7 +841,7 @@
             }
           @endphp
           <div class="order-card">
-            <div class="order-id">{{ $order->id }}</div>
+            <div class="order-id">{{ \Modules\OrderFulfillment\Helpers\OrderCode::format($order->order_number) }}</div>
             <div class="order-details">
               <div class="order-item">{{ $order->customer_name }}</div>
               <div class="tag-row">
@@ -904,7 +904,7 @@
             }
           @endphp
           <div class="order-card">
-            <div class="order-id">{{ $order->id }}</div>
+            <div class="order-id">{{ \Modules\OrderFulfillment\Helpers\OrderCode::format($order->order_number) }}</div>
             <div class="order-details">
               <div class="order-item">{{ $order->customer_name }}</div>
               <div class="tag-row">
@@ -935,7 +935,7 @@
           @forelse ($alerts as $order)
             <div class="alert-row">
               <div class="alert-left">
-                <span>📦 New order {{ $order->id }} received</span>
+                <span>📦 New order {{ \Modules\OrderFulfillment\Helpers\OrderCode::format($order->order_number) }} received</span>
               </div>
             </div>
           @empty

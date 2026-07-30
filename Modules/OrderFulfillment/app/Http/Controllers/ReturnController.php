@@ -4,6 +4,8 @@ namespace Modules\OrderFulfillment\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Modules\OrderFulfillment\Helpers\OrderCode;
+use Modules\OrderFulfillment\Models\Order;
 use Modules\OrderFulfillment\Models\ReturnItem;
 
 class ReturnController extends Controller
@@ -17,6 +19,17 @@ class ReturnController extends Controller
         // Order synced via ReturnItem::booted() — even when nobody has
         // the Returns tab open.
         $returns = ReturnItem::all();
+
+        // The Returns table/modal show the parent order's short ORD-001
+        // code, not its raw UUID. returns.order_id already holds the real
+        // order id (used for the Order sync in ReturnItem::booted()) — this
+        // just resolves the matching order_number for display.
+        $orderNumbersById = Order::whereIn('id', $returns->pluck('order_id')->filter()->unique()->values())
+            ->pluck('order_number', 'id');
+
+        $returns->each(function (ReturnItem $return) use ($orderNumbersById) {
+            $return->order_code = OrderCode::format($orderNumbersById->get($return->order_id));
+        });
 
         $pendingReturns = ReturnItem::where('status', 'Pending')->count();
 

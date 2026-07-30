@@ -33,6 +33,7 @@
       <th>Current Status</th>
       <th>Set Status</th>
       <th></th>
+      <th></th>
     </tr>
   </thead>
   <tbody>
@@ -49,9 +50,10 @@
         </select>
       </td>
       <td><button onclick="applyStatus(this)">Apply</button></td>
+      <td><button onclick="deleteRow(this)">Delete</button></td>
     </tr>
     @empty
-    <tr><td colspan="5">No orders yet.</td></tr>
+    <tr><td colspan="6">No orders yet.</td></tr>
     @endforelse
   </tbody>
 </table>
@@ -64,6 +66,7 @@
       <th>Order ID</th>
       <th>Current Status</th>
       <th>Set Status</th>
+      <th></th>
       <th></th>
     </tr>
   </thead>
@@ -81,9 +84,10 @@
         </select>
       </td>
       <td><button onclick="applyStatus(this)">Apply</button></td>
+      <td><button onclick="deleteRow(this)">Delete</button></td>
     </tr>
     @empty
-    <tr><td colspan="5">No shipments yet.</td></tr>
+    <tr><td colspan="6">No shipments yet.</td></tr>
     @endforelse
   </tbody>
 </table>
@@ -102,6 +106,7 @@
       <th>Current Status</th>
       <th>Reason</th>
       <th>Set Status</th>
+      <th></th>
       <th></th>
     </tr>
   </thead>
@@ -128,9 +133,10 @@
         </select>
       </td>
       <td><button onclick="applyStatus(this)">Apply</button></td>
+      <td><button onclick="deleteRow(this)">Delete</button></td>
     </tr>
     @empty
-    <tr><td colspan="6">No returns yet.</td></tr>
+    <tr><td colspan="7">No returns yet.</td></tr>
     @endforelse
   </tbody>
 </table>
@@ -142,6 +148,12 @@
     order:    @json(route('order-fulfillment.test-panel.orders.status', ['id' => '__ID__'])),
     shipment: @json(route('order-fulfillment.test-panel.shipments.status', ['shipmentId' => '__ID__'])),
     return:   @json(route('order-fulfillment.test-panel.returns.status', ['id' => '__ID__'])),
+  };
+
+  const deleteUrlTemplates = {
+    order:    @json(route('order-fulfillment.test-panel.orders.delete', ['id' => '__ID__'])),
+    shipment: @json(route('order-fulfillment.test-panel.shipments.delete', ['shipmentId' => '__ID__'])),
+    return:   @json(route('order-fulfillment.test-panel.returns.delete', ['id' => '__ID__'])),
   };
 
   function showToast(message) {
@@ -198,6 +210,47 @@
       })
       .catch(err => showToast('Error: ' + err.message))
       .finally(() => {
+        btn.disabled = false;
+        btn.textContent = originalText;
+      });
+  }
+
+  function deleteRow(btn) {
+    const row = btn.closest('tr');
+    const kind = row.dataset.kind;
+    const id = row.dataset.id;
+
+    const confirmMessage = kind === 'order'
+      ? 'Delete this order? This also deletes its order items, shipment, return, and packing-error rows. This cannot be undone.'
+      : 'Delete this ' + kind + '? This cannot be undone.';
+
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    const url = deleteUrlTemplates[kind].replace('__ID__', encodeURIComponent(id));
+
+    btn.disabled = true;
+    const originalText = btn.textContent;
+    btn.textContent = 'Deleting...';
+
+    fetch(url, {
+      method: 'DELETE',
+      headers: {
+        'X-CSRF-TOKEN': csrfToken,
+        'Accept': 'application/json',
+      },
+    })
+      .then(res => res.json().then(data => ({ ok: res.ok, data })))
+      .then(({ ok, data }) => {
+        if (!ok || !data.success) {
+          throw new Error(data.message || 'Delete failed.');
+        }
+        row.remove();
+        showToast(kind + ' ' + id + ' deleted.');
+      })
+      .catch(err => {
+        showToast('Error: ' + err.message);
         btn.disabled = false;
         btn.textContent = originalText;
       });

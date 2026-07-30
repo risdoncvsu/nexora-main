@@ -4,6 +4,7 @@ namespace Modules\OrderFulfillment\Http\Controllers;
 
 use Modules\OrderFulfillment\Models\Order;
 use Modules\OrderFulfillment\Models\Shipment;
+use Modules\OrderFulfillment\Helpers\OrderCode;
 use Modules\OrderFulfillment\Helpers\OrderStatus;
 use Modules\OrderFulfillment\Models\OrderItem;
 use Modules\OrderFulfillment\Http\Controllers\Concerns\CancelsShipmentToReturn;
@@ -72,7 +73,14 @@ class ShippingController extends Controller
             ->get(['order_id', 'product_name', 'qty', 'product_amount'])
             ->groupBy('order_id');
 
-        $shipments->each(function (Shipment $shipment) use ($itemsByOrder) {
+        // The shipment's own shipment_id (SHIP-XXXXXXXX) is a separate
+        // identifier from the order it belongs to. The "Order detail"
+        // modal below shows the underlying order, so it needs the order's
+        // short ORD-001 code too — order_id on the shipment is already the
+        // order's real UUID.
+        $orderNumbersById = Order::whereIn('id', $orderIds)->pluck('order_number', 'id');
+
+        $shipments->each(function (Shipment $shipment) use ($itemsByOrder, $orderNumbersById) {
             $orderItems = $itemsByOrder->get($shipment->order_id, collect());
 
             $shipment->items = $orderItems->map(function (OrderItem $item) {
@@ -85,6 +93,7 @@ class ShippingController extends Controller
             })->values()->toArray();
 
             $shipment->items_count = $orderItems->count();
+            $shipment->order_code = OrderCode::format($orderNumbersById->get($shipment->order_id));
         });
 
         // "In shipping" = every order that has left packing but hasn't been

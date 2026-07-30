@@ -2,6 +2,7 @@
 
 namespace Modules\OrderFulfillment\Http\Controllers;
 
+use Modules\OrderFulfillment\Helpers\OrderCode;
 use Modules\OrderFulfillment\Helpers\OrderPriority;
 use Modules\OrderFulfillment\Models\Order;
 use Modules\OrderFulfillment\Models\PackingError;
@@ -177,6 +178,7 @@ class PackingController extends Controller
 
             return [
                 (string) $order->id => [
+                    'code'          => OrderCode::format($order->order_number),
                     'customer'      => $order->customer_name,
                     'item'          => $order->product_name,
                     'qty'           => $order->qty,

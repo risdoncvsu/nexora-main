@@ -3,6 +3,7 @@
 namespace Modules\OrderFulfillment\Http\Controllers;
 
 use Illuminate\Support\Facades\DB;
+use Modules\OrderFulfillment\Helpers\OrderCode;
 
 class DashboardController extends Controller
 {
@@ -55,7 +56,7 @@ class DashboardController extends Controller
         $activity = $packingOrders
             ->map(function ($order) {
                 $order->activity_icon    = '📦';
-                $order->activity_message = "Order {$order->id} moved to packing";
+                $order->activity_message = "Order " . OrderCode::format($order->order_number) . " moved to packing";
                 $order->activity_time    = $order->updated_at ?? $order->created_at ?? null;
                 return $order;
             })
@@ -64,19 +65,19 @@ class DashboardController extends Controller
 
                 if ($status === 'COMPLETE') {
                     $order->activity_icon    = '🎉';
-                    $order->activity_message = "Order {$order->id} is complete";
+                    $order->activity_message = "Order " . OrderCode::format($order->order_number) . " is complete";
                 } elseif ($status === 'DELIVERED') {
                     $order->activity_icon    = '✅';
-                    $order->activity_message = "Order {$order->id} has been delivered";
+                    $order->activity_message = "Order " . OrderCode::format($order->order_number) . " has been delivered";
                 } elseif ($status === 'OUT_FOR_DELIVERY') {
                     $order->activity_icon    = '🚛';
-                    $order->activity_message = "Order {$order->id} is out for delivery";
+                    $order->activity_message = "Order " . OrderCode::format($order->order_number) . " is out for delivery";
                 } elseif ($status === 'READY_TO_SHIP') {
                     $order->activity_icon    = '📬';
-                    $order->activity_message = "Order {$order->id} is ready for delivery";
+                    $order->activity_message = "Order " . OrderCode::format($order->order_number) . " is ready for delivery";
                 } else {
                     $order->activity_icon    = '🚚';
-                    $order->activity_message = "Order {$order->id} has been shipped";
+                    $order->activity_message = "Order " . OrderCode::format($order->order_number) . " has been shipped";
                 }
 
                 $order->activity_time = $order->updated_at ?? $order->created_at ?? null;
@@ -84,7 +85,7 @@ class DashboardController extends Controller
             }))
             ->concat($cancelledOrders->map(function ($order) {
                 $order->activity_icon    = '❌';
-                $order->activity_message = "Order {$order->id} has been cancelled";
+                $order->activity_message = "Order " . OrderCode::format($order->order_number) . " has been cancelled";
                 $order->activity_time    = $order->updated_at ?? $order->created_at ?? null;
                 return $order;
             }))

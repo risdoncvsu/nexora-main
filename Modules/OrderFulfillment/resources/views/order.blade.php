@@ -1312,6 +1312,7 @@
             <tr class="order-row"
                 style="cursor: pointer;"
                 data-id="{{ $order->id }}"
+                data-code="{{ $order->order_code }}"
                 data-customer="{{ $order->customer_name }}"
                 data-qty="{{ $orderQty }}"
                 data-amount="{{ $orderTotal }}"
@@ -1329,7 +1330,7 @@
                     'qty'   => $item->qty,
                     'price' => $item->product_amount,
                 ])->toJson() }}">
-              <td class="order-id">{{ $order->id }}</td>
+              <td class="order-id">{{ $order->order_code }}</td>
               <td class="customer">{{ $order->customer_name }}</td>
               <td class="qty-cell">{{ $orderQty }}</td>
               <td class="amount-cell">₱{{ number_format($orderTotal, 2) }}</td>
@@ -1393,7 +1394,7 @@
     <div class="modal">
       <div class="modal-header">
         <h2 id="modalOrderId">#ORD-4821</h2>
-        <p id="modalSubtitle">Website order · 2 items</p>
+        <p id="modalSubtitle">—</p>
       </div>
       <div class="modal-body-grid">
         <div>
@@ -1448,7 +1449,7 @@
     <div class="modal">
       <div class="modal-header">
         <h2 id="cancelOrderId">#ORD-4821</h2>
-        <p id="cancelSubtitle">Website order · 2 items</p>
+        <p id="cancelSubtitle">—</p>
       </div>
       <div class="modal-body-grid">
         <div>
@@ -1585,8 +1586,8 @@
         console.error('Could not parse order items:', e);
       }
 
-      document.getElementById('modalOrderId').textContent = data.id;
-      document.getElementById('modalSubtitle').textContent = 'Website order · ' + itemLabel(items.length);
+      document.getElementById('modalOrderId').textContent = data.code;
+      document.getElementById('modalSubtitle').textContent = data.id + ' · ' + itemLabel(items.length);
       document.getElementById('modalCustomer').textContent = data.customer;
       document.getElementById('modalDue').textContent = data.due;
       setStatusBadge(document.getElementById('modalStatus'), data.status);
@@ -1734,8 +1735,8 @@
         console.error('Could not parse order items:', e);
       }
 
-      document.getElementById('cancelOrderId').textContent = data.id;
-      document.getElementById('cancelSubtitle').textContent = 'Website order · ' + itemLabel(items.length);
+      document.getElementById('cancelOrderId').textContent = data.code;
+      document.getElementById('cancelSubtitle').textContent = data.id + ' · ' + itemLabel(items.length);
       document.getElementById('cancelCustomer').textContent = data.customer;
       document.getElementById('cancelAmount').textContent = '₱' + computeItemsTotal(items).toFixed(2);
       document.getElementById('cancelDue').textContent = data.due;

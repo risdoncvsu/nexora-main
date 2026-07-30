@@ -1175,7 +1175,7 @@
     <div class="modal">
       <div class="modal-header">
         <h2 id="modalOrderId">—</h2>
-        <p>Website order</p>
+        <p id="modalSubtitle">—</p>
       </div>
 
       <div class="modal-body">
@@ -1341,7 +1341,8 @@
     function openShippingModal(orderId, showBanner) {
       const order = orders[orderId];
       if (order) {
-        document.getElementById('modalOrderId').textContent = orderId;
+        document.getElementById('modalOrderId').textContent = order.order_code || orderId;
+        document.getElementById('modalSubtitle').textContent = order.order_id || orderId;
         document.getElementById('modalCustomer').textContent = order.customer_name;
         document.getElementById('modalTracking').textContent = order.tracking_number;
         const modalStatusEl = document.getElementById('modalStatus');
