@@ -41,6 +41,9 @@ Route::post('returns/{id}/status', [ReturnController::class, 'updateStatus'])->n
         Route::post('/test-panel/orders/{id}/status', [TestPanelController::class, 'updateOrder'])->name('test-panel.orders.status');
         Route::post('/test-panel/shipments/{shipmentId}/status', [TestPanelController::class, 'updateShipment'])->name('test-panel.shipments.status');
         Route::post('/test-panel/returns/{id}/status', [TestPanelController::class, 'updateReturn'])->name('test-panel.returns.status');
+        Route::delete('/test-panel/orders/{id}', [TestPanelController::class, 'deleteOrder'])->name('test-panel.orders.delete');
+        Route::delete('/test-panel/shipments/{shipmentId}', [TestPanelController::class, 'deleteShipment'])->name('test-panel.shipments.delete');
+        Route::delete('/test-panel/returns/{id}', [TestPanelController::class, 'deleteReturn'])->name('test-panel.returns.delete');
     }
 
     Route::post('/logout', function () {

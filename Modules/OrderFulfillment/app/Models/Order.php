@@ -4,6 +4,7 @@ namespace Modules\OrderFulfillment\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Modules\OrderFulfillment\Helpers\OrderCode;
 use Modules\OrderFulfillment\Models\Concerns\BelongsToClient;
 
 class Order extends Model
@@ -15,9 +16,23 @@ class Order extends Model
     protected $keyType = 'string';
     protected $guarded = ['id'];
 
+    protected $casts = [
+        'order_number' => 'integer',
+    ];
+
     public function items()
     {
         return $this->hasMany(OrderItem::class, 'order_id', 'id');
+    }
+
+    /**
+     * Short, sequential "ORD-001" label for humans (phone/verbal reference,
+     * table columns, modal headers). The UUID in `id` stays the real
+     * primary/foreign key everywhere else in the code.
+     */
+    public function getOrderCodeAttribute()
+    {
+        return OrderCode::format($this->order_number);
     }
 
     /**

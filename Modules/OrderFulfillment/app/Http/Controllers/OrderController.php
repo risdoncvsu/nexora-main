@@ -7,6 +7,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Modules\OrderFulfillment\Helpers\OrderCode;
 use Modules\OrderFulfillment\Models\Order;
 use Modules\OrderFulfillment\Models\OrderItem;
 use Modules\OrderFulfillment\Models\PackingMaterial;
@@ -79,19 +80,20 @@ class OrderController extends Controller
             ->get()
             ->map(function ($o) {
                 $status = strtoupper($o->status);
+                $code   = OrderCode::format($o->order_number);
 
                 $activityMap = [
-                    'PACKING'          => ['📦', "Order {$o->id} moved to packing"],
-                    'READY_TO_SHIP'    => ['📦', "Order {$o->id} is ready for delivery"],
-                    'OUT_FOR_DELIVERY' => ['🚚', "Order {$o->id} is out for delivery"],
-                    'SHIPPED'          => ['🚚', "Order {$o->id} has been shipped"],
-                    'DELIVERED'        => ['✅', "Order {$o->id} has been delivered"],
-                    'COMPLETE'         => ['🎉', "Order {$o->id} is complete"],
-                    'CANCELLED'        => ['❌', "Order {$o->id} has been cancelled"],
-                    'RETURNED'         => ['↩️', "Order {$o->id} was returned by the customer"],
+                    'PACKING'          => ['📦', "Order {$code} moved to packing"],
+                    'READY_TO_SHIP'    => ['📦', "Order {$code} is ready for delivery"],
+                    'OUT_FOR_DELIVERY' => ['🚚', "Order {$code} is out for delivery"],
+                    'SHIPPED'          => ['🚚', "Order {$code} has been shipped"],
+                    'DELIVERED'        => ['✅', "Order {$code} has been delivered"],
+                    'COMPLETE'         => ['🎉', "Order {$code} is complete"],
+                    'CANCELLED'        => ['❌', "Order {$code} has been cancelled"],
+                    'RETURNED'         => ['↩️', "Order {$code} was returned by the customer"],
                 ];
 
-                [$icon, $message] = $activityMap[$status] ?? ['🔄', "Order {$o->id} status changed to " . strtolower(str_replace('_', ' ', $status))];
+                [$icon, $message] = $activityMap[$status] ?? ['🔄', "Order {$code} status changed to " . strtolower(str_replace('_', ' ', $status))];
 
                 $o->activity_icon    = $icon;
                 $o->activity_message = $message;

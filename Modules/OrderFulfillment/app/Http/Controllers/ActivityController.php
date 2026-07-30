@@ -5,6 +5,7 @@ namespace Modules\OrderFulfillment\Http\Controllers;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Modules\OrderFulfillment\Helpers\OrderCode;
 use Modules\OrderFulfillment\Models\Order;
 
 class ActivityController extends Controller
@@ -62,23 +63,25 @@ class ActivityController extends Controller
      */
     private function describe(Order $order): array
     {
+        $code = OrderCode::format($order->order_number);
+
         switch (strtoupper($order->status)) {
             case 'NEW':
-                return ['📦', "Order {$order->id} was received"];
+                return ['📦', "Order {$code} was received"];
             case 'PACKING':
-                return ['📦', "Order {$order->id} moved to packing"];
+                return ['📦', "Order {$code} moved to packing"];
             case 'READY_TO_SHIP':
-                return ['📬', "Order {$order->id} is ready for delivery"];
+                return ['📬', "Order {$code} is ready for delivery"];
             case 'SHIPPED':
-                return ['🚚', "Order {$order->id} has been shipped"];
+                return ['🚚', "Order {$code} has been shipped"];
             case 'OUT_FOR_DELIVERY':
-                return ['🚛', "Order {$order->id} is out for delivery"];
+                return ['🚛', "Order {$code} is out for delivery"];
             case 'DELIVERED':
-                return ['✅', "Order {$order->id} has been delivered"];
+                return ['✅', "Order {$code} has been delivered"];
             case 'CANCELLED':
-                return ['❌', "Order {$order->id} has been cancelled"];
+                return ['❌', "Order {$code} has been cancelled"];
             default:
-                return ['📈', "Order {$order->id} is now " . strtolower($order->status)];
+                return ['📈', "Order {$code} is now " . strtolower($order->status)];
         }
     }
 }

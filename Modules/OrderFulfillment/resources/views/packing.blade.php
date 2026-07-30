@@ -1360,6 +1360,7 @@
               @forelse ($packingOrdersJson as $orderId => $data)
                 <tr class="packing-row"
                     data-id="{{ $orderId }}"
+                    data-code="{{ $data['code'] }}"
                     data-customer="{{ $data['customer'] }}"
                     data-item="{{ $data['item'] }}"
                     data-qty="{{ $data['qty'] }}"
@@ -1367,7 +1368,7 @@
                     data-priority-class="{{ $data['priorityClass'] }}"
                     data-amount="{{ $data['amount'] }}"
                     data-address="{{ $data['address'] }}">
-                  <td class="order-id">{{ $orderId }}</td>
+                  <td class="order-id">{{ $data['code'] }}</td>
                   <td class="customer">{{ $data['customer'] }}</td>
                   <td class="product">{{ $data['itemCount'] }} {{ $data['itemCount'] == 1 ? 'item' : 'items' }}</td>
                   <td class="qty-cell">₱{{ $data['amount'] }}</td>
@@ -1425,7 +1426,7 @@
     <div class="modal">
       <div class="modal-header">
         <h2 id="modalOrderId">—</h2>
-        <p>Website order</p>
+        <p id="modalSubtitle">—</p>
       </div>
 
       <div class="modal-scroll">
@@ -1737,7 +1738,8 @@
       console.log("Modal opened. Order ID =", orderId);
       console.log("currentOrderId =", currentOrderId);
       if (order) {
-        document.getElementById('modalOrderId').textContent = orderId;
+        document.getElementById('modalOrderId').textContent = order.code || orderId;
+        document.getElementById('modalSubtitle').textContent = orderId;
         document.getElementById('modalCustomer').textContent = order.customer;
         document.getElementById('modalAddress').textContent = order.address;
 

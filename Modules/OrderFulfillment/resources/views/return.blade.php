@@ -1042,13 +1042,14 @@
     onclick="openReturnModal(this)"
     data-return-id="{{ $return->id }}"
     data-order-id="{{ $return->order_id }}"
+    data-order-code="{{ $return->order_code }}"
     data-customer="{{ $return->customer_name }}"
     data-product="{{ $return->product_name }}"
     data-reason="{{ $return->reason }}"
     data-status="{{ $return->status }}"
     data-resolution="{{ $return->resolution }}"
 >
-    <td class="order-id">{{ $return->order_id }}</td>
+    <td class="order-id">{{ $return->order_code }}</td>
     <td class="customer">{{ $return->customer_name }}</td>
     <td class="product">
         @php $itemCount = count(array_filter(array_map('trim', explode(',', $return->product_name)))); @endphp
@@ -1093,6 +1094,7 @@
       <div class="modal-header">
         <h2>Return request <span id="modalOrderId">#ORD-4821</span></h2>
         <p id="modalCustomerProduct">Maria Santos</p>
+        <p id="modalOrderRealId" style="color: var(--text-muted); font-size: 12px; margin-top: 2px;"></p>
       </div>
 
       <div class="modal-tags">
@@ -1194,6 +1196,9 @@ function openReturnModal(row)
     currentReturnRow = row;
 
     document.getElementById('modalOrderId').textContent =
+        row.dataset.orderCode;
+
+    document.getElementById('modalOrderRealId').textContent =
         row.dataset.orderId;
 
     document.getElementById('modalCustomerProduct').textContent =
