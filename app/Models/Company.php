@@ -22,6 +22,7 @@ use Illuminate\Support\Facades\Storage;
     'logo_path',
     'hr_employee_id',
     'setup_completed_at',
+    'return_window_days',
 ])]
 class Company extends Model
 {
@@ -31,6 +32,7 @@ class Company extends Model
     {
         return [
             'setup_completed_at' => 'datetime',
+            'return_window_days' => 'integer',
         ];
     }
 

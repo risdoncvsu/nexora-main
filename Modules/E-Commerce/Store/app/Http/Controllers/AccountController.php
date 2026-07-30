@@ -8,6 +8,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
 
 use Modules\Ecommerce\Models\Order;
+use Modules\Ecommerce\Models\ReturnRequest;
 use Modules\Ecommerce\CRM\Models\Customer as CrmCustomer;
 use Illuminate\Support\Facades\DB;
 
@@ -174,6 +175,7 @@ class AccountController extends Controller
 
             $fulfillmentOrders = collect();
             $shipments = collect();
+            $manufacturingOrders = collect();
 
             if (!empty($ecomOrderIds)) {
                 $fulfillmentOrders = DB::connection('order_fulfillment')
@@ -187,6 +189,14 @@ class AccountController extends Controller
                     ->whereIn('order_id', $ecomOrderIds)
                     ->get()
                     ->keyBy('order_id');
+
+                if (\Illuminate\Support\Facades\Schema::connection('manufacturing')->hasTable('work_orders')) {
+                    $manufacturingOrders = DB::connection('manufacturing')
+                        ->table('work_orders')
+                        ->whereIn('fulfillment_order_id', $ecomOrderIds)
+                        ->get()
+                        ->keyBy('fulfillment_order_id');
+                }
             }
 
             if ($ecomOrders->isEmpty()) {
@@ -292,6 +302,253 @@ class AccountController extends Controller
         return view('ecommerce::account.order-detail', compact('order'));
     }
 
+    public function requestReturn(Request $request, $store, $id)
+    {
+        $user = Auth::guard('ecommerce')->user();
+
+        if (!$user) {
+            return response()->json(['success' => false, 'error' => 'Unauthenticated.'], 401);
+        }
+
+        $validated = $request->validate([
+            'reason' => 'nullable|string|max:500',
+            'condition' => 'nullable|string|in:like_new,good,fair,poor',
+            'item_ids' => 'nullable|array',
+            'item_ids.*' => 'string',
+        ]);
+
+        $order = Order::with('items')
+            ->where('user_id', $user->id)
+            ->where('id', $id)
+            ->first();
+
+        if (!$order) {
+            return response()->json(['success' => false, 'error' => 'Order not found.'], 404);
+        }
+
+        // Only delivered/completed orders can be returned
+        $status = strtoupper($order->status ?? 'NEW');
+        $returnableStates = ['DELIVERED', 'COMPLETED'];
+        if (!in_array($status, $returnableStates)) {
+            return response()->json([
+                'success' => false,
+                'error' => 'This order cannot be returned as it has not been delivered yet.',
+            ], 422);
+        }
+
+        // Check return window — only allow returns within the company's configured window
+        $windowDays = $order->client_id
+            ? (\App\Models\Company::find($order->client_id)?->return_window_days ?? 30)
+            : 30;
+        $deliveredAt = $order->delivered_at;
+        if ($deliveredAt) {
+            $daysSinceDelivery = now()->diffInDays($deliveredAt, false);
+            if ($daysSinceDelivery > $windowDays) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'The return window of ' . $windowDays . ' days has passed. Your order was delivered ' . now()->diffInDays($deliveredAt) . ' days ago.',
+                ], 422);
+            }
+        }
+
+        // Check for existing pending return request
+        $existingReturn = ReturnRequest::where('order_id', $order->id)
+            ->where('type', 'return')
+            ->whereIn('status', ['pending', 'approved'])
+            ->first();
+
+        if ($existingReturn) {
+            return response()->json([
+                'success' => false,
+                'error' => 'A return request has already been submitted for this order.',
+            ], 409);
+        }
+
+        try {
+            DB::connection('ecommerce')->beginTransaction();
+
+            // Snapshot the selected items (or all items if none specified)
+            $selectedIds = $validated['item_ids'] ?? [];
+            $itemsData = $order->items
+                ->when(!empty($selectedIds), fn($q) => $q->whereIn('id', $selectedIds))
+                ->map(fn ($item) => [
+                    'id' => $item->id,
+                    'product_id' => $item->product_id,
+                    'name' => $item->name,
+                    'price' => $item->price,
+                    'quantity' => $item->quantity,
+                ])->values()->toArray();
+
+            if (empty($itemsData)) {
+                DB::connection('ecommerce')->rollBack();
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Please select at least one item to return.',
+                ], 422);
+            }
+
+            // Create the return request
+            ReturnRequest::create([
+                'order_id' => $order->id,
+                'user_id' => $user->id,
+                'type' => 'return',
+                'reason' => $validated['reason'] ?? null,
+                'condition' => $validated['condition'] ?? 'good',
+                'status' => 'pending',
+                'items_data' => $itemsData,
+            ]);
+
+            // Update the order status
+            $order->status = 'return_requested';
+            $order->save();
+
+            DB::connection('ecommerce')->commit();
+
+            // Best-effort update to fulfillment DB
+            try {
+                $fulfillment = DB::connection('order_fulfillment');
+                $fulfillment->table('orders')
+                    ->where('id', $order->id)
+                    ->update([
+                        'status' => 'RETURN_REQUESTED',
+                        'return_reason' => $validated['reason'] ?? null,
+                        'updated_at' => now(),
+                    ]);
+            } catch (\Throwable $e) {
+                report($e);
+            }
+
+            // Trigger CRM recalculation
+            try {
+                \Modules\Ecommerce\CRM\Models\Customer::recalculateForUser($user->id);
+            } catch (\Throwable $e) {
+                report($e);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Return request submitted successfully. We will review and process your return shortly.',
+            ]);
+        } catch (\Throwable $e) {
+            DB::connection('ecommerce')->rollBack();
+            report($e);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Something went wrong. Please try again later.',
+            ], 500);
+        }
+    }
+
+    public function requestCancel(Request $request, $store, $id)
+    {
+        $user = Auth::guard('ecommerce')->user();
+
+        if (!$user) {
+            return response()->json(['success' => false, 'error' => 'Unauthenticated.'], 401);
+        }
+
+        $validated = $request->validate([
+            'reason' => 'nullable|string|max:500',
+        ]);
+
+        $order = Order::with('items')
+            ->where('user_id', $user->id)
+            ->where('id', $id)
+            ->first();
+
+        if (!$order) {
+            return response()->json(['success' => false, 'error' => 'Order not found.'], 404);
+        }
+
+        // Check if order is in a cancellable state
+        $status = strtoupper($order->status ?? 'NEW');
+        $cancellableStates = ['PENDING', 'NEW', 'PROCESSING', 'PENDING_PAYMENT'];
+        if (!in_array($status, $cancellableStates)) {
+            return response()->json([
+                'success' => false,
+                'error' => 'This order cannot be cancelled as it has already been processed or shipped.',
+            ], 422);
+        }
+
+        // Check for existing pending cancel request
+        $existingCancel = ReturnRequest::where('order_id', $order->id)
+            ->where('type', 'cancel')
+            ->whereIn('status', ['pending'])
+            ->first();
+
+        if ($existingCancel) {
+            return response()->json([
+                'success' => false,
+                'error' => 'A cancel request has already been submitted for this order.',
+            ], 409);
+        }
+
+        try {
+            DB::connection('ecommerce')->beginTransaction();
+
+            // Snapshot the order items for the return request
+            $itemsData = $order->items->map(fn ($item) => [
+                'id' => $item->id,
+                'product_id' => $item->product_id,
+                'name' => $item->name,
+                'price' => $item->price,
+                'quantity' => $item->quantity,
+            ])->toArray();
+
+            // Create the return request
+            ReturnRequest::create([
+                'order_id' => $order->id,
+                'user_id' => $user->id,
+                'type' => 'cancel',
+                'reason' => $validated['reason'] ?? null,
+                'status' => 'pending',
+                'items_data' => $itemsData,
+            ]);
+
+            // Update the order status
+            $order->status = 'cancel_requested';
+            $order->save();
+
+            DB::connection('ecommerce')->commit();
+
+            // Try to notify the admin via the fulfillment DB
+            try {
+                $fulfillment = DB::connection('order_fulfillment');
+                $fulfillment->table('orders')
+                    ->where('id', $order->id)
+                    ->update([
+                        'status' => 'CANCEL_REQUESTED',
+                        'cancel_reason' => $validated['reason'] ?? null,
+                        'updated_at' => now(),
+                    ]);
+            } catch (\Throwable $e) {
+                // Fulfillment DB update is best-effort
+                report($e);
+            }
+
+            // Trigger CRM recalculation
+            try {
+                \Modules\Ecommerce\CRM\Models\Customer::recalculateForUser($user->id);
+            } catch (\Throwable $e) {
+                report($e);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Cancel request submitted successfully. We will review and update your order shortly.',
+            ]);
+        } catch (\Throwable $e) {
+            DB::connection('ecommerce')->rollBack();
+            report($e);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Something went wrong. Please try again later.',
+            ], 500);
+        }
+    }
+
     public function confirmReceived(Request $request, $store, $id)
     {
         $user = Auth::guard('ecommerce')->user();
@@ -340,8 +597,9 @@ class AccountController extends Controller
             report($e);
         }
 
-        // Update the ecommerce order status
+        // Update the ecommerce order status and record delivery timestamp
         $order->status = 'delivered';
+        $order->delivered_at = now();
         $order->save();
 
         // Mark both Fulfillment records delivered. The Orders dashboard reads

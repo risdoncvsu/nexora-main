@@ -90,6 +90,8 @@ $storefrontRoutes = function () {
         Route::get('/account/orders/{id}', [\Modules\Ecommerce\Http\Controllers\AccountController::class, 'showOrder'])->name('account.orders.show');
         Route::post('/account/profile', [\Modules\Ecommerce\Http\Controllers\AccountController::class, 'updateProfile'])->name('account.profile.update');
         Route::post('/account/password', [\Modules\Ecommerce\Http\Controllers\AccountController::class, 'updatePassword'])->name('account.password.update')->middleware('throttle:5,10');
+        Route::post('/account/orders/{id}/cancel', [\Modules\Ecommerce\Http\Controllers\AccountController::class, 'requestCancel'])->name('account.orders.cancel');
+        Route::post('/account/orders/{id}/return', [\Modules\Ecommerce\Http\Controllers\AccountController::class, 'requestReturn'])->name('account.orders.return');
         Route::post('/account/orders/{id}/confirm-received', [\Modules\Ecommerce\Http\Controllers\AccountController::class, 'confirmReceived'])->name('account.orders.confirm-received');
 
         Route::post('/account/payment-methods/card', [\Modules\Ecommerce\Http\Controllers\PaymentMethodController::class, 'storeCard'])->name('account.payment-methods.store-card');
@@ -130,7 +132,6 @@ $storefrontRoutes = function () {
     Route::get('/search', [\Modules\Ecommerce\Http\Controllers\SearchController::class, 'index'])->name('search');
     Route::get('/api/search/suggestions', [\Modules\Ecommerce\Http\Controllers\SearchController::class, 'suggestions'])->name('search.suggestions');
 
-    Route::get('/prebuilt-pcs', [\Modules\Ecommerce\Http\Controllers\ItemController::class, 'index'])->name('prebuilt-pcs');
 
     // Support / Info Pages — using closures to avoid defaults() parameter resolution quirks
     // Chat API (authenticated)
@@ -214,6 +215,13 @@ Route::name('ecommerce.')->group(function () {
                 Route::post('/{userId}', [ChatController::class, 'adminSend'])->name('send');
                 Route::get('/{userId}/poll', [ChatController::class, 'adminPoll'])->name('poll');
             });
+
+            // Return / Cancel Requests
+            Route::get('/returns', [\Modules\Ecommerce\Http\Controllers\EcommerceAdminController::class, 'returns'])->name('returns');
+            Route::get('/returns/{id}', [\Modules\Ecommerce\Http\Controllers\EcommerceAdminController::class, 'showReturn'])->name('returns.show');
+            Route::post('/returns/{id}/approve', [\Modules\Ecommerce\Http\Controllers\EcommerceAdminController::class, 'approveReturn'])->name('returns.approve');
+            Route::post('/returns/{id}/refund', [\Modules\Ecommerce\Http\Controllers\EcommerceAdminController::class, 'processRefund'])->name('returns.refund');
+            Route::post('/returns/{id}/reject', [\Modules\Ecommerce\Http\Controllers\EcommerceAdminController::class, 'rejectReturn'])->name('returns.reject');
 
             // Customer Notifications
             Route::get('/customer-notifications', [\Modules\Ecommerce\Http\Controllers\EcommerceAdminController::class, 'customerNotifications'])->name('customer-notifications');

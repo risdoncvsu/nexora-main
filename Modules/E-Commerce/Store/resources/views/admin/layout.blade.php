@@ -119,6 +119,9 @@
                 <a class="sidebar-link {{ request()->routeIs('ecommerce.admin.orders') ? 'active' : '' }}" href="{{ route('ecommerce.admin.orders') }}">
                     <i class="ph ph-shopping-cart"></i> Orders
                 </a>
+                <a class="sidebar-link {{ request()->routeIs('ecommerce.admin.returns', 'ecommerce.admin.returns.*') ? 'active' : '' }}" href="{{ route('ecommerce.admin.returns') }}">
+                    <i class="ph ph-arrows-left-right"></i> Returns
+                </a>
                 <a class="sidebar-link {{ request()->routeIs('ecommerce.admin.listings*') ? 'active' : '' }}" href="{{ route('ecommerce.admin.listings') }}">
                     <i class="ph ph-tag"></i> Products
                 </a>

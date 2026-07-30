@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Modules\Ecommerce\Models\CustomerNotification;
 use Modules\Ecommerce\Models\Order;
+use Modules\Ecommerce\Models\ReturnRequest;
 use Modules\Ecommerce\Models\StorefrontLayout;
 use Modules\Ecommerce\Models\StorefrontListing;
 use Modules\Ecommerce\Support\EcommerceClientContext;
@@ -153,7 +154,11 @@ class EcommerceAdminController extends Controller
         $oldStatus = $order->status;
         $newStatus = $validated['status'];
 
-        $order->update(['status' => $newStatus]);
+        $updateData = ['status' => $newStatus];
+        if ($newStatus === 'delivered' && !$order->delivered_at) {
+            $updateData['delivered_at'] = now();
+        }
+        $order->update($updateData);
 
         // Notify the customer
         try {
@@ -283,7 +288,7 @@ class EcommerceAdminController extends Controller
                 case 'gaming-laptops':
                     return app(CollectionsController::class)->index();
                 case 'prebuilt-pcs':
-                    return app(ItemController::class)->index($request);
+                    return app(\Modules\Ecommerce\Http\Controllers\StorefrontController::class)->index($request);
                 case 'cart':
                     return app(CartController::class)->index();
                 case 'checkout':
@@ -461,6 +466,468 @@ class EcommerceAdminController extends Controller
         $notif->delete();
 
         return back()->with('success', 'Notification deleted.');
+    }
+
+    // ============================================================
+    // RETURN / CANCEL REQUESTS MANAGEMENT
+    // ============================================================
+
+    /**
+     * List all return/cancel requests.
+     */
+    public function returns()
+    {
+        $company = $this->company();
+        $clientId = (int) app(EcommerceClientContext::class)->clientId();
+
+        $requests = ReturnRequest::withoutGlobalScope('ecommerce-client')
+            ->where('client_id', $clientId)
+            ->with(['order', 'user'])
+            ->orderByDesc('created_at')
+            ->paginate(25);
+
+        $stats = [
+            'total' => ReturnRequest::withoutGlobalScope('ecommerce-client')
+                ->where('client_id', $clientId)->count(),
+            'pending' => ReturnRequest::withoutGlobalScope('ecommerce-client')
+                ->where('client_id', $clientId)->where('status', 'pending')->count(),
+            'approved' => ReturnRequest::withoutGlobalScope('ecommerce-client')
+                ->where('client_id', $clientId)->whereIn('status', ['approved', 'refunded', 'completed'])->count(),
+            'rejected' => ReturnRequest::withoutGlobalScope('ecommerce-client')
+                ->where('client_id', $clientId)->where('status', 'rejected')->count(),
+        ];
+
+        return view('ecommerce::admin.returns', compact('requests', 'stats'));
+    }
+
+    /**
+     * Show a single return/cancel request detail.
+     */
+    public function showReturn(string $id)
+    {
+        $clientId = (int) app(EcommerceClientContext::class)->clientId();
+
+        $returnRequest = ReturnRequest::withoutGlobalScope('ecommerce-client')
+            ->where('client_id', $clientId)
+            ->with(['order.items', 'user'])
+            ->findOrFail($id);
+
+        // Fetch fulfillment data if available
+        try {
+            $fulfillment = DB::connection('order_fulfillment')
+                ->table('orders')
+                ->where('id', $returnRequest->order_id)
+                ->first();
+            $returnRequest->order->fulfillment_details = $fulfillment;
+        } catch (\Throwable $e) {
+            $returnRequest->order->fulfillment_details = null;
+        }
+
+        return response()->json($returnRequest);
+    }
+
+    /**
+     * Approve a return/cancel request.
+     */
+    public function approveReturn(Request $request, string $id): \Illuminate\Http\JsonResponse
+    {
+        $validated = $request->validate([
+            'refund_amount' => 'nullable|numeric|min:0',
+            'admin_notes' => 'nullable|string|max:1000',
+        ]);
+
+        $clientId = (int) app(EcommerceClientContext::class)->clientId();
+
+        $returnRequest = ReturnRequest::withoutGlobalScope('ecommerce-client')
+            ->where('client_id', $clientId)
+            ->findOrFail($id);
+
+        if ($returnRequest->status !== 'pending') {
+            return response()->json(['success' => false, 'error' => 'This request has already been ' . $returnRequest->status . '.'], 422);
+        }
+
+        try {
+            DB::connection('ecommerce')->beginTransaction();
+
+            $returnRequest->status = 'approved';
+            $returnRequest->refund_amount = $validated['refund_amount'] ?? $returnRequest->refund_amount;
+            $returnRequest->admin_notes = $validated['admin_notes'] ?? $returnRequest->admin_notes;
+            $returnRequest->resolved_at = now();
+            $returnRequest->save();
+
+            // Update the order status based on type
+            $order = Order::find($returnRequest->order_id);
+            if ($order) {
+                if ($returnRequest->type === 'cancel') {
+                    $order->status = 'cancelled';
+                } elseif ($returnRequest->type === 'return') {
+                    $order->status = 'return_approved';
+                }
+                $order->save();
+
+                // Notify the customer
+                try {
+                    $company = $this->company();
+                    $store = $company->ecommerce_slug ?? 'store';
+                    $label = $returnRequest->type === 'cancel' ? 'Cancellation' : 'Return';
+
+                    CustomerNotification::create([
+                        'client_id' => $clientId,
+                        'user_id' => $order->user_id,
+                        'type' => $returnRequest->type === 'cancel' ? 'cancel_request' : 'return_request',
+                        'title' => $label . ' Approved',
+                        'body' => 'Your ' . strtolower($label) . ' request for Order #' . $order->tracking_number . ' has been approved.' . ($validated['admin_notes'] ? ' Note: ' . $validated['admin_notes'] : ''),
+                        'link' => route('ecommerce.account.orders.show', ['store' => $store, 'id' => $order->id]),
+                        'icon' => $returnRequest->type === 'cancel' ? 'ph-x-circle' : 'ph-arrow-u-up-left',
+                        'icon_color' => 'green',
+                        'is_read' => false,
+                    ]);
+                } catch (\Throwable $e) {
+                    \Log::warning('Failed to create return approval notification: ' . $e->getMessage());
+                }
+            }
+
+            DB::connection('ecommerce')->commit();
+
+            // Best-effort sync to fulfillment DB
+            try {
+                $fulfillmentStatus = $returnRequest->type === 'cancel' ? 'CANCELLED' : 'RETURN_APPROVED';
+                DB::connection('order_fulfillment')->table('orders')
+                    ->where('id', $returnRequest->order_id)
+                    ->update(['status' => $fulfillmentStatus, 'updated_at' => now()]);
+            } catch (\Throwable $e) {
+                report($e);
+            }
+
+            // Trigger CRM recalculation
+            try {
+                if ($order) {
+                    \Modules\Ecommerce\CRM\Models\Customer::recalculateForUser($order->user_id);
+                }
+            } catch (\Throwable $e) {
+                report($e);
+            }
+
+            return response()->json(['success' => true, 'message' => ucfirst($returnRequest->type) . ' request approved successfully.']);
+        } catch (\Throwable $e) {
+            DB::connection('ecommerce')->rollBack();
+            report($e);
+            return response()->json(['success' => false, 'error' => 'Something went wrong. Please try again.'], 500);
+        }
+    }
+
+    /**
+     * Reject a return/cancel request.
+     */
+    /**
+     * Process a mock refund for an approved return.
+     */
+    public function processRefund(Request $request, string $id): \Illuminate\Http\JsonResponse
+    {
+        $validated = $request->validate([
+            'refund_amount' => 'required|numeric|min:0.01',
+            'admin_notes' => 'nullable|string|max:1000',
+        ]);
+
+        $clientId = (int) app(EcommerceClientContext::class)->clientId();
+
+        $returnRequest = ReturnRequest::withoutGlobalScope('ecommerce-client')
+            ->where('client_id', $clientId)
+            ->findOrFail($id);
+
+        if ($returnRequest->status !== 'approved') {
+            return response()->json(['success' => false, 'error' => 'Only approved requests can be refunded. Current status: ' . $returnRequest->status . '.'], 422);
+        }
+
+        $refundAmount = round((float) $validated['refund_amount'], 2);
+
+        try {
+            DB::connection('ecommerce')->beginTransaction();
+
+            $returnRequest->status = 'refunded';
+            $returnRequest->refund_amount = $refundAmount;
+            $returnRequest->admin_notes = $validated['admin_notes'] ?? $returnRequest->admin_notes;
+            $returnRequest->refunded_at = now();
+            $returnRequest->save();
+
+            // Update order status
+            $order = Order::find($returnRequest->order_id);
+            if ($order) {
+                $order->status = $returnRequest->type === 'cancel' ? 'cancelled' : 'refunded';
+                $order->save();
+
+                // Notify customer
+                try {
+                    $company = $this->company();
+                    $store = $company->ecommerce_slug ?? 'store';
+                    $label = $returnRequest->type === 'cancel' ? 'Cancellation' : 'Return';
+
+                    CustomerNotification::create([
+                        'client_id' => $clientId,
+                        'user_id' => $order->user_id,
+                        'type' => 'refund',
+                        'title' => $label . ' Refund Processed',
+                        'body' => 'Your ' . strtolower($label) . ' refund of ₱' . number_format($refundAmount, 2) . ' has been processed. It may take 5-10 business days to appear in your account.',
+                        'link' => route('ecommerce.account.orders.show', ['store' => $store, 'id' => $order->id]),
+                        'icon' => 'ph-currency-circle-dollar',
+                        'icon_color' => 'purple',
+                        'is_read' => false,
+                    ]);
+                } catch (\Throwable $e) {
+                    \Log::warning('Failed to create refund notification: ' . $e->getMessage());
+                }
+            }
+
+            DB::connection('ecommerce')->commit();
+
+            // Best-effort sync to fulfillment DB
+            try {
+                DB::connection('order_fulfillment')->table('orders')
+                    ->where('id', $returnRequest->order_id)
+                    ->update([
+                        'status' => 'REFUNDED',
+                        'refund_amount' => $refundAmount,
+                        'refunded_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+            } catch (\Throwable $e) {
+                report($e);
+            }
+
+            // Auto-restock inventory for return-type refunds
+            if ($returnRequest->type === 'return') {
+                $this->restockInventory($returnRequest, $clientId);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Refund of ₱' . number_format($refundAmount, 2) . ' processed successfully.',
+            ]);
+        } catch (\Throwable $e) {
+            DB::connection('ecommerce')->rollBack();
+            report($e);
+            return response()->json(['success' => false, 'error' => 'Something went wrong. Please try again.'], 500);
+        }
+    }
+
+    /**
+     * Auto-restock inventory from returned order items.
+     * Best-effort: failures are logged but don't block the refund.
+     */
+    private function restockInventory(ReturnRequest $returnRequest, int $clientId): void
+    {
+        try {
+            $itemsData = $returnRequest->items_data;
+            if (empty($itemsData) || !is_array($itemsData)) return;
+
+            // Parse listing IDs from the returned order items
+            $listingIds = [];
+            $itemQtys = [];
+            foreach ($itemsData as $item) {
+                $productId = $item['product_id'] ?? $item['id'] ?? null;
+                if (!$productId) continue;
+
+                // product_id format is 'listing-{id}'
+                if (str_starts_with((string) $productId, 'listing-')) {
+                    $lid = (int) substr((string) $productId, 8);
+                } elseif (ctype_digit((string) $productId)) {
+                    $lid = (int) $productId;
+                } else {
+                    continue;
+                }
+
+                $qty = (int) ($item['quantity'] ?? 1);
+                $listingIds[] = $lid;
+                $itemQtys[$lid] = max($itemQtys[$lid] ?? 0, $qty);
+            }
+
+            if (empty($listingIds)) return;
+
+            $listingIds = array_unique($listingIds);
+
+            // Use raw queries to avoid cross-module Eloquent scope issues
+            $ecom = \Illuminate\Support\Facades\DB::connection('ecommerce');
+            $manu = \Illuminate\Support\Facades\DB::connection('manufacturing');
+            $inv = \Illuminate\Support\Facades\DB::connection('inventory');
+
+            // Find listings and their BOMs
+            $listings = $ecom->table('storefront_listings')
+                ->whereIn('id', $listingIds)
+                ->where('client_id', $clientId)
+                ->get();
+
+            if ($listings->isEmpty()) return;
+
+            $bomIds = $listings->pluck('bom_id')->filter()->all();
+            if (empty($bomIds)) return;
+
+            // Get BOM items from the manufacturing DB (what raw material goes into each product)
+            $bomItems = $manu->table('product_bom_items')
+                ->whereIn('bom_id', $bomIds)
+                ->where('client_id', $clientId)
+                ->get();
+
+            if ($bomItems->isEmpty()) return;
+
+            // Find an active warehouse to receive the returned stock
+            $warehouse = $inv->table('warehouses')
+                ->where('client_id', $clientId)
+                ->where('status', 'active')
+                ->orderBy('last_activity_at', 'desc')
+                ->first();
+
+            if (!$warehouse) return;
+
+            $stockUpdates = [];
+            $movements = [];
+
+            foreach ($bomItems as $bomItem) {
+                $invItemId = $bomItem->inventory_item_id;
+                if (!$invItemId) continue;
+
+                // Compute total quantity of this component to restock
+                $totalQty = 0;
+                foreach ($listings as $listing) {
+                    if ((int) $listing->bom_id === (int) $bomItem->bom_id) {
+                        $qty = $itemQtys[(int) $listing->id] ?? 1;
+                        $totalQty += $qty * (int) $bomItem->quantity_required;
+                    }
+                }
+                if ($totalQty <= 0) continue;
+
+                $stockUpdates[] = [
+                    'item_id' => (int) $invItemId,
+                    'warehouse_id' => (int) $warehouse->id,
+                    'client_id' => $clientId,
+                    'qty' => $totalQty,
+                ];
+
+                $movements[] = [
+                    'client_id' => $clientId,
+                    'type' => 'inbound',
+                    'item_id' => (int) $invItemId,
+                    'warehouse_id' => (int) $warehouse->id,
+                    'quantity' => $totalQty,
+                    'reference' => 'refund_' . $returnRequest->id,
+                    'reference_id' => $returnRequest->order_id,
+                    'performed_by' => null,
+                    'notes' => 'Auto-restock from return refund — request #' . $returnRequest->id,
+                    'created_at' => now(),
+                ];
+            }
+
+            if (empty($stockUpdates)) return;
+
+            $inv->transaction(function () use ($inv, $stockUpdates, $movements) {
+                foreach ($stockUpdates as $update) {
+                    $existing = $inv->table('stock_levels')
+                        ->where('item_id', $update['item_id'])
+                        ->where('warehouse_id', $update['warehouse_id'])
+                        ->where('client_id', $update['client_id'])
+                        ->first();
+
+                    if ($existing) {
+                        $inv->table('stock_levels')->where('id', $existing->id)->update([
+                            'stock' => $existing->stock + $update['qty'],
+                            'updated_at' => now(),
+                        ]);
+                    } else {
+                        $inv->table('stock_levels')->insert([
+                            'item_id' => $update['item_id'],
+                            'warehouse_id' => $update['warehouse_id'],
+                            'client_id' => $update['client_id'],
+                            'stock' => $update['qty'],
+                            'reserved_quantity' => 0,
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+                    }
+                }
+
+                foreach ($movements as $movement) {
+                    $inv->table('stock_movements')->insert($movement);
+                }
+            });
+        } catch (\Throwable $e) {
+            \Log::warning('Auto-restock failed for return request #' . $returnRequest->id . ': ' . $e->getMessage());
+            report($e);
+        }
+    }
+
+    public function rejectReturn(Request $request, string $id): \Illuminate\Http\JsonResponse
+    {
+        $validated = $request->validate([
+            'admin_notes' => 'required|string|max:1000',
+        ]);
+
+        $clientId = (int) app(EcommerceClientContext::class)->clientId();
+
+        $returnRequest = ReturnRequest::withoutGlobalScope('ecommerce-client')
+            ->where('client_id', $clientId)
+            ->findOrFail($id);
+
+        if ($returnRequest->status !== 'pending') {
+            return response()->json(['success' => false, 'error' => 'This request has already been ' . $returnRequest->status . '.'], 422);
+        }
+
+        try {
+            DB::connection('ecommerce')->beginTransaction();
+
+            $returnRequest->status = 'rejected';
+            $returnRequest->admin_notes = $validated['admin_notes'];
+            $returnRequest->resolved_at = now();
+            $returnRequest->save();
+
+            // Revert order status back
+            $order = Order::find($returnRequest->order_id);
+            if ($order) {
+                if ($returnRequest->type === 'cancel') {
+                    $order->status = 'pending';
+                } elseif ($returnRequest->type === 'return') {
+                    $order->status = 'delivered';
+                }
+                $order->save();
+
+                // Notify the customer
+                try {
+                    $company = $this->company();
+                    $store = $company->ecommerce_slug ?? 'store';
+                    $label = $returnRequest->type === 'cancel' ? 'Cancellation' : 'Return';
+
+                    CustomerNotification::create([
+                        'client_id' => $clientId,
+                        'user_id' => $order->user_id,
+                        'type' => $returnRequest->type === 'cancel' ? 'cancel_request' : 'return_request',
+                        'title' => $label . ' Rejected',
+                        'body' => 'Your ' . strtolower($label) . ' request for Order #' . $order->tracking_number . ' was not approved. Reason: ' . $validated['admin_notes'],
+                        'link' => route('ecommerce.account.orders.show', ['store' => $store, 'id' => $order->id]),
+                        'icon' => 'ph-warning-circle',
+                        'icon_color' => 'red',
+                        'is_read' => false,
+                    ]);
+                } catch (\Throwable $e) {
+                    \Log::warning('Failed to create return rejection notification: ' . $e->getMessage());
+                }
+            }
+
+            DB::connection('ecommerce')->commit();
+
+            // Best-effort sync to fulfillment DB
+            try {
+                $fulfillmentStatus = $returnRequest->type === 'cancel' ? 'PENDING' : 'DELIVERED';
+                DB::connection('order_fulfillment')->table('orders')
+                    ->where('id', $returnRequest->order_id)
+                    ->update(['status' => $fulfillmentStatus, 'updated_at' => now()]);
+            } catch (\Throwable $e) {
+                report($e);
+            }
+
+            return response()->json(['success' => true, 'message' => ucfirst($returnRequest->type) . ' request rejected.']);
+        } catch (\Throwable $e) {
+            DB::connection('ecommerce')->rollBack();
+            report($e);
+            return response()->json(['success' => false, 'error' => 'Something went wrong. Please try again.'], 500);
+        }
     }
 
     public function logout(Request $request): RedirectResponse

@@ -299,8 +299,18 @@
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
                     @foreach($suggestedItems as $suggested)
                     <a href="{{ route('ecommerce.listings.show', ['store' => $store, 'listing' => $suggested->id]) }}" class="group liquid-glass rounded-2xl p-4 border border-white/5 hover:border-primary/50 hover:shadow-glow-lg transition-all duration-500 flex flex-col">
-                        <div class="aspect-square w-full rounded-xl bg-black/40 mb-3 flex items-center justify-center p-3 border border-white/5 overflow-hidden">
+                        <div class="relative aspect-square w-full rounded-xl bg-black/40 mb-3 flex items-center justify-center p-3 border border-white/5 overflow-hidden">
                             <img src="{{ $suggested->image_url ? asset('storage/' . $suggested->image_url) : 'https://images.unsplash.com/photo-1587202372634-32705e3bf49c?auto=format&fit=crop&w=800&q=80' }}" alt="{{ $suggested->name }}" loading="lazy" class="lazy-img max-w-full max-h-full object-contain group-hover:scale-110 transition-transform duration-500">
+                            @php $sqty = $suggested->available_quantity ?? 0; @endphp
+                            @if($sqty <= 0)
+                                <div class="absolute top-1 right-1 bg-red-500/90 backdrop-blur-sm text-white text-[7px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md border border-red-400/30 shadow-lg z-10 flex items-center gap-0.5">
+                                    <i class="ph-bold ph-x-circle text-[8px]"></i> OOS
+                                </div>
+                            @elseif($sqty <= 5)
+                                <div class="absolute top-1 right-1 bg-amber-500/90 backdrop-blur-sm text-white text-[7px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md border border-amber-400/30 shadow-lg z-10 flex items-center gap-0.5">
+                                    <i class="ph-bold ph-warning text-[8px]"></i> Low
+                                </div>
+                            @endif
                         </div>
                         <h3 class="text-sm font-bold text-white truncate mb-1 group-hover:text-primary transition-colors">{{ $suggested->name }}</h3>
                         <div class="text-primary font-black text-sm mt-auto">₱{{ number_format($suggested->price) }}</div>

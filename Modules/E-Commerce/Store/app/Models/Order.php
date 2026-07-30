@@ -22,6 +22,7 @@ class Order extends Model
 
     protected $casts = [
         'shipping_address' => 'array',
+        'delivered_at' => 'datetime',
     ];
 
     protected static function boot()

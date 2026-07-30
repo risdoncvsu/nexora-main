@@ -167,6 +167,16 @@
                                 <i class="ph ph-package text-5xl text-gray-600"></i>
                             </div>
                         @endif
+                        @php $qty = $listing->available_quantity ?? 0; @endphp
+                        @if($qty <= 0)
+                            <div class="absolute top-2 right-2 bg-red-500/90 backdrop-blur-sm text-white text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border border-red-400/30 shadow-lg z-10 flex items-center gap-1">
+                                <i class="ph-bold ph-x-circle text-[9px]"></i> Out of Stock
+                            </div>
+                        @elseif($qty <= 5)
+                            <div class="absolute top-2 right-2 bg-amber-500/90 backdrop-blur-sm text-white text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border border-amber-400/30 shadow-lg z-10 flex items-center gap-1">
+                                <i class="ph-bold ph-warning text-[9px]"></i> Low Stock
+                            </div>
+                        @endif
                     </div>
                     <div class="flex flex-col flex-1">
                         <h3 class="text-lg font-bold text-white group-hover:text-primary transition-colors line-clamp-2 mb-3">{{ $listing->name }}</h3>

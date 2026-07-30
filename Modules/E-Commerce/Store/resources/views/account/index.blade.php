@@ -831,6 +831,94 @@
                             (function() {
                                 window.userAccountOrders = @json($orders);
 
+                                window.openCancelModal = function(orderId) {
+                                    document.getElementById('cancel-order-id').value = orderId;
+                                    document.getElementById('cancel-modal').classList.remove('hidden');
+                                    document.getElementById('cancel-modal').classList.add('flex');
+                                    document.getElementById('cancel-modal').style.display = 'flex';
+                                };
+
+                                window.closeCancelModal = function() {
+                                    document.getElementById('cancel-modal').classList.remove('flex');
+                                    document.getElementById('cancel-modal').classList.add('hidden');
+                                    document.getElementById('cancel-modal').style.display = 'none';
+                                    document.getElementById('cancel-reason').value = '';
+                                    document.getElementById('cancel-other-reason').classList.add('hidden');
+                                };
+
+                                window.requestCancelOrder = function(btn) {
+                                    if (btn.disabled) return;
+                                    const orderId = document.getElementById('cancel-order-id').value;
+                                    const reasonInput = document.getElementById('cancel-reason');
+                                    const otherInput = document.getElementById('cancel-other-text');
+                                    let reason = reasonInput.value;
+                                    if (reason === 'other') {
+                                        reason = otherInput.value.trim();
+                                        if (!reason) {
+                                            alert('Please describe the reason for cancellation.');
+                                            return;
+                                        }
+                                    } else if (!reason) {
+                                        alert('Please select a reason for cancellation.');
+                                        return;
+                                    }
+
+                                    btn.disabled = true;
+                                    const originalHtml = btn.innerHTML;
+                                    btn.innerHTML = '<i class="ph-bold ph-spinner animate-spin text-xs"></i> Submitting...';
+
+                                    var cancelUrl = '{{ route('ecommerce.account.orders.cancel', ['id' => 'ORDER_ID_PLACEHOLDER']) }}';
+                                    cancelUrl = cancelUrl.replace('ORDER_ID_PLACEHOLDER', encodeURIComponent(orderId));
+
+                                    fetch(cancelUrl, {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                                            'X-Requested-With': 'XMLHttpRequest'
+                                        },
+                                        body: JSON.stringify({ reason: reason })
+                                    })
+                                    .then(function(res) {
+                                        if (!res.ok) {
+                                            return res.text().then(function(text) {
+                                                try { return JSON.parse(text); } catch(e) { return { success: false, error: 'Server returned HTTP ' + res.status + ': ' + text.substring(0, 200) }; }
+                                            });
+                                        }
+                                        return res.json();
+                                    })
+                                    .then(function(data) {
+                                        if (data.success) {
+                                            closeCancelModal();
+                                            var toast = document.getElementById('oh-toast') || (function() {
+                                                var t = document.createElement('div');
+                                                t.id = 'oh-toast';
+                                                t.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 bg-green-600 text-white px-6 py-3 rounded-xl text-sm font-bold shadow-lg z-[999] transition-all duration-300 opacity-0';
+                                                document.body.appendChild(t);
+                                                return t;
+                                            })();
+                                            toast.textContent = data.message || 'Cancel request submitted!';
+                                            toast.style.background = '#16a34a';
+                                            toast.classList.remove('opacity-0');
+                                            toast.classList.add('opacity-100');
+                                            setTimeout(function() {
+                                                toast.classList.remove('opacity-100');
+                                                toast.classList.add('opacity-0');
+                                            }, 3000);
+                                            setTimeout(function() { location.reload(); }, 1500);
+                                        } else {
+                                            btn.innerHTML = originalHtml;
+                                            btn.disabled = false;
+                                            alert(data.error || 'Something went wrong. Please try again.');
+                                        }
+                                    })
+                                    .catch(function(err) {
+                                        btn.innerHTML = originalHtml;
+                                        btn.disabled = false;
+                                        alert('Network error. Please try again.');
+                                    });
+                                };
+
                                 window.confirmReceived = function(orderId, btn) {
                                     if (btn.disabled) return;
                                     btn.disabled = true;
@@ -877,6 +965,136 @@
                                             }, 3000);
                                             // Reload after short delay to reflect the updated status
                                             setTimeout(function() { location.reload(); }, 1500);
+                                        } else {
+                                            btn.innerHTML = originalHtml;
+                                            btn.disabled = false;
+                                            alert(data.error || 'Something went wrong. Please try again.');
+                                        }
+                                    })
+                                    .catch(function(err) {
+                                        btn.innerHTML = originalHtml;
+                                        btn.disabled = false;
+                                        alert('Network error. Please try again.');
+                                    });
+                                };
+
+                                window.openReturnModal = function(orderId) {
+                                    document.getElementById('return-order-id').value = orderId;
+                                    document.getElementById('return-modal').classList.remove('hidden');
+                                    document.getElementById('return-modal').classList.add('flex');
+                                    document.getElementById('return-modal').style.display = 'flex';
+
+                                    // Populate items from the orders data
+                                    var ordersData = window.userAccountOrders || [];
+                                    var order = ordersData.find(function(o) { return String(o.id) === String(orderId); });
+                                    var container = document.getElementById('return-items-container');
+                                    if (!container || !order) return;
+
+                                    var items = order.items || [];
+                                    var html = '';
+                                    if (items.length === 0) {
+                                        html = '<p class="text-sm text-gray-500 text-center py-4">No selectable items found for this order.</p>';
+                                    } else {
+                                        items.forEach(function(item, idx) {
+                                            var itemId = item.id || item.product_id || 'item-' + idx;
+                                            var itemName = item.name || 'Item #' + (idx + 1);
+                                            var itemPrice = Number(item.price || 0).toLocaleString();
+                                            html += '<label class="flex items-start gap-3 p-3 bg-black/40 border border-white/5 rounded-xl hover:border-white/20 transition-colors cursor-pointer group">';
+                                            html += '<div class="relative mt-0.5 shrink-0">';
+                                            html += '<input type="checkbox" name="return_items[]" value="' + itemId + '" class="peer sr-only" checked>';
+                                            html += '<div class="w-5 h-5 rounded-lg border-2 border-gray-600 peer-checked:border-amber-500 transition-colors"></div>';
+                                            html += '<div class="w-3 h-3 bg-amber-500 rounded-md absolute top-1 left-1 scale-0 peer-checked:scale-100 transition-transform"></div>';
+                                            html += '</div>';
+                                            html += '<div class="flex-1 min-w-0">';
+                                            html += '<p class="text-sm font-bold text-white truncate">' + escapeHtml(itemName) + '</p>';
+                                            html += '<p class="text-xs text-gray-400">Qty: ' + (item.quantity || 1) + ' \u2022 \u20B1' + itemPrice + '</p>';
+                                            html += '</div>';
+                                            html += '<span class="text-xs font-bold text-amber-400 shrink-0">\u20B1' + (Number(item.price || 0) * Number(item.quantity || 1)).toLocaleString() + '</span>';
+                                            html += '</label>';
+                                        });
+                                    }
+                                    container.innerHTML = html;
+                                };
+
+                                window.closeReturnModal = function() {
+                                    document.getElementById('return-modal').classList.remove('flex');
+                                    document.getElementById('return-modal').classList.add('hidden');
+                                    document.getElementById('return-modal').style.display = 'none';
+                                    document.getElementById('return-reason').value = '';
+                                    document.getElementById('return-other-reason').classList.add('hidden');
+                                    document.getElementById('return-condition').value = 'good';
+                                };
+
+                                window.requestReturnOrder = function(btn) {
+                                    if (btn.disabled) return;
+                                    const orderId = document.getElementById('return-order-id').value;
+                                    const reasonInput = document.getElementById('return-reason');
+                                    const otherInput = document.getElementById('return-other-text');
+                                    const conditionInput = document.getElementById('return-condition');
+                                    let reason = reasonInput.value;
+                                    if (reason === 'other') {
+                                        reason = otherInput.value.trim();
+                                        if (!reason) {
+                                            alert('Please describe the reason for your return.');
+                                            return;
+                                        }
+                                    } else if (!reason) {
+                                        alert('Please select a reason for your return.');
+                                        return;
+                                    }
+
+                                    const checkedItems = document.querySelectorAll('input[name="return_items[]"]:checked');
+                                    if (checkedItems.length === 0) {
+                                        alert('Please select at least one item to return.');
+                                        return;
+                                    }
+
+                                    var itemIds = [];
+                                    checkedItems.forEach(function(cb) { itemIds.push(cb.value); });
+
+                                    btn.disabled = true;
+                                    const originalHtml = btn.innerHTML;
+                                    btn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i> Submitting...';
+
+                                    var returnUrl = '{{ route('ecommerce.account.orders.return', ['id' => 'ORDER_ID_PLACEHOLDER']) }}';
+                                    returnUrl = returnUrl.replace('ORDER_ID_PLACEHOLDER', encodeURIComponent(orderId));
+
+                                    fetch(returnUrl, {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                                            'X-Requested-With': 'XMLHttpRequest'
+                                        },
+                                        body: JSON.stringify({ reason: reason, condition: conditionInput.value, item_ids: itemIds })
+                                    })
+                                    .then(function(res) {
+                                        if (!res.ok) {
+                                            return res.text().then(function(text) {
+                                                try { return JSON.parse(text); } catch(e) { return { success: false, error: 'Server returned HTTP ' + res.status + ': ' + text.substring(0, 200) }; }
+                                            });
+                                        }
+                                        return res.json();
+                                    })
+                                    .then(function(data) {
+                                        if (data.success) {
+                                            closeReturnModal();
+                                            var toast = document.getElementById('oh-toast') || (function() {
+                                                var t = document.createElement('div');
+                                                t.id = 'oh-toast';
+                                                t.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 bg-green-600 text-white px-6 py-3 rounded-xl text-sm font-bold shadow-lg z-[999] transition-all duration-300 opacity-0';
+                                                document.body.appendChild(t);
+                                                return t;
+                                            })();
+                                            toast.textContent = data.message || 'Return request submitted!';
+                                            toast.style.background = '#d97706';
+                                            toast.classList.remove('opacity-0');
+                                            toast.classList.add('opacity-100');
+                                            setTimeout(function() {
+                                                toast.classList.remove('opacity-100');
+                                                toast.classList.add('opacity-0');
+                                            }, 4000);
+                                            setTimeout(function() { location.reload(); }, 2000);
                                         } else {
                                             btn.innerHTML = originalHtml;
                                             btn.disabled = false;
@@ -1149,7 +1367,7 @@
                         </script>
 
                         @php
-                            $catCounts = ['to-pay' => 0, 'to-ship' => 0, 'to-receive' => 0, 'completed' => 0, 'cancelled' => 0];
+                            $catCounts = ['to-pay' => 0, 'to-ship' => 0, 'to-receive' => 0, 'completed' => 0, 'cancelled' => 0, 'return' => 0];
                             foreach ($orders as $_o) {
                                 $_st = strtoupper($_o->fulfillment_status ?? 'NEW');
                                 if (($_o->payment_status ?? '') === 'unpaid' && strtolower($_o->payment_method ?? '') !== 'cod') {
@@ -1160,8 +1378,10 @@
                                     $catCounts['to-receive']++;
                                 } elseif (in_array($_st, ['DELIVERED', 'COMPLETED'])) {
                                     $catCounts['completed']++;
-                                } elseif (in_array($_st, ['CANCELLED'])) {
+                                } elseif (in_array($_st, ['CANCEL_REQUESTED', 'CANCELLED'])) {
                                     $catCounts['cancelled']++;
+                                } elseif (in_array($_st, ['RETURN_REQUESTED'])) {
+                                    $catCounts['return']++;
                                 } else {
                                     $catCounts['to-ship']++;
                                 }
@@ -1204,6 +1424,12 @@
                                     <span class="bg-white/10 text-gray-300 text-[10px] font-black px-1.5 py-0.5 rounded-md min-w-[20px] text-center">{{ $catCounts['cancelled'] }}</span>
                                 @endif
                             </button>
+                            <button type="button" onclick="window.filterOrderHistory('return', this)" data-oh-filter="return" class="oh-tab-btn text-gray-400 hover:text-white hover:bg-white/5 font-medium rounded-xl py-2.5 px-4 whitespace-nowrap text-xs transition-all duration-200 flex items-center gap-2">
+                                <i class="ph ph-arrow-u-up-left"></i> Returns
+                                @if($catCounts['return'] > 0)
+                                    <span class="bg-white/10 text-gray-300 text-[10px] font-black px-1.5 py-0.5 rounded-md min-w-[20px] text-center">{{ $catCounts['return'] }}</span>
+                                @endif
+                            </button>
                         </div>
 
                         <!-- Orders List Container -->
@@ -1221,7 +1447,9 @@
                                         $filterCat = 'to-receive';
                                     } elseif (in_array($status, ['DELIVERED', 'COMPLETED'])) {
                                         $filterCat = 'completed';
-                                    } elseif (in_array($status, ['CANCELLED'])) {
+                                    } elseif (in_array($status, ['RETURN_REQUESTED'])) {
+                                        $filterCat = 'return';
+                                    } elseif (in_array($status, ['CANCEL_REQUESTED', 'CANCELLED'])) {
                                         $filterCat = 'cancelled';
                                     }
 
@@ -1254,6 +1482,10 @@
                                         case 'DELIVERED':
                                         case 'COMPLETED':
                                             $stepIndex = 5; $badgeText = 'Completed'; $barWidth = '100%'; break;
+                                        case 'RETURN_REQUESTED':
+                                            $stepIndex = 0; $badgeText = 'Return Requested'; $barWidth = '0%'; break;
+                                        case 'CANCEL_REQUESTED':
+                                            $stepIndex = 0; $badgeText = 'Cancel Requested'; $barWidth = '0%'; break;
                                         case 'CANCELLED':
                                             $stepIndex = 0; $badgeText = 'Cancelled'; $barWidth = '0%'; break;
                                         default:
@@ -1263,13 +1495,14 @@
                                     $firstItemName = optional($order->items->first())->name ?? ($order->fulfillment_details->product_name ?? 'Custom PC Build');
                                     $itemCount = $order->items->count();
 
-                                    $statusColorClass = $status === 'CANCELLED' 
+                                    $cancelStatuses = ['RETURN_REQUESTED', 'CANCEL_REQUESTED', 'CANCELLED'];
+                                    $statusColorClass = in_array($status, $cancelStatuses) 
                                         ? 'text-red-400 border-red-500/30 bg-red-500/10' 
                                         : ($status === 'DELIVERED' || $status === 'COMPLETED' 
                                             ? 'text-green-400 border-green-500/30 bg-green-500/10' 
                                             : 'text-primary border-primary/30 bg-primary/10');
 
-                                    $progressBarColor = $status === 'CANCELLED' 
+                                    $progressBarColor = in_array($status, $cancelStatuses) 
                                         ? 'bg-red-500' 
                                         : ($status === 'DELIVERED' || $status === 'COMPLETED' 
                                             ? 'bg-gradient-to-r from-green-500 to-emerald-400' 
@@ -1304,7 +1537,7 @@
                                                     </p>
                                                     
                                                     <!-- Inline Mini Progress -->
-                                                    @if($status !== 'CANCELLED')
+                                                    @if(!in_array($status, ['CANCEL_REQUESTED', 'CANCELLED']))
                                                     <div class="mt-3 flex items-center gap-2">
                                                         <div class="flex-1 h-1 bg-white/[0.06] rounded-full overflow-hidden max-w-[160px]">
                                                             <div class="{{ $progressBarColor }} h-full rounded-full transition-all duration-500" style="width: {{ $barWidth }}"></div>
@@ -1328,7 +1561,7 @@
                                     <!-- Card Footer: Actions -->
                                     <div class="border-t border-white/[0.04] bg-white/[0.015] px-5 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
                                         <div class="flex items-center gap-2 text-xs text-gray-500">
-                                            <span class="w-1.5 h-1.5 rounded-full {{ $status === 'CANCELLED' ? 'bg-red-500' : 'bg-green-500 animate-pulse' }}"></span>
+                                            <span class="w-1.5 h-1.5 rounded-full {{ in_array($status, ['CANCEL_REQUESTED', 'CANCELLED']) ? 'bg-red-500' : 'bg-green-500 animate-pulse' }}"></span>
                                             <span>Live Status from <strong class="text-gray-400">OrderFulfillment DB</strong></span>
                                             @if(isset($order->shipment_details->tracking_number))
                                                 <span class="text-gray-600 hidden sm:inline">|</span>
@@ -1341,15 +1574,42 @@
                                                 <button type="button" onclick="event.stopPropagation(); alert('Redirecting to Payment Gateway for Order #{{ $order->id }}...')" class="bg-primary hover:bg-[#e56000] text-white px-4 py-1.5 rounded-lg font-bold text-[11px] transition-all shadow-lg shadow-primary/20 hover:shadow-primary/40">
                                                     <i class="ph-bold ph-credit-card text-xs mr-1"></i> Pay Now
                                                 </button>
-                                                <button type="button" onclick="event.stopPropagation(); if(confirm('Cancel this order?')) alert('Cancel request submitted.')" class="bg-white/5 hover:bg-red-500/10 text-red-400 border border-white/10 hover:border-red-500/30 px-3 py-1.5 rounded-lg font-bold text-[11px] transition-all">
+                                                <button type="button" onclick="event.stopPropagation(); openCancelModal('{{ $order->id }}')" class="bg-white/5 hover:bg-red-500/10 text-red-400 border border-white/10 hover:border-red-500/30 px-3 py-1.5 rounded-lg font-bold text-[11px] transition-all">
                                                     Cancel
                                                 </button>
                                             @elseif($filterCat === 'to-receive')
                                                 <button type="button" onclick="event.stopPropagation(); confirmReceived('{{ $order->id }}', this)" class="bg-green-600 hover:bg-green-500 text-white px-4 py-1.5 rounded-lg font-bold text-[11px] transition-all shadow-lg shadow-green-500/20 flex items-center gap-1">
                                                     <i class="ph-bold ph-check text-xs"></i> Confirm Received
                                                 </button>
-                                            @elseif($filterCat === 'completed')
-                                                <a href="{{ route('ecommerce.prebuilt-pcs') }}" onclick="event.stopPropagation();" class="bg-white/5 hover:bg-white/10 text-white border border-white/10 px-4 py-1.5 rounded-lg font-bold text-[11px] transition-all flex items-center gap-1">
+                                            @elseif($filterCat === 'completed' || $filterCat === 'return')
+                                                @php
+                                                    $buyAgainItem = $order->items?->first();
+                                                    $buyAgainListingId = $buyAgainItem?->configuration['listing_id'] ?? null;
+                                                    
+                                                    $returnWindowDays = $storefrontCompany?->return_window_days ?? 30;
+                                                    $returnDeadline = $order->delivered_at ? $order->delivered_at->copy()->addDays($returnWindowDays) : null;
+                                                    $daysRemaining = $returnDeadline ? now()->diffInDays($returnDeadline, false) : null;
+                                                    $windowStillOpen = $daysRemaining !== null && $daysRemaining > 0;
+                                                @endphp
+                                                @if($filterCat === 'completed')
+                                                @if($windowStillOpen && $daysRemaining <= $returnWindowDays)
+                                                <div class="w-full text-[10px] text-amber-400/60 flex items-center gap-1.5 mb-1">
+                                                    <i class="ph-bold ph-clock-countdown text-xs"></i>
+                                                    Return window closes in <strong class="text-amber-400/80">{{ ceil($daysRemaining) }} day{{ ceil($daysRemaining) !== 1 ? 's' : '' }}</strong>
+                                                </div>
+                                                @elseif($daysRemaining !== null && !$windowStillOpen)
+                                                <div class="w-full text-[10px] text-red-400/60 flex items-center gap-1.5 mb-1">
+                                                    <i class="ph-bold ph-warning-circle text-xs"></i>
+                                                    Return window has closed
+                                                </div>
+                                                @endif
+                                                @if($windowStillOpen)
+                                                <button type="button" onclick="event.stopPropagation(); openReturnModal('{{ $order->id }}')" class="bg-white/5 hover:bg-amber-500/10 text-amber-400 border border-white/10 hover:border-amber-500/30 px-3 py-1.5 rounded-lg font-bold text-[11px] transition-all flex items-center gap-1">
+                                                    <i class="ph-bold ph-arrow-u-up-left text-xs"></i> Return
+                                                </button>
+                                                @endif
+                                                @endif
+                                                <a href="{{ $buyAgainListingId ? route('ecommerce.listings.show', $buyAgainListingId) : route('ecommerce.home') }}" onclick="event.stopPropagation();" class="bg-white/5 hover:bg-white/10 text-white border border-white/10 px-4 py-1.5 rounded-lg font-bold text-[11px] transition-all flex items-center gap-1">
                                                     <i class="ph-bold ph-arrows-counter-clockwise text-xs"></i> Buy Again
                                                 </a>
                                             @endif
@@ -1368,7 +1628,7 @@
                                     </div>
                                     <h3 class="text-lg font-bold text-white mb-2">No Order History Found</h3>
                                     <p class="text-gray-500 text-sm max-w-xs">When you place orders, your complete order history and real-time build tracking will appear here.</p>
-                                    <a href="{{ route('ecommerce.prebuilt-pcs') }}" class="mt-6 bg-primary hover:from-primary hover:to-primary text-white px-6 py-2.5 rounded-xl text-sm font-bold transition-all shadow-lg shadow-primary/20 hover:shadow-primary/40 transform hover:-translate-y-0.5">
+                                    <a href="{{ route('ecommerce.home') }}" class="mt-6 bg-primary hover:from-primary hover:to-primary text-white px-6 py-2.5 rounded-xl text-sm font-bold transition-all shadow-lg shadow-primary/20 hover:shadow-primary/40 transform hover:-translate-y-0.5">
                                         Browse PCs & Parts
                                     </a>
                                 </div>
@@ -1812,6 +2072,126 @@
         </div>
     </main>
                 <!-- Modals -->
+                <!-- Cancel Order Modal -->
+                <div id="cancel-modal" class="fixed inset-0 z-[9999] hidden items-center justify-center">
+                    <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeCancelModal()"></div>
+                    <div class="relative bg-[#13131a] border border-white/10 rounded-2xl p-6 md:p-8 w-full max-w-md shadow-[0_0_50px_rgba(0,0,0,0.5)] transform scale-95 opacity-0 transition-all duration-300">
+                        <div class="flex items-center justify-between mb-6">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">
+                                    <i class="ph-bold ph-x-circle text-xl text-red-400"></i>
+                                </div>
+                                <h3 class="text-xl font-black text-white">Cancel Order</h3>
+                            </div>
+                            <button onclick="closeCancelModal()" class="text-gray-400 hover:text-white transition-colors">
+                                <i class="ph-bold ph-x text-xl"></i>
+                            </button>
+                        </div>
+                        <input type="hidden" id="cancel-order-id" value="">
+                        <div class="flex flex-col gap-4">
+                            <div class="flex flex-col gap-2">
+                                <label class="text-sm font-bold text-gray-400">Reason for cancellation</label>
+                                <select id="cancel-reason" onchange="document.getElementById('cancel-other-reason').classList.toggle('hidden', this.value !== 'other')" class="w-full bg-black/40 border border-white/10 focus:border-red-500 focus:ring-1 focus:ring-red-500 rounded-xl px-4 py-2.5 text-sm text-white transition-all outline-none">
+                                    <option value="" disabled selected>Select a reason</option>
+                                    <option value="changed_mind">Changed my mind</option>
+                                    <option value="found_better_price">Found a better price</option>
+                                    <option value="ordered_by_mistake">Ordered by mistake</option>
+                                    <option value="too_long">Processing taking too long</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                            <div id="cancel-other-reason" class="hidden flex flex-col gap-2">
+                                <label class="text-sm font-bold text-gray-400">Please describe</label>
+                                <textarea id="cancel-other-text" rows="3" placeholder="Tell us why you'd like to cancel this order..." class="w-full bg-black/40 border border-white/10 focus:border-red-500 focus:ring-1 focus:ring-red-500 rounded-xl px-4 py-2.5 text-sm text-white transition-all outline-none placeholder-gray-600 resize-none"></textarea>
+                            </div>
+                            <div class="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-3 flex items-start gap-2">
+                                <i class="ph-bold ph-warning-circle text-yellow-400 text-lg shrink-0 mt-0.5"></i>
+                                <p class="text-xs text-yellow-200/80 leading-relaxed">
+                                    Cancellation is only available for unprocessed orders. Once submitted, our team will review and process your request within 24 hours.
+                                </p>
+                            </div>
+                            <div class="flex items-center gap-3 pt-2">
+                                <button type="button" onclick="closeCancelModal()" class="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white px-4 py-2.5 rounded-xl text-sm font-bold transition-all">
+                                    Keep Order
+                                </button>
+                                <button type="button" onclick="requestCancelOrder(this)" class="flex-1 bg-red-600 hover:bg-red-500 text-white px-4 py-2.5 rounded-xl text-sm font-bold transition-all shadow-lg shadow-red-600/20">
+                                    Submit Cancel Request
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Return Order Modal -->
+                <div id="return-modal" class="fixed inset-0 z-[9999] hidden items-center justify-center">
+                    <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeReturnModal()"></div>
+                    <div class="relative bg-[#13131a] border border-white/10 rounded-2xl p-6 md:p-8 w-full max-w-md shadow-[0_0_50px_rgba(0,0,0,0.5)] transform scale-95 opacity-0 transition-all duration-300 max-h-[90vh] overflow-y-auto">
+                        <div class="flex items-center justify-between mb-6">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+                                    <i class="ph-bold ph-arrow-u-up-left text-xl text-amber-400"></i>
+                                </div>
+                                <h3 class="text-xl font-black text-white">Return Items</h3>
+                            </div>
+                            <button onclick="closeReturnModal()" class="text-gray-400 hover:text-white transition-colors">
+                                <i class="ph-bold ph-x text-xl"></i>
+                            </button>
+                        </div>
+                        <input type="hidden" id="return-order-id" value="">
+                        <div class="flex flex-col gap-4">
+                            <!-- Item Selection -->
+                            <div class="flex flex-col gap-2">
+                                <label class="text-sm font-bold text-gray-400">Select items to return</label>
+                                <div id="return-items-container" class="flex flex-col gap-2 max-h-48 overflow-y-auto pr-1">
+                                    <p class="text-sm text-gray-500 text-center py-4">Loading items...</p>
+                                </div>
+                            </div>
+
+                            <!-- Return Reason -->
+                            <div class="flex flex-col gap-2">
+                                <label class="text-sm font-bold text-gray-400">Reason for return</label>
+                                <select id="return-reason" onchange="document.getElementById('return-other-reason').classList.toggle('hidden', this.value !== 'other')" class="w-full bg-black/40 border border-white/10 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl px-4 py-2.5 text-sm text-white transition-all outline-none">
+                                    <option value="" disabled selected>Select a reason</option>
+                                    <option value="defective">Defective / Not working</option>
+                                    <option value="not_as_described">Not as described</option>
+                                    <option value="wrong_item">Wrong item received</option>
+                                    <option value="damaged">Damaged in shipping</option>
+                                    <option value="no_longer_needed">No longer needed</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                            <div id="return-other-reason" class="hidden flex flex-col gap-2">
+                                <label class="text-sm font-bold text-gray-400">Please describe</label>
+                                <textarea id="return-other-text" rows="2" placeholder="Tell us more about the issue..." class="w-full bg-black/40 border border-white/10 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl px-4 py-2.5 text-sm text-white transition-all outline-none placeholder-gray-600 resize-none"></textarea>
+                            </div>
+
+                            <!-- Condition -->
+                            <div class="flex flex-col gap-2">
+                                <label class="text-sm font-bold text-gray-400">Item condition</label>
+                                <select id="return-condition" class="w-full bg-black/40 border border-white/10 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl px-4 py-2.5 text-sm text-white transition-all outline-none">
+                                    <option value="like_new">Like new - Unopened/Unused</option>
+                                    <option value="good" selected>Good - Opened but fully intact</option>
+                                    <option value="fair">Fair - Minor wear or damage</option>
+                                    <option value="poor">Poor - Significant damage</option>
+                                </select>
+                            </div>
+
+                            <div class="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 flex items-start gap-2">
+                                <i class="ph-bold ph-info text-blue-400 text-lg shrink-0 mt-0.5"></i>
+                                <p class="text-xs text-blue-200/80 leading-relaxed">
+                                    Returns are reviewed within 1-3 business days. Refunds will be processed to your original payment method within 5-10 business days after approval.
+                                </p>
+                            </div>
+                            <div class="flex items-center gap-3 pt-2">
+                                <button type="button" onclick="closeReturnModal()" class="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white px-4 py-2.5 rounded-xl text-sm font-bold transition-all">
+                                    Cancel
+                                </button>
+                                <button type="button" onclick="requestReturnOrder(this)" class="flex-1 bg-amber-600 hover:bg-amber-500 text-white px-4 py-2.5 rounded-xl text-sm font-bold transition-all shadow-lg shadow-amber-600/20 flex items-center justify-center gap-2">
+                                    <i class="ph-bold ph-arrow-u-up-left"></i> Submit Return
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <!-- Add Card Modal -->
                 <div id="add-card-modal" class="fixed inset-0 z-[9999] hidden items-center justify-center">
                     <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal('add-card-modal')"></div>
@@ -2317,6 +2697,13 @@
                                 if (window.marker) window.marker.setLatLng([lat, lon]);
                             }
                         }, 500); // wait for modal animation + map init
+                    };
+
+                    window.escapeHtml = function(str) {
+                        if (!str) return '';
+                        var div = document.createElement('div');
+                        div.appendChild(document.createTextNode(str));
+                        return div.innerHTML;
                     };
 
                     window.openModal = function(id) {

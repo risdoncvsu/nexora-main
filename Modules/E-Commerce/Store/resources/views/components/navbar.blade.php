@@ -263,6 +263,8 @@
                 var csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
                 var pollTimer = null;
                 var previousCount = -1;
+                var sseUrl = '{{ route("ecommerce.api.notifications.sse", ["store" => $store]) }}';
+                var eventSource = null;
 
                 function triggerPulse() {
                     var btn = document.getElementById('customer-notif-btn');
@@ -273,26 +275,74 @@
                     }, { once: true });
                 }
 
+                function updateNotifications(data) {
+                    var count = data.count || 0;
+
+                    // Detect new notification and trigger pulse
+                    if (previousCount >= 0 && count > previousCount) {
+                        triggerPulse();
+                        // Also show a browser notification if supported
+                        if ('Notification' in window && Notification.permission === 'granted') {
+                            var latest = data.notifications && data.notifications[0];
+                            if (latest) {
+                                new Notification(latest.title, {
+                                    body: latest.body || 'You have a new notification',
+                                    icon: '/favicon.ico',
+                                    tag: 'nexora-notif'
+                                });
+                            }
+                        }
+                    }
+                    previousCount = count;
+
+                    badge.textContent = count;
+                    badge.classList.toggle('hidden', count === 0);
+                    // Update dropdown content
+                    renderDropdown(data.notifications || [], count);
+                }
+
                 function fetchCount() {
                     fetch(unreadUrl, { headers: { 'Accept': 'application/json' } })
                         .then(function(r) { return r.ok ? r.json() : null; })
                         .then(function(resp) {
                             if (!resp || !resp.success) return;
-                            var data = resp.data;
-                            var count = data.count || 0;
-
-                            // Detect new notification and trigger pulse
-                            if (previousCount >= 0 && count > previousCount) {
-                                triggerPulse();
-                            }
-                            previousCount = count;
-
-                            badge.textContent = count;
-                            badge.classList.toggle('hidden', count === 0);
-                            // Update dropdown content
-                            renderDropdown(data.notifications, count);
+                            updateNotifications(resp.data);
                         })
                         .catch(function() {});
+                }
+
+                // Connect SSE for instant real-time delivery, fall back to polling
+                function connectSSE() {
+                    if (typeof EventSource === 'undefined') return false;
+                    try {
+                        eventSource = new EventSource(sseUrl);
+
+                        eventSource.addEventListener('notification', function(e) {
+                            try {
+                                var data = JSON.parse(e.data);
+                                updateNotifications(data);
+                            } catch(parseErr) {}
+                        });
+
+                        eventSource.addEventListener('error', function() {
+                            eventSource.close();
+                            eventSource = null;
+                            // Fall back to polling if SSE fails
+                            startPolling();
+                        });
+
+                        eventSource.onopen = function() {
+                            // SSE connected successfully — stop polling if running
+                            if (pollTimer) {
+                                clearInterval(pollTimer);
+                                pollTimer = null;
+                            }
+                        };
+
+                        return true;
+                    } catch(e) {
+                        return false;
+                    }
                 }
 
                 function renderDropdown(notifications, count) {
@@ -366,19 +416,41 @@
                 function startPolling() {
                     if (pollTimer) clearInterval(pollTimer);
                     fetchCount();
-                    pollTimer = setInterval(fetchCount, 30000);
+                    pollTimer = setInterval(fetchCount, 60000);
                 }
 
                 function stopPolling() {
                     if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
                 }
 
-                // Pause polling when tab is hidden
+                function stopSSE() {
+                    if (eventSource) { eventSource.close(); eventSource = null; }
+                }
+
+                // Pause polling when tab is hidden, reconnect SSE when visible
                 document.addEventListener('visibilitychange', function() {
-                    if (document.hidden) stopPolling(); else startPolling();
+                    if (document.hidden) {
+                        stopPolling();
+                        stopSSE();
+                    } else {
+                        if (!connectSSE()) {
+                            startPolling();
+                        }
+                    }
                 });
 
-                startPolling();
+                // Request browser notification permission on first click
+                document.addEventListener('click', function requestNotifPerm() {
+                    if ('Notification' in window && Notification.permission === 'default') {
+                        Notification.requestPermission();
+                    }
+                    document.removeEventListener('click', requestNotifPerm);
+                }, { once: true });
+
+                // Start: try SSE first for instant delivery, fall back to polling
+                if (!connectSSE()) {
+                    startPolling();
+                }
                 @endauth
             })();
             </script>

@@ -689,6 +689,17 @@
 
                             <!-- Number -->
                             <div class="absolute top-4 left-4 text-primary font-mono text-sm tracking-widest">/0{{ $index + 1 }}</div>
+
+                            @php $qty = $listing->available_quantity ?? 0; @endphp
+                            @if($qty <= 0)
+                                <div class="absolute top-4 right-4 bg-red-500/90 backdrop-blur-sm text-white text-[9px] font-black uppercase tracking-widest px-2.5 py-1.5 rounded-lg border border-red-400/30 shadow-lg z-10 flex items-center gap-1">
+                                    <i class="ph-bold ph-x-circle text-[10px]"></i> Out of Stock
+                                </div>
+                            @elseif($qty <= 5)
+                                <div class="absolute top-4 right-4 bg-amber-500/90 backdrop-blur-sm text-white text-[9px] font-black uppercase tracking-widest px-2.5 py-1.5 rounded-lg border border-amber-400/30 shadow-lg z-10 flex items-center gap-1">
+                                    <i class="ph-bold ph-warning text-[10px]"></i> Low Stock
+                                </div>
+                            @endif
                         </div>
 
                         <!-- Title Area -->
@@ -806,6 +817,17 @@
                         <!-- Image Area -->
                         <div class="relative w-full aspect-[4/3] bg-[#0a0a0a] overflow-hidden">
                             <img src="{{ $listing->image_url ? asset('storage/'.$listing->image_url) : 'https://images.unsplash.com/photo-1547082299-de196ea013d6?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80' }}" alt="{{ $listing->name }}" loading="lazy" class="lazy-img w-full h-full object-cover mix-blend-lighten opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700">
+
+                            @php $qty = $listing->available_quantity ?? 0; @endphp
+                            @if($qty <= 0)
+                                <div class="absolute top-4 right-4 bg-red-500/90 backdrop-blur-sm text-white text-[9px] font-black uppercase tracking-widest px-2.5 py-1.5 rounded-lg border border-red-400/30 shadow-lg z-10 flex items-center gap-1">
+                                    <i class="ph-bold ph-x-circle text-[10px]"></i> Out of Stock
+                                </div>
+                            @elseif($qty <= 5)
+                                <div class="absolute top-4 right-4 bg-amber-500/90 backdrop-blur-sm text-white text-[9px] font-black uppercase tracking-widest px-2.5 py-1.5 rounded-lg border border-amber-400/30 shadow-lg z-10 flex items-center gap-1">
+                                    <i class="ph-bold ph-warning text-[10px]"></i> Low Stock
+                                </div>
+                            @endif
                         </div>
 
                         <!-- Title Area -->
