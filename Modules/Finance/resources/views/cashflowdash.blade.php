@@ -80,17 +80,16 @@ tailwind.config = { theme: { extend: { colors: { navy: {900:'#0b1e3b',800:'#132b
     <div class="bg-navy-800 rounded-xl p-5">
       <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
         <h3 class="text-lg font-semibold">Cash Flow Trend</h3>
-        <div>
-  <select id="cfRange"
-          onchange="renderTrendChart()"
-          class="bg-navy-700 text-sm rounded-lg px-3 py-2 outline-none">
-
-    <option value="week">This Week</option>
-    <option value="month" selected>This Month</option>
-    <option value="year">This Year</option>
-
-  </select>
-</div>
+        <div class="flex gap-2">
+          <select id="cfRange" onchange="renderTrendChart()" class="bg-navy-700 text-sm rounded-lg px-3 py-2 outline-none">
+            <option value="6">Last 6 months</option>
+            <option value="12">Last 12 months</option>
+          </select>
+          <select id="cfGranularity" onchange="renderTrendChart()" class="bg-navy-700 text-sm rounded-lg px-3 py-2 outline-none">
+            <option value="monthly">Monthly</option>
+            <option value="weekly">Weekly</option>
+          </select>
+        </div>
       </div>
       <div class="w-full overflow-x-auto">
         <svg id="cfTrendChart" viewBox="0 0 640 240" class="w-full h-auto"></svg>
@@ -129,49 +128,86 @@ tailwind.config = { theme: { extend: { colors: { navy: {900:'#0b1e3b',800:'#132b
       </div>
     </div>
     <div class="bg-navy-800 rounded-xl p-5">
-    <div class="flex items-center justify-between mb-4">
-        <h3 class="text-lg font-semibold">Current Ratio</h3>
-
-        <div class="w-9 h-9 rounded-full bg-brand/20 flex items-center justify-center text-brand">
-            <svg xmlns="http://www.w3.org/2000/svg"
-                 class="w-4 h-4"
-                 viewBox="0 0 24 24"
-                 fill="none"
-                 stroke="currentColor"
-                 stroke-width="2">
-                <path d="M12 8v8"/>
-                <path d="M8 12h8"/>
-                <circle cx="12" cy="12" r="10"/>
-            </svg>
-        </div>
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-semibold">Cash Flow by Activity</h3>
+        <select class="bg-navy-700 text-sm rounded-lg px-3 py-2 outline-none">
+          <option>This month</option>
+          <option>Last month</option>
+        </select>
+      </div>
+      <div class="flex items-center gap-8 flex-wrap">
+        <svg id="cfActivityDonut" viewBox="0 0 42 42" class="w-40 h-40 -rotate-90"></svg>
+        <div class="space-y-2 text-sm min-h-[120px]" id="cfActivityLegend"></div>
+      </div>
     </div>
 
-    <div class="text-3xl font-semibold" id="cfCurrentRatio">
-        {{ number_format($currentRatio ?? 0, 2) }}
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 items-stretch">
+
+    <div class="lg:col-span-1 bg-navy-800 rounded-xl p-5">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-lg font-semibold">Cash Flow Statement</h3>
+        <select class="bg-navy-700 text-sm rounded-lg px-3 py-2 outline-none">
+          <option>This month</option>
+          <option>Last month</option>
+        </select>
+      </div>
+      <div class="overflow-x-auto min-h-[140px]">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-muted text-left border-b border-navy-600">
+              <th class="py-2 pr-2">Category</th>
+              <th class="py-2 pr-2">Inflow</th>
+              <th class="py-2 pr-2">Outflow</th>
+              <th class="py-2 pr-2">Net</th>
+            </tr>
+          </thead>
+          <tbody id="cfStatementBody"></tbody>
+        </table>
+      </div>
     </div>
 
-    <div class="mt-3 space-y-2 text-sm">
+    <div class="bg-navy-800 rounded-xl p-5">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-lg font-semibold">Upcoming Cash Outflow</h3>
+        <select class="bg-navy-700 text-sm rounded-lg px-3 py-2 outline-none">
+          <option>Next 30 days</option>
+          <option>Next 7 days</option>
+        </select>
+      </div>
+      <ul id="cfUpcomingList" class="space-y-3 text-sm min-h-[140px]"></ul>
+    </div>
 
+
+    <div class="bg-navy-800 rounded-xl p-5 flex flex-col">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-lg font-semibold">Cash Position</h3>
+        <select class="bg-navy-700 text-sm rounded-lg px-3 py-2 outline-none">
+          <option>This month</option>
+          <option>Last month</option>
+        </select>
+      </div>
+      <div class="space-y-2 text-sm flex-1">
         <div class="flex justify-between">
-            <span class="text-muted">Current Assets</span>
-            <span class="text-emerald-400 font-medium">
-                ₱{{ number_format($currentAssets ?? 0, 2) }}
-            </span>
+          <span class="text-muted">Cash on Hand (start)</span>
+          <span class="font-medium" id="cfPosStart">₱0</span>
         </div>
-
         <div class="flex justify-between">
-            <span class="text-muted">Current Liabilities</span>
-            <span class="text-red-400 font-medium">
-                ₱{{ number_format($currentLiabilities ?? 0, 2) }}
-            </span>
+          <span class="text-muted">Net Cash Flow</span>
+          <span class="font-medium" id="cfPosNet">₱0</span>
         </div>
-
+        <div class="flex justify-between bg-navy-700 rounded-lg px-3 py-2 mt-2">
+          <span class="text-muted">Cash on Hand (end)</span>
+          <span class="font-semibold text-brand" id="cfPosEnd">₱0</span>
+        </div>
+      </div>
+      <button onclick="viewCashFlowReport()"
+              class="mt-4 flex items-center justify-center gap-2 bg-brand hover:brightness-110 transition rounded-lg px-4 py-2 text-sm font-medium">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/></svg>
+        View Cash Flow Report
+      </button>
     </div>
-
-    <small id="cfRatioStatus" class="block mt-3 text-emerald-400">
-        Assets exceed liabilities
-    </small>
-</div>
 
   </div>
 
@@ -180,12 +216,8 @@ tailwind.config = { theme: { extend: { colors: { navy: {900:'#0b1e3b',800:'#132b
 <script>
 
 function fmtPeso(n){
-    if (typeof n !== 'number' || isNaN(n))
-        n = 0;
-
-    const sign = n < 0 ? "-" : "";
-
-    return sign + "₱" + Math.abs(Math.round(n)).toLocaleString();
+  if (typeof n !== 'number' || isNaN(n) || n < 0) n = 0;
+  return "₱" + Math.round(n).toLocaleString();
 }
 
 function fmtChange(pct){
@@ -195,38 +227,15 @@ function fmtChange(pct){
 }
 
 let cashFlowData = {
-  cashOnHand: { 
-      amount: Number(@json($cashOnHand ?? 0)), 
-      changePct: null 
-  },
-
-  topline: { 
-      inflow: Number(@json($cashInflow ?? 0)), 
-      outflow: Number(@json($cashOutflow ?? 0)), 
-      net: Number(@json($netCashFlow ?? 0)), 
-      changes: { 
-          inflow: null, 
-          outflow: null, 
-          net: null 
-      } 
-  },
-
- trend:{
-    week:@json($trend['week'] ?? []),
-    month:@json($trend['month'] ?? []),
-    year:@json($trend['year'] ?? [])
-},
-
-  summary: {
-      beginningBalance: Number(@json($beginningCashBalance ?? 0)),
-      inflow: Number(@json($cashInflow ?? 0)),
-      outflow: Number(@json($cashOutflow ?? 0))
-  },
-
+  cashOnHand: { amount: Number(@json($cashOnHand ?? 0)), changePct: null },
+  topline: { inflow: Number(@json($cashInflow ?? 0)), outflow: Number(@json($cashOutflow ?? 0)), net: Number(@json($netCashFlow ?? 0)), changes: { inflow: null, outflow: null, net: null } },
+  trend: { months: [], inflow: [], outflow: [] },
+  summary: { beginningBalance: Number(@json($beginningCashBalance ?? 0)), inflow: Number(@json($cashInflow ?? 0)), outflow: Number(@json($cashOutflow ?? 0)) },
   activity: [],
   statement: [],
   upcoming: []
 };
+
 function setCashFlowData(data) {
   if (!data || typeof data !== 'object') {
     console.warn('Invalid cash flow data received');
@@ -361,6 +370,10 @@ function renderSummary() {
   document.getElementById("cfSummaryOutflow").textContent = "- " + fmtPeso(outflow);
   document.getElementById("cfSummaryNet").textContent = fmtPeso(net);
   document.getElementById("cfSummaryEnding").textContent = fmtPeso(ending);
+
+  document.getElementById("cfPosStart").textContent = fmtPeso(beginningBalance);
+  document.getElementById("cfPosNet").textContent = fmtPeso(net);
+  document.getElementById("cfPosEnd").textContent = fmtPeso(ending);
 }
 
 function setActivityBreakdown(segments){
@@ -369,7 +382,52 @@ function setActivityBreakdown(segments){
     value: typeof s.value === 'number' && !isNaN(s.value) && s.value >= 0 ? s.value : 0,
     color: s.color || '#4ca6ff'
   })) : [];
+  renderActivityDonut();
 }
+
+function renderActivityDonut() {
+  const total = cashFlowData.activity.reduce((s, a) => s + a.value, 0) || 1;
+  const svg = document.getElementById("cfActivityDonut");
+  svg.innerHTML = "";
+  const r = 15.9155, cx = 21, cy = 21;
+  let offset = 0;
+
+  const bg = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+  bg.setAttribute("cx", cx); bg.setAttribute("cy", cy); bg.setAttribute("r", r);
+  bg.setAttribute("fill", "transparent"); bg.setAttribute("stroke", "#27477d"); bg.setAttribute("stroke-width", "6");
+  svg.appendChild(bg);
+
+  cashFlowData.activity.forEach(seg => {
+    const pct = (seg.value / total) * 100;
+    const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    circle.setAttribute("cx", cx); circle.setAttribute("cy", cy); circle.setAttribute("r", r);
+    circle.setAttribute("fill", "transparent");
+    circle.setAttribute("stroke", seg.color);
+    circle.setAttribute("stroke-width", "6");
+    circle.setAttribute("stroke-dasharray", `${pct} ${100 - pct}`);
+    circle.setAttribute("stroke-dashoffset", -offset);
+    svg.appendChild(circle);
+    offset += pct;
+  });
+
+  document.getElementById("cfActivityLegend").innerHTML = cashFlowData.activity.length > 0 ?
+    cashFlowData.activity.map(seg => `
+      <div class="flex items-center gap-2">
+        <span class="w-2.5 h-2.5 rounded-full inline-block" style="background:${seg.color}"></span>
+        <span class="text-muted">${seg.label}</span>
+        <span class="ml-auto font-medium">${fmtPeso(seg.value)}</span>
+      </div>`).join("") :
+    '<span class="text-muted text-xs">No activity data</span>';
+}
+
+const statementIcons = {
+  briefcase: '<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/></svg>',
+  trend: '<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>',
+  bank: '<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><path d="M4 10h16"/><path d="M6 10v8"/><path d="M18 10v8"/><path d="M12 3l9 5H3z"/></svg>',
+  home: '<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10l9-7 9 7"/><path d="M5 9v11h14V9"/></svg>',
+  cart: '<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg>',
+  bolt: '<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg>',
+};
 
 function setCashFlowStatement(rows){
   cashFlowData.statement = Array.isArray(rows) ? rows.map(r => ({
@@ -382,18 +440,9 @@ function setCashFlowStatement(rows){
 }
 
 function renderStatement() {
-
-  const body = document.getElementById("cfStatementBody");
-
-  // Statement table is not included in this dashboard
-  if (!body) {
-    return;
-  }
-
   const rows = cashFlowData.statement;
-
   if (rows.length === 0) {
-    body.innerHTML =
+    document.getElementById("cfStatementBody").innerHTML =
       '<tr><td colspan="4" class="text-center text-muted py-4">No statement data</td></tr>';
     return;
   }
@@ -401,6 +450,7 @@ function renderStatement() {
   const totalInflow = rows.reduce((s, r) => s + r.inflow, 0);
   const totalOutflow = rows.reduce((s, r) => s + r.outflow, 0);
 
+  const body = document.getElementById("cfStatementBody");
   body.innerHTML = rows.map(r => `
     <tr class="border-b border-navy-600/60">
       <td class="py-2 pr-2 flex items-center gap-2 text-muted">${statementIcons[r.icon] || ""} ${r.category}</td>
@@ -427,16 +477,8 @@ function setUpcomingOutflows(rows){
 }
 
 function renderUpcoming() {
-
-  const list = document.getElementById("cfUpcomingList");
-
-  if (!list) {
-    return;
-  }
-
   const items = cashFlowData.upcoming;
-
-  list.innerHTML = items.length > 0 ?
+  document.getElementById("cfUpcomingList").innerHTML = items.length > 0 ?
     items.map(o => `
       <li class="flex items-center gap-3">
         <span class="w-8 h-8 rounded-lg bg-navy-700 flex items-center justify-center text-brand shrink-0">${statementIcons[o.icon] || ""}</span>
@@ -454,15 +496,10 @@ function renderUpcoming() {
 function renderTrendChart() {
   const svg = document.getElementById("cfTrendChart");
   if (!svg) return;
-const range = document.getElementById("cfRange").value;
-
-
-let selected = cashFlowData.trend[range];
-
-
-let months = selected.labels;
-let inflow = selected.inflow;
-let outflow = selected.outflow;
+  const range = parseInt(document.getElementById("cfRange").value) || 6;
+  const months = cashFlowData.trend.months.slice(-range);
+  const inflow = cashFlowData.trend.inflow.slice(-range);
+  const outflow = cashFlowData.trend.outflow.slice(-range);
 
   if (months.length === 0) {
     svg.innerHTML = '';
@@ -576,29 +613,12 @@ function viewCashFlowReport() {
   a.remove();
   URL.revokeObjectURL(url);
 }
-document.addEventListener("DOMContentLoaded", function(){
 
-    const ratio = Number(@json($currentRatio ?? 0));
-    const status = document.getElementById("cfRatioStatus");
-
-    if(ratio > 1){
-        status.textContent = "✓ Healthy short-term solvency";
-        status.className = "block mt-3 text-emerald-400";
-    }
-    else if(ratio === 1){
-        status.textContent = "⚠ Assets equal liabilities";
-        status.className = "block mt-3 text-yellow-400";
-    }
-    else {
-        status.textContent = "⚠ Liabilities exceed assets";
-        status.className = "block mt-3 text-red-400";
-    }
-
-});
 function renderCashFlowDashboard() {
   renderCashOnHand();
   renderTopline();
   renderSummary();
+  renderActivityDonut();
   renderStatement();
   renderUpcoming();
   renderTrendChart();

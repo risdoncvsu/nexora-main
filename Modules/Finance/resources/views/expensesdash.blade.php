@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
@@ -43,7 +43,7 @@ tailwind.config = { theme: { extend: { colors: { navy: {900:'#0b1e3b',800:'#132b
             <span id="totalExpensesAllTime" class="text-3xl font-bold">₱0</span>
             <span class="text-xs font-semibold rounded-full px-2 py-0.5 bg-blue-500/20 text-blue-400">ALL TIME</span>
           </div>
-          <p class="text-muted text-xs mt-1">Approved procurement expenses</p>
+          <p class="text-muted text-xs mt-1">Approved procurement and liability expenses</p>
         </div>
 
         <div>

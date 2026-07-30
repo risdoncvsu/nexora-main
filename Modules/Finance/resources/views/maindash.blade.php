@@ -5,10 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nexora Finance and Accounting</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = { corePlugins: { preflight: false } }
-    </script>
+
     <style>
         * {
             margin: 0;
@@ -41,10 +38,17 @@
         /* LEFT LOGO */
         .nexora-logo {
             display: block;
-            margin: 16px 0 16px 16px;
+            margin: 16px 0;
 
             height: 96px;
             transition: .3s ease;
+        }
+        .header-brand {
+            display:flex;
+            align-items:center;
+            gap:12px;
+            margin-left:16px;
+            flex-shrink:0;
         }
 
         .nexora-logo:hover {
@@ -61,8 +65,8 @@
             filter: drop-shadow(0 8px 20px rgba(0,0,0,.25));
         }
         .profile-trigger{
-            width:42px;
-            height:42px;
+            width:36px;
+            height:36px;
             margin-right:40px;
             border:1px solid rgba(255,255,255,.24);
             border-radius:50%;
@@ -295,30 +299,30 @@
     </div>
 
         <!-- Top Navigation -->
-        <header class="flex min-h-24 flex-col items-center justify-center gap-4 bg-[#0B1E3D] px-4 py-4 shadow-lg lg:h-32 lg:flex-row lg:justify-between lg:pl-4 lg:pr-12 lg:py-0" style="border-bottom: 2px solid #1B3A6B; z-index:100; width:100%;">
-            <x-client-brand :nexora-src="asset('finance/images/Banner Transparent.png')" nexora-href="" />
-
-        <div class="flex w-full flex-wrap items-center justify-center gap-4 sm:gap-6 lg:w-auto lg:flex-nowrap lg:justify-end lg:gap-16">
-            <nav class="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-sm font-medium sm:gap-x-6 sm:text-base lg:flex-nowrap lg:gap-8">
-                <strong class="text-white text-lg tracking-wide hidden lg:block">Finance and Accounting</strong>
-            </nav>
-            <div class="relative" data-user-menu>
-                <button type="button" class="flex items-center justify-center transition hover:scale-105 rounded-full overflow-hidden w-9 h-9 border border-white/20 bg-[#4A9EE8]/20 text-white" id="profileTrigger" aria-label="Open profile menu" aria-expanded="false">
-                    <x-heroicon-s-user-circle class="w-6 h-6" />
-                </button>
-                <div id="profileDropdown" class="profile-dropdown" role="dialog" aria-label="Profile menu">
-                    <button type="button" class="profile-dropdown-close" id="profileDropdownClose" aria-label="Close profile menu">&times;</button>
-                    <div class="profile-dropdown-email">{{ session('employee_email', 'Employee') }}</div>
-                    <div class="profile-dropdown-avatar"><x-heroicon-s-user-circle class="w-8 h-8" /></div>
-                    <p class="profile-dropdown-name">Hi, {{ session('employee_name', 'User') }}!</p>
-                    <form method="POST" action="{{ action([\App\Http\Controllers\AuthController::class, 'logout']) }}">
-                        @csrf
-                        <button type="submit" class="profile-logout-button"><x-heroicon-o-arrow-right-on-rectangle class="w-5 h-5" /> Log out</button>
-                    </form>
-                </div>
+        <header class="header">
+            <div class="header-brand">
+                <a href="{{ route('finance.dashboard') }}" class="nexora-logo" id="headerLogoBtn">
+                    <img src="{{ asset('images/Banner Transparent.png') }}" alt="Nexora Logo">
+                </a>
+                <x-client-logo :size="64" />
             </div>
+
+        <button type="button" class="profile-trigger" id="profileTrigger" aria-label="Open profile menu" aria-expanded="false">
+            <x-heroicon-s-user-circle />
+        </button>
+        <div id="profileDropdown" class="profile-dropdown" role="dialog" aria-label="Profile menu">
+            <button type="button" class="profile-dropdown-close" id="profileDropdownClose" aria-label="Close profile menu">&times;</button>
+            <div class="profile-dropdown-email">{{ session('employee_email', 'Employee') }}</div>
+            <div class="profile-dropdown-avatar"><x-heroicon-s-user-circle /></div>
+            <p class="profile-dropdown-name">Hi, {{ session('employee_name', 'User') }}!</p>
+            <x-dark-mode-toggle />
+            <a href="{{ route('employee.portal') }}" class="profile-logout-button" style="display:flex;text-decoration:none;color:#0b1e3d;">Employee Portal</a>
+            <form method="POST" action="{{ action([\App\Http\Controllers\AuthController::class, 'logout']) }}">
+                @csrf
+                <button type="submit" class="profile-logout-button"><x-heroicon-o-arrow-right-on-rectangle /> Log out</button>
+            </form>
         </div>
-        </header>
+</header>
 
 
 <script>
