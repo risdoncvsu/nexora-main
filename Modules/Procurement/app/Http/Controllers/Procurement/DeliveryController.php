@@ -73,30 +73,6 @@ class DeliveryController extends Controller
 
     public function index(): View
     {
-        // Repair expected-delivery rows created before PO approval was mirrored
-        // here. This keeps existing approved POs from appearing as Pending in
-        // the Deliveries tab after deployment.
-        try {
-            $approvedDeliveryIds = $this->table('deliveries')
-                ->join('purchase_orders', 'deliveries.purchase_order_id', '=', 'purchase_orders.id')
-                ->where('deliveries.status', 'pending')
-                ->where('purchase_orders.status', 'approved')
-                ->pluck('deliveries.id');
-
-            if ($approvedDeliveryIds->isNotEmpty()) {
-                DB::connection('procurement')->table('deliveries')
-                    ->whereIn('id', $approvedDeliveryIds)
-                    ->update([
-                        'status' => 'approved',
-                        'updated_at' => now(),
-                    ]);
-            }
-        } catch (\Throwable $exception) {
-            // Historical data repair must never prevent the Deliveries page
-            // from rendering on a partially migrated client database.
-            report($exception);
-        }
-
         // Raw tenant-scoped query with joins so the table gets flat
         // supplier_name / po_number columns (the Blade reads $d->supplier_name
         // and $d->po_number; the eager-loaded model relations don't expose
@@ -179,18 +155,6 @@ class DeliveryController extends Controller
             ]);
         }
 
-        // A PO now publishes one Pending expected delivery to Inventory when
-        // it is created.  Logging the supplier shipment promotes that same
-        // record to In Transit instead of creating a second incoming row for
-        // the same PO (which previously made stock appear twice).
-        $expectedDelivery = $purchaseOrder
-            ? Delivery::query()
-                ->where('client_id', (int) session('employee_client_id'))
-                ->where('purchase_order_id', $purchaseOrder->id)
-                ->whereIn('status', ['pending', 'approved'])
-                ->first()
-            : null;
-
         $deliveryAttributes = [
             'client_id' => (int) session('employee_client_id'),
             'shipment_number' => $data['dr'],
@@ -209,15 +173,7 @@ class DeliveryController extends Controller
             'deliver_to_warehouse' => $warehouse?->name,
         ];
 
-        if ($expectedDelivery) {
-            // Keep the original generated shipment number as the stable
-            // cross-module reference used by Inventory stock receivings.
-            unset($deliveryAttributes['shipment_number']);
-            $expectedDelivery->update($deliveryAttributes);
-            $delivery = $expectedDelivery->refresh();
-        } else {
-            $delivery = $this->createDeliveryWithUniqueShipmentNumber($deliveryAttributes);
-        }
+        $delivery = $this->createDeliveryWithUniqueShipmentNumber($deliveryAttributes);
 
         if ($purchaseOrder) {
             // Logging a delivery moves the PO to Processing. The linked
