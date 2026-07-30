@@ -311,7 +311,7 @@ class PackingController extends Controller
 
             // 4. Decrement stock inside its own transaction, with row locks
             //    to guard against a race between the pre-check above and now.
-            $inventoryAllocations = DB::connection(self::INVENTORY_CONN)->transaction(function () use ($requiredMaterials) {
+            $inventoryAllocations = DB::connection(self::INVENTORY_CONN)->transaction(function () use ($requiredMaterials, $order) {
                 foreach ($requiredMaterials as $materialName => $quantity) {
                     $row = $this->findPackingMaterial($materialName)
                         ->lockForUpdate()
@@ -328,7 +328,7 @@ class PackingController extends Controller
                 $allocations = [];
                 foreach ($requiredMaterials as $materialName => $quantity) {
                     $this->findPackingMaterial($materialName)->decrement('stock_qty', $quantity);
-                    $allocations = array_merge($allocations, $this->consumeInventoryMaterial($materialName, $quantity));
+                    $allocations = array_merge($allocations, $this->consumeInventoryMaterial($materialName, $quantity, (string) $order->id));
                 }
 
                 return $allocations;
@@ -447,6 +447,11 @@ class PackingController extends Controller
                         ->where('id', $allocation['stock_level_id'])
                         ->increment('stock', $allocation['quantity']);
                 }
+
+                $movementIds = collect($inventoryAllocations)->pluck('movement_id')->filter()->all();
+                if ($movementIds !== [] && Schema::connection(self::INVENTORY_CONN)->hasTable('stock_movements')) {
+                    DB::connection(self::INVENTORY_CONN)->table('stock_movements')->whereIn('id', $movementIds)->delete();
+                }
             });
         } catch (\Throwable $e) {
             // If even the compensating restore fails, this needs a human —
@@ -455,8 +460,8 @@ class PackingController extends Controller
         }
     }
 
-    /** Deduct a packing material from the physical Inventory stock levels. */
-    private function consumeInventoryMaterial(string $materialName, int $quantity): array
+    /** Deduct a packing material from the physical Inventory stock levels and record it in the Inventory ledger. */
+    private function consumeInventoryMaterial(string $materialName, int $quantity, string $orderId): array
     {
         $inventory = DB::connection(self::INVENTORY_CONN);
         $schema = $inventory->getSchemaBuilder();
@@ -497,7 +502,12 @@ class PackingController extends Controller
                 continue;
             }
 
-            $allocations[] = ['stock_level_id' => (int) $level->id, 'quantity' => $allocated];
+            $allocations[] = [
+                'stock_level_id' => (int) $level->id,
+                'item_id' => (int) $level->item_id,
+                'warehouse_id' => (int) ($level->warehouse_id ?? 0),
+                'quantity' => $allocated,
+            ];
             $remaining -= $allocated;
 
             if ($remaining === 0) {
@@ -509,10 +519,33 @@ class PackingController extends Controller
             throw new InsufficientStockException($materialName);
         }
 
-        foreach ($allocations as $allocation) {
+        $movementColumns = $schema->hasTable('stock_movements')
+            ? $schema->getColumnListing('stock_movements')
+            : [];
+
+        foreach ($allocations as $index => $allocation) {
             $inventory->table('stock_levels')
                 ->where('id', $allocation['stock_level_id'])
                 ->decrement('stock', $allocation['quantity']);
+
+            // Packing consumes real warehouse stock, so it must appear as an
+            // outbound Inventory movement just like an approved decrease.
+            if ($movementColumns !== [] && $allocation['warehouse_id'] > 0) {
+                $movement = [
+                    'client_id' => $clientId,
+                    'type' => 'outbound',
+                    'item_id' => $allocation['item_id'],
+                    'warehouse_id' => $allocation['warehouse_id'],
+                    'quantity' => $allocation['quantity'],
+                    'reference' => 'FULFILLMENT-'.$orderId,
+                    'reference_id' => $orderId,
+                    'performed_by' => (int) session('employee_id'),
+                    'notes' => "Consumed for packing fulfillment order {$orderId} ({$materialName})",
+                    'created_at' => now(),
+                ];
+                $allocations[$index]['movement_id'] = $inventory->table('stock_movements')
+                    ->insertGetId(array_intersect_key($movement, array_flip($movementColumns)));
+            }
         }
 
         return $allocations;
