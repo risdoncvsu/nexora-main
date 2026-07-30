@@ -3,6 +3,9 @@
 namespace Modules\Finance\Http\Controllers;
 
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Modules\Finance\Models\Account;
 use Modules\Finance\Models\Invoice;
 
 class DashboardController extends Controller
@@ -70,8 +73,11 @@ class DashboardController extends Controller
             ];
         })->values();
 
-        $assets = (float) \Modules\Finance\Models\Account::query()->where('account_type', 'Asset')->sum('balance');
-        $liabilities = (float) \Modules\Finance\Models\Account::query()->where('account_type', 'Liability')->sum('balance');
+        $assets = $this->accountBalance('asset');
+        $liabilities = $this->accountBalance('liability');
+        $procurementExpenses = $this->procurementExpenses();
+        $cashOnHand = max(0, $assets + $paid - $procurementExpenses);
+        $netIncome = $paid - $procurementExpenses;
         $equity = $assets - $liabilities;
 
         return view('finance::dashboard', [
@@ -87,7 +93,63 @@ class DashboardController extends Controller
                 'assets' => $assets,
                 'liabilities' => $liabilities,
                 'equity' => $equity,
+                'cash_on_hand' => $cashOnHand,
+                'cash_inflow' => $paid,
+                'cash_outflow' => $procurementExpenses,
+                'net_income' => $netIncome,
             ],
         ]);
+    }
+
+    /**
+     * Procurement owns purchase orders. An unavailable or partially migrated
+     * Procurement database must not hide valid Finance invoice data.
+     */
+    private function procurementExpenses(): float
+    {
+        try {
+            $schema = Schema::connection('procurement');
+            if (! $schema->hasTable('purchase_orders')) {
+                return 0;
+            }
+
+            $query = DB::connection('procurement')->table('purchase_orders')
+                ->whereIn(DB::raw('LOWER(COALESCE(status, \'\'))'), ['approved', 'processing', 'delivered', 'completed']);
+
+            if (! $this->isRootAdmin()) {
+                $clientId = session('employee_client_id');
+                if (! $clientId || ! $schema->hasColumn('purchase_orders', 'client_id')) {
+                    return 0;
+                }
+
+                $query->where('client_id', $clientId);
+            }
+
+            $amount = $schema->hasColumn('purchase_orders', 'amount')
+                ? 'COALESCE(amount, 0)'
+                : ($schema->hasColumn('purchase_orders', 'qty') && $schema->hasColumn('purchase_orders', 'unit_price')
+                    ? 'COALESCE(qty, 0) * COALESCE(unit_price, 0)'
+                    : '0');
+
+            return (float) $query->selectRaw("COALESCE(SUM({$amount}), 0) AS total")->value('total');
+        } catch (\Throwable) {
+            return 0;
+        }
+    }
+
+    private function accountBalance(string $type): float
+    {
+        try {
+            return (float) Account::query()
+                ->whereRaw('LOWER(COALESCE(account_type, \'\')) = ?', [strtolower($type)])
+                ->sum('balance');
+        } catch (\Throwable) {
+            return 0;
+        }
+    }
+
+    private function isRootAdmin(): bool
+    {
+        return config('nexora.root_admin_module_testing') && auth()->user()?->role === 'root_admin';
     }
 }

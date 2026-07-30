@@ -657,15 +657,19 @@ requestAnimationFrame(() => {
   const overduePct = invoiceTotal ? Math.round((overdue / invoiceTotal) * 100) : 0;
   const paidPct = invoiceTotal ? Math.round((paid / invoiceTotal) * 100) : 0;
 
+  const cashOnHand = Number(financeDashboard.cash_on_hand || 0);
+  const cashOutflow = Number(financeDashboard.cash_outflow || 0);
+  const netIncome = Number(financeDashboard.net_income || 0);
+
   setCashFlowData(
-    paid,
+    cashOnHand,
     financeDashboard.week_labels || [],
     financeDashboard.invoice_values || [],
     financeDashboard.paid_values || []
   );
-  setProfitLossData(paid - unpaid, paid, 100, 0, 0);
+  setProfitLossData(netIncome, paid, 100, cashOutflow, paid + cashOutflow ? Math.round((cashOutflow / (paid + cashOutflow)) * 100) : 0);
   setInvoicesData(unpaid, overdue, overduePct, paid, paid, paidPct);
-  setRevenueData(paid, 0, 'Paid invoice revenue', financeDashboard.week_labels || [], financeDashboard.paid_values || []);
+  setRevenueData(paid, cashOutflow, 'Paid invoice revenue', financeDashboard.week_labels || [], financeDashboard.paid_values || []);
   setInvoiceTrendData(financeDashboard.week_labels || [], financeDashboard.invoice_values || [], financeDashboard.paid_values || []);
   setActivitiesCountData([
     { label: "Assets", count: Number(financeDashboard.assets || 0) },
