@@ -1,6 +1,6 @@
 @extends('inventory::layouts.dashboard')
 
-@section('title', 'Products')
+@section('title', 'Items')
 
 @push('styles')
     <style>
@@ -136,6 +136,10 @@
 
     <!-- Inventory Items Card -->
     <div class="data-panel">
+        <div class="panel-head">
+            <span class="panel-title">Items</span>
+            <span class="panel-count">{{ number_format($items->total()) }} records</span>
+        </div>
         <form method="GET" action="{{ route('inventory.item-catalog') }}" class="data-toolbar">
             <div class="inv-tabs" style="flex-shrink:0;" role="tablist" aria-label="Catalog section">
                 <button type="button" id="catTabItems" class="inv-tab active" role="tab" aria-selected="true" onclick="switchCatTab('items')">Items</button>
@@ -306,6 +310,41 @@
             </div>
         </div>
     </div>
+
+    @if($recentDeletions->total() > 0)
+    <div class="data-panel" style="margin-top:16px;">
+        <div class="panel-head">
+            <span class="panel-title">Deleted Items</span>
+            <span class="panel-count">{{ $recentDeletions->total() }} items</span>
+        </div>
+        <div style="padding:0 18px 14px;">
+            <table style="width:100%;border-collapse:collapse;">
+                <thead>
+                    <tr>
+                        <th style="text-align:left;padding:8px 6px;font-size:11px;font-weight:700;text-transform:uppercase;color:#64748b;letter-spacing:0.05em;border-bottom:1.5px solid #e2e8f0;">SKU</th>
+                        <th style="text-align:left;padding:8px 6px;font-size:11px;font-weight:700;text-transform:uppercase;color:#64748b;letter-spacing:0.05em;border-bottom:1.5px solid #e2e8f0;">Item Name</th>
+                        <th style="text-align:left;padding:8px 6px;font-size:11px;font-weight:700;text-transform:uppercase;color:#64748b;letter-spacing:0.05em;border-bottom:1.5px solid #e2e8f0;">Deleted By</th>
+                        <th style="text-align:right;padding:8px 6px;font-size:11px;font-weight:700;text-transform:uppercase;color:#64748b;letter-spacing:0.05em;border-bottom:1.5px solid #e2e8f0;">Deleted At</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($recentDeletions as $del)
+                    <tr>
+                        <td style="padding:9px 6px;font-size:13px;color:#dc2626;font-weight:600;">{{ $del['sku'] }}</td>
+                        <td style="padding:9px 6px;font-size:13px;color:#0f172a;">{{ $del['name'] }}</td>
+                        <td style="padding:9px 6px;font-size:12px;color:#64748b;">{{ $del['deleted_by'] }}</td>
+                        <td style="padding:9px 6px;font-size:12px;color:#64748b;text-align:right;">{{ \Carbon\Carbon::parse($del['deleted_at'])->format('M d, Y h:i A') }}</td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </table>
+            <div class="panel-foot" style="border-top:1px solid #e2e8f0;padding-top:10px;">
+                {{ $recentDeletions->links() }}
+            </div>
+        </div>
+    </div>
+    @endif
+
 </div>
 <div id="deleteWarningModal" class="nexora-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="deleteWarningTitle">
     <div class="nexora-modal nexora-modal-sm">
