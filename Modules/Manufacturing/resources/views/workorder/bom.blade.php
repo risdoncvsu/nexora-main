@@ -40,7 +40,8 @@
         ->orderBy('items.name')
         ->get();
     $isPackaging = fn ($item) => str_contains(strtolower((string) optional($item->category)->name), 'packag')
-        || str_contains(strtolower((string) optional($item->category)->name), 'packing');
+        || str_contains(strtolower((string) optional($item->category)->name), 'packing')
+        || \Modules\Inventory\Services\PackingMaterialCatalog::definition((string) $item->name) !== null;
     $packagingItemIds = $allInventoryItems->filter($isPackaging)->pluck('id')->flip();
     $boms = $allBoms->filter(fn ($bom) => $bomType === 'packaging'
         ? $bom->items->contains(fn ($item) => $packagingItemIds->has($item->inventory_item_id))

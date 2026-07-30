@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Modules\Inventory\Models\Item;
+use Modules\Inventory\Services\PackingMaterialCatalog;
 use Modules\Manufacturing\Models\ProductBom;
 
 class BomController extends Controller
@@ -19,7 +20,7 @@ class BomController extends Controller
             // client-scoped catalogue and annotate each item with the stock
             // available for production instead of copying a second catalogue
             // into Manufacturing.
-            'inventoryItems' => Item::query()
+            'inventoryItems' => Item::query()->with('category')
                 ->leftJoin('stock_levels as stock_levels', function ($join): void {
                     $join->on('stock_levels.item_id', '=', 'items.id')
                         ->on('stock_levels.client_id', '=', 'items.client_id');
@@ -30,7 +31,9 @@ class BomController extends Controller
                 ])
                 ->groupBy('items.id', 'items.sku', 'items.name')
                 ->orderBy('items.name')
-                ->get(),
+                ->get()
+                ->reject(fn (Item $item): bool => PackingMaterialCatalog::definition((string) $item->name) !== null)
+                ->values(),
         ]);
     }
 
@@ -58,7 +61,9 @@ class BomController extends Controller
 
         $componentIsPackaging = function (Item $item): bool {
             $category = strtolower((string) optional($item->category)->name);
-            return str_contains($category, 'packag') || str_contains($category, 'packing');
+            return str_contains($category, 'packag')
+                || str_contains($category, 'packing')
+                || PackingMaterialCatalog::definition((string) $item->name) !== null;
         };
         $requestedType = $validated['bom_type'] ?? 'prebuilt';
         $matchesRequestedType = $requestedType === 'packaging'
