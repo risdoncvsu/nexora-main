@@ -26,7 +26,7 @@
                 -moz-osx-font-smoothing: grayscale;
                 text-rendering: optimizeLegibility;
             }
-            ::-webkit-scrollbar { width: 5px; } ::-webkit-scrollbar-track { background: #0b1e3d; } ::-webkit-scrollbar-thumb { background: #1b3a6b; border-radius: 4px; transition: background 0.2s ease; } ::-webkit-scrollbar-thumb:hover { background: #2a4f8f; }
+            ::-webkit-scrollbar { display: none; } html { scrollbar-width: none; }
 
             /* Nexora modal system */
             .nexora-modal-overlay {

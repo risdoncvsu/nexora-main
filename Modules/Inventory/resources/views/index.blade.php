@@ -88,18 +88,18 @@
         <p class="kpi-value">{{ number_format($lowStockAlerts) }}</p>
     </div>
     <!-- Critical Alerts card: spans 2 rows -->
-    <div class="stat-card" style="grid-row: span 2; display:flex; flex-direction:column; gap:12px; overflow-y:auto; max-height: 520px;">
+    <div class="stat-card" style="grid-row: span 2; display:flex; flex-direction:column; gap:12px; overflow-y:auto; height:100%;">
         <p style="font-size:15px; white-space: nowrap; margin-bottom:4px;">Critical Alerts</p>
 
         @forelse ($criticalAlerts as $alert)
-            <div style="background:#ffffff;border-radius:16px;padding:14px 16px;">
-                <div style="display:flex;justify-content:space-between;align-items:start;">
-                    <div>
-                        <p style="font-size:14px;font-weight:600;color:#0b1e3d;">{{ $alert['name'] }}</p>
+            <div style="background:#ffffff;border-radius:16px;padding:16px 18px;">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+                    <div style="min-width:0;flex:1;">
+                        <p style="font-size:15px;font-weight:700;color:#0b1e3d;margin:0 0 3px 0;line-height:1.3;">{{ $alert['name'] }}</p>
+                        <p style="font-size:12px;color:#64748b;margin:0;">{{ $alert['warehouse'] }}</p>
                     </div>
-                    <span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;{{ $alert['type'] === 'out_of_stock' ? 'background:#fee2e2;color:#dc2626;' : 'background:#fef3c7;color:#d97706;' }}">{{ $alert['type'] === 'out_of_stock' ? 'OUT' : 'LOW' }}</span>
+                    <span style="font-size:11px;font-weight:700;padding:3px 12px;border-radius:99px;flex-shrink:0;margin-left:10px;{{ $alert['type'] === 'out_of_stock' ? 'background:#fee2e2;color:#dc2626;' : 'background:#fef3c7;color:#d97706;' }}">{{ $alert['type'] === 'out_of_stock' ? 'OUT OF STOCK' : 'LOW STOCK' }}</span>
                 </div>
-                <p style="font-size:11px;color:#64748b;margin-bottom:8px;">{{ $alert['warehouse'] }}</p>
                 @php
                     $onHand = $alert['on_hand'];
                     $threshold = $alert['threshold'];
@@ -112,10 +112,13 @@
                     }
                     $hue = min(120, round($percentage * 1.2));
                 @endphp
-                <div class="pbar"><div class="pbar-inner" style="width:{{ $percentage }}%;background:hsl({{ $hue }}, 80%, 45%);"></div></div>
-                <div style="display:flex;justify-content:space-between;margin-top:6px;">
-                    <span style="font-size:11px;color:#0b1e3d;">{{ number_format($onHand) }} units</span>
-                    <span style="font-size:11px;color:#0b1e3d;">threshold {{ number_format($threshold) }}</span>
+                <div style="display:flex;align-items:center;gap:12px;margin-bottom:5px;">
+                    <span style="font-size:13px;font-weight:700;color:#0b1e3d;">{{ number_format($onHand) }}</span>
+                    <span style="font-size:11px;color:#64748b;">units available</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <div class="pbar" style="flex:1;"><div class="pbar-inner" style="width:{{ $percentage }}%;background:hsl({{ $hue }}, 80%, 45%);"></div></div>
+                    <span style="font-size:11px;color:#64748b;white-space:nowrap;flex-shrink:0;">threshold {{ number_format($threshold) }}</span>
                 </div>
                 @if(!empty($alert['item_id']))
                     <a href="{{ route('inventory.requests', ['item' => $alert['item_id']]) }}" class="alert-restock-link">
@@ -138,6 +141,14 @@
                 <option value="this_month">This month</option>
                 <option value="last_month">Last month</option>
             </select>
+        </div>
+        <div style="display:flex;align-items:center;gap:18px;margin-bottom:14px;justify-content:flex-end;">
+            <span id="legend-inbound" style="display:flex;align-items:center;gap:7px;font-size:12px;color:#e2e8f0;font-weight:500;cursor:pointer;transition:opacity 0.2s;">
+                <span style="width:12px;height:12px;border-radius:50%;background:#22c55e;flex-shrink:0;"></span>Inbound
+            </span>
+            <span id="legend-outbound" style="display:flex;align-items:center;gap:7px;font-size:12px;color:#e2e8f0;font-weight:500;cursor:pointer;transition:opacity 0.2s;">
+                <span style="width:12px;height:12px;border-radius:50%;background:#ef4444;flex-shrink:0;"></span>Outbound
+            </span>
         </div>
         <div class="table-wrapper">
             <div class="chart-container">
@@ -195,6 +206,7 @@
                                     </span>
                                 @elseif ($movement['type'] === 'reservation')
                                     <span style="display:inline-flex;align-items:center;gap:4px;color:#7C3AED;">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
                                         {{ number_format(abs($movement['quantity'])) }}
                                     </span>
                                 @else
@@ -226,41 +238,75 @@
 
     const ctx = document.getElementById('stockMovementChart').getContext('2d');
     let trendChart = new Chart(ctx, {
-        type: 'bar',
+        type: 'line',
         data: {
             labels: @json($trendData['labels']),
             datasets: [
                 {
                     label: 'Inbound',
                     data: @json($trendData['inbound']),
-                    backgroundColor: '#22c55e',
-                    borderRadius: 4,
+                    borderColor: '#22c55e',
+                    backgroundColor: 'rgba(34,197,94,0.12)',
+                    borderWidth: 2.5,
+                    pointBackgroundColor: '#22c55e',
+                    pointBorderColor: '#22c55e',
+                    pointRadius: 4,
+                    pointHoverRadius: 9,
+                    pointHoverBorderWidth: 3,
+                    pointHoverBorderColor: '#ffffff',
+                    fill: true,
+                    tension: 0.4,
                 },
                 {
                     label: 'Outbound',
                     data: @json($trendData['outbound']),
-                    backgroundColor: '#ef4444',
-                    borderRadius: 4,
+                    borderColor: '#ef4444',
+                    backgroundColor: 'rgba(239,68,68,0.12)',
+                    borderWidth: 2.5,
+                    borderDash: [6, 4],
+                    pointBackgroundColor: '#ef4444',
+                    pointBorderColor: '#ef4444',
+                    pointRadius: 4,
+                    pointHoverRadius: 9,
+                    pointHoverBorderWidth: 3,
+                    pointHoverBorderColor: '#ffffff',
+                    fill: true,
+                    tension: 0.4,
                 },
             ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            animation: false,
+            interaction: {
+                intersect: false,
+                mode: 'index',
+            },
             plugins: {
                 legend: {
-                    labels: { color: '#e2e8f0', font: { size: 12 }, usePointStyle: true, pointStyle: 'circle' }
+                    display: false
                 },
-                datalabels: { display: false }
+                datalabels: { display: false },
+                tooltip: {
+                    backgroundColor: '#0f2447',
+                    titleColor: '#cdd9ee',
+                    bodyColor: '#e2e8f0',
+                    borderColor: 'rgba(255,255,255,0.08)',
+                    borderWidth: 1,
+                    cornerRadius: 10,
+                    padding: 10,
+                    boxPadding: 6,
+                    usePointStyle: true,
+                    caretSize: 6,
+                }
             },
             scales: {
                 x: {
-                    stacked: true,
                     ticks: { color: '#94a3b8' },
                     grid: { color: 'rgba(255,255,255,0.06)' }
                 },
                 y: {
-                    stacked: true,
                     beginAtZero: true,
                     min: 0,
                     title: {
@@ -294,6 +340,23 @@
             });
     });
 
+    function toggleDataset(index, legendId) {
+        const meta = trendChart.getDatasetMeta(index);
+        const other = trendChart.getDatasetMeta(index === 0 ? 1 : 0);
+        if (!meta.hidden && other.hidden) return;
+        meta.hidden = !meta.hidden;
+        trendChart.update();
+        const el = document.getElementById(legendId);
+        el.style.opacity = meta.hidden ? '0.4' : '1';
+    }
+
+    document.getElementById('legend-inbound').addEventListener('click', function() {
+        toggleDataset(0, 'legend-inbound');
+    });
+    document.getElementById('legend-outbound').addEventListener('click', function() {
+        toggleDataset(1, 'legend-outbound');
+    });
+
     const warehouseCtx = document.getElementById('warehouseChart').getContext('2d');
     new Chart(warehouseCtx, {
         type: 'pie',
@@ -301,29 +364,55 @@
             labels: @json($warehouseDistribution->pluck('name')),
             datasets: [{
                 data: @json($warehouseDistribution->pluck('total')),
-                backgroundColor: ['#4a9ee8', '#2dd4a8', '#f0a93e', '#ef4444', '#8b5cf6'],
-                borderWidth: 0,
-                hoverOffset: 8
+                backgroundColor: ['#4a9ee8', '#2dd4a8', '#f0a93e', '#ef4444', '#8b5cf6', '#ec4899'],
+                borderColor: '#0f2447',
+                borderWidth: 3,
+                hoverOffset: 12,
+                hoverBorderColor: '#ffffff',
+                hoverBorderWidth: 2,
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            aspectRatio: 1,
-            layout: { padding: { top: 24, bottom: 8, left: 8, right: 8 } },
+            layout: { padding: { top: 12, bottom: 8, left: 8, right: 8 } },
             plugins: {
                 legend: {
                     position: 'bottom',
-                    labels: { color: '#e2e8f0', font: { size: 12 }, padding: 10, usePointStyle: true, pointStyle: 'circle' }
+                    labels: { color: '#e2e8f0', font: { size: 12 }, padding: 12, usePointStyle: true, pointStyle: 'circle' }
                 },
                 datalabels: {
-                    display: true,
+                    display: function(context) {
+                        return context.dataset.data[context.dataIndex] > 0;
+                    },
                     color: '#ffffff',
-                    font: { weight: 'bold', size: 14 },
+                    font: { weight: 'bold', size: 11 },
                     anchor: 'end',
                     align: 'start',
-                    offset: -10,
-                    formatter: function(value) { return value; }
+                    offset: -6,
+                    formatter: function(value, ctx) {
+                        const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                        const pct = ((value / total) * 100).toFixed(1);
+                        return pct + '%';
+                    }
+                },
+                tooltip: {
+                    backgroundColor: '#0f2447',
+                    titleColor: '#cdd9ee',
+                    bodyColor: '#e2e8f0',
+                    borderColor: 'rgba(255,255,255,0.08)',
+                    borderWidth: 1,
+                    cornerRadius: 10,
+                    padding: 10,
+                    boxPadding: 6,
+                    usePointStyle: true,
+                    callbacks: {
+                        label: function(context) {
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const pct = ((context.parsed / total) * 100).toFixed(1);
+                            return ' ' + context.label + ': ' + context.parsed + ' units (' + pct + '%)';
+                        }
+                    }
                 }
             }
         },
