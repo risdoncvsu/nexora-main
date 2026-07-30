@@ -214,6 +214,28 @@
         const biLiveFeedUrl = @json(route('bi.live-feed'));
         const biChatUrl = @json(route('bi.ai.chat'));
         const biScopedUrl = (url) => url + (biClientScope ? (url.includes('?') ? '&' : '?') + 'client_id=' + biClientScope : '');
+        let isAiChatSending = false;
+
+        function setAiChatLocked(locked) {
+            const input = document.getElementById('aiChatInput');
+            const sendBtn = document.getElementById('aiChatSend');
+            const chips = document.querySelectorAll('.ai-chip');
+
+            if (input) {
+                input.disabled = locked;
+                input.setAttribute('aria-busy', String(locked));
+            }
+
+            if (sendBtn) {
+                sendBtn.disabled = locked;
+                sendBtn.setAttribute('aria-disabled', String(locked));
+            }
+
+            chips.forEach((chip) => {
+                chip.disabled = locked;
+                chip.setAttribute('aria-disabled', String(locked));
+            });
+        }
 
         document.addEventListener('DOMContentLoaded', () => {
 
@@ -415,6 +437,7 @@
 
         function handleAiChatKeypress(event) {
             if (event.key === 'Enter') {
+                event.preventDefault();
                 sendAiMessage();
             }
         }
@@ -426,10 +449,15 @@
         }
 
         async function sendAiMessage(presetMessage) {
+            if (isAiChatSending) return;
+
             const input = document.getElementById('aiChatInput');
             const message = presetMessage || input.value.trim();
 
             if (!message) return;
+
+            isAiChatSending = true;
+            setAiChatLocked(true);
 
             const messagesContainer = document.getElementById('aiChatMessages');
 
@@ -458,9 +486,6 @@
             `;
             messagesContainer.appendChild(thinkingMsg);
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
-
-            const sendBtn = document.getElementById('aiChatSend');
-            sendBtn.disabled = true;
 
             try {
                 const response = await fetch(biScopedUrl(biChatUrl), {
@@ -525,7 +550,8 @@
 
                 messagesContainer.appendChild(errMsg);
             } finally {
-                sendBtn.disabled = false;
+                isAiChatSending = false;
+                setAiChatLocked(false);
                 messagesContainer.scrollTop = messagesContainer.scrollHeight;
             }
         }

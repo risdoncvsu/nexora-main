@@ -419,6 +419,21 @@
             changeSalesRange();   // initial load
         }
 
+        function weekdayLabels(labels) {
+            const fallback = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+            return (labels || []).map((label, index) => {
+                const rawLabel = String(label ?? '');
+                const date = /^\d{4}-\d{2}-\d{2}$/.test(rawLabel)
+                    ? new Date(`${rawLabel}T12:00:00`)
+                    : new Date(rawLabel);
+
+                return Number.isNaN(date.getTime())
+                    ? fallback[index % fallback.length]
+                    : date.toLocaleDateString('en-US', { weekday: 'short' });
+            });
+        }
+
         async function changeSalesRange() {
             const range = document.getElementById('salesRange')?.value || '7d';
             try {
@@ -433,7 +448,7 @@
                 if (!res.ok) throw new Error('HTTP ' + res.status);
                 const data = await res.json();
                 if (salesTrendChart) {
-                    salesTrendChart.data.labels = data.labels;
+                    salesTrendChart.data.labels = weekdayLabels(data.labels);
                     salesTrendChart.data.datasets[0].data = data.sales;
                     salesTrendChart.update();
 
