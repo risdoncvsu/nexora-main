@@ -430,6 +430,7 @@ function renderMonthlyRevenue(){
   const badge = document.getElementById("revenueChangeBadge");
   const up = d.changePct >= 0;
   badge.textContent = `${up ? "₱" : "₱"} ${Math.abs(d.changePct)}%`;
+  badge.textContent = `${up ? "UP" : "DOWN"} ${Math.abs(d.changePct)}%`;
   badge.className = `text-xs font-semibold rounded-full px-2 py-0.5 ${up ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"}`;
   document.getElementById("revenueChangeSub").textContent = d.changeSub;
   renderRevenueChart();
@@ -660,6 +661,7 @@ requestAnimationFrame(() => {
   const cashOnHand = Number(financeDashboard.cash_on_hand || 0);
   const cashOutflow = Number(financeDashboard.cash_outflow || 0);
   const netIncome = Number(financeDashboard.net_income || 0);
+  const revenueChangePct = Number(financeDashboard.revenue_change_pct || 0);
 
   setCashFlowData(
     cashOnHand,
@@ -668,8 +670,11 @@ requestAnimationFrame(() => {
     financeDashboard.paid_values || []
   );
   setProfitLossData(netIncome, paid, 100, cashOutflow, paid + cashOutflow ? Math.round((cashOutflow / (paid + cashOutflow)) * 100) : 0);
+  setExpensesData(cashOutflow, cashOutflow > 0 ? [
+    { label: 'Procurement', value: cashOutflow, color: '#4ca6ff' }
+  ] : []);
   setInvoicesData(unpaid, overdue, overduePct, paid, paid, paidPct);
-  setRevenueData(paid, cashOutflow, 'Paid invoice revenue', financeDashboard.week_labels || [], financeDashboard.paid_values || []);
+  setRevenueData(paid, revenueChangePct, 'Compared with last month', financeDashboard.week_labels || [], financeDashboard.paid_values || []);
   setInvoiceTrendData(financeDashboard.week_labels || [], financeDashboard.invoice_values || [], financeDashboard.paid_values || []);
   setActivitiesCountData([
     { label: "Assets", count: Number(financeDashboard.assets || 0) },

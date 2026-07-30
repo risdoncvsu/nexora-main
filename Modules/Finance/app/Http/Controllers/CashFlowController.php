@@ -7,11 +7,14 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Modules\Finance\Models\Account;
 use Modules\Finance\Models\Invoice;
+use Modules\Finance\Services\StorefrontInvoiceSynchronizer;
 
 class CashFlowController extends Controller
 {
     public function index()
     {
+        app(StorefrontInvoiceSynchronizer::class)->syncForCurrentClient();
+
         $data = ['cashOnHand' => 0, 'cashInflow' => 0, 'cashOutflow' => 0, 'netCashFlow' => 0, 'beginningCashBalance' => 0];
 
         // A balance on an Asset account is an opening/current position, not a

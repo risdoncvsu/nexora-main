@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Modules\Finance\Models\Account;
 use Modules\Finance\Models\Invoice;
+use Modules\Finance\Services\StorefrontInvoiceSynchronizer;
 
 class DashboardController extends Controller
 {
@@ -25,6 +26,8 @@ class DashboardController extends Controller
      */
     public function overview()
     {
+        app(StorefrontInvoiceSynchronizer::class)->syncForCurrentClient();
+
         $invoices = Invoice::query()
             ->orderByDesc('issue_date')
             ->orderByDesc('invoice_id')
@@ -78,6 +81,15 @@ class DashboardController extends Controller
         $procurementExpenses = $this->procurementExpenses();
         $cashOnHand = max(0, $assets + $paid - $procurementExpenses);
         $netIncome = $paid - $procurementExpenses;
+        $thisMonthPaid = (float) $invoices
+            ->filter(fn (Invoice $invoice): bool => $invoice->issue_date !== null && Carbon::parse($invoice->issue_date)->isCurrentMonth())
+            ->sum('paid_amount');
+        $lastMonthPaid = (float) $invoices
+            ->filter(fn (Invoice $invoice): bool => $invoice->issue_date !== null && Carbon::parse($invoice->issue_date)->isSameMonth(now()->subMonth()))
+            ->sum('paid_amount');
+        $revenueChangePct = $lastMonthPaid > 0
+            ? round((($thisMonthPaid - $lastMonthPaid) / $lastMonthPaid) * 100)
+            : ($thisMonthPaid > 0 ? 100 : 0);
         $equity = $assets - $liabilities;
 
         return view('finance::dashboard', [
@@ -97,6 +109,7 @@ class DashboardController extends Controller
                 'cash_inflow' => $paid,
                 'cash_outflow' => $procurementExpenses,
                 'net_income' => $netIncome,
+                'revenue_change_pct' => $revenueChangePct,
             ],
         ]);
     }
