@@ -487,7 +487,7 @@ class EcommerceAdminController extends Controller
         // Only finished-product BOMs belong in a storefront. Packaging BOMs
         // describe boxes/packing materials and must never create sellable
         // listings or Manufacturing benchmark work.
-        if ($manufacturing->getSchemaBuilder()->hasColumn('product_boms', 'bom_type')) {
+        if ($schema->hasColumn('product_boms', 'bom_type')) {
             $query->where(function ($query): void {
                 $query->whereNull('bom_type')->orWhere('bom_type', 'prebuilt');
             });
@@ -499,6 +499,12 @@ class EcommerceAdminController extends Controller
     private function packagingBoms()
     {
         $manufacturing = DB::connection('manufacturing');
+        $schema = $manufacturing->getSchemaBuilder();
+
+        if (! $schema->hasTable('product_boms')) {
+            return collect();
+        }
+
         $query = $manufacturing->table('product_boms')
             ->where('client_id', app(EcommerceClientContext::class)->clientId())
             ->where('status', 'active');
@@ -516,8 +522,17 @@ class EcommerceAdminController extends Controller
 
     private function listingData(Request $request): array
     {
+        $clientId = (int) app(EcommerceClientContext::class)->clientId();
+        $listingId = $request->route('listing');
+        $skuRule = Rule::unique('ecommerce.storefront_listings', 'sku')
+            ->where(fn ($query) => $query->where('client_id', $clientId));
+
+        if ($listingId) {
+            $skuRule->ignore($listingId);
+        }
+
         return $request->validate([
-            'bom_id' => ['required', 'integer'], 'packaging_bom_id' => ['nullable', 'integer'], 'sku' => ['required', 'string', 'max:100'],
+            'bom_id' => ['required', 'integer'], 'packaging_bom_id' => ['nullable', 'integer'], 'sku' => ['required', 'string', 'max:100', $skuRule],
             'name' => ['required', 'string', 'max:160'], 'description' => ['nullable', 'string'],
             'price' => ['required', 'numeric', 'min:0'], 'status' => ['required', 'in:draft,active,archived'],
             'image' => ['nullable', 'image', 'max:4096'],
