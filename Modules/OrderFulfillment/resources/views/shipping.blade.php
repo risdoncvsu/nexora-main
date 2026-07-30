@@ -118,9 +118,11 @@
 }
 
   .logo {
-    width: 46px;
-    height: 50px;
+    height: 64px;
+    width: auto;
+    max-width: 280px;
     object-fit: contain;
+    margin-left: -14px;
   }
 
   .brand-text .title { font-size: 20px; font-weight: 700; letter-spacing: 1px; }
@@ -951,7 +953,7 @@
     <div class="navbar">
       <div class="brand brand-logo">
         <a href="{{ route('order-fulfillment.dashboard') }}" aria-label="Order Fulfillment dashboard"><img class="logo" src="{{ asset('images/Banner Transparent.png') }}" alt="Nexora Logo"></a>
-        <x-client-logo :size="50" />
+        <x-client-logo :size="64" />
       </div>
       <div class="nav-actions">
         <div class="nav-links">

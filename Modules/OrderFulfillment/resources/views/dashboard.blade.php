@@ -101,9 +101,11 @@
 }
 
   .logo {
-    width: 46px;
-    height: 50px;
+    height: 64px;
+    width: auto;
+    max-width: 280px;
     object-fit: contain;
+    margin-left: -14px;
   }
 
   .brand-text .title {
@@ -323,6 +325,8 @@
   .tag-delivered { background: #1E5A3A; color: #86EFAC; }
   .tag-complete { background: #1E5A3A; color: #86EFAC; }
   .tag-cancelled { background: #4A1E1E; color: #F3A9A9; }
+  .tag-returned { background: #4A3A1E; color: #F3D3A9; }
+  .tag-refunded { background: #134E4A; color: #5EEAD4; }
 
   /* Priority tags (based on order age) */
   .tag-low { background: #6B2B2B; color: #F3A9A9; }
@@ -662,7 +666,7 @@
   <div class="navbar">
     <div class="brand brand-logo">
       <a href="{{ route('order-fulfillment.dashboard') }}" aria-label="Order Fulfillment dashboard"><img class="logo" src="{{ asset('images/Banner Transparent.png') }}" alt="Nexora Logo"></a>
-      <x-client-logo :size="50" />
+      <x-client-logo :size="64" />
     </div>
     <div class="nav-actions">
       <div class="nav-links">
@@ -740,9 +744,11 @@
       'delivered' => 'tag-delivered',
       'complete'  => 'tag-complete',
       'cancelled' => 'tag-cancelled',
+      'returned'  => 'tag-returned',
+      'refunded'  => 'tag-refunded',
     ];
     $statusMap = [];
-    foreach (['NEW', 'PACKING', 'READY_TO_SHIP', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED', 'COMPLETE', 'DELAYED', 'CANCELLED'] as $key) {
+    foreach (['NEW', 'PACKING', 'READY_TO_SHIP', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED', 'COMPLETE', 'DELAYED', 'CANCELLED', 'RETURNED', 'REFUNDED'] as $key) {
       $statusMap[$key] = [
         'label' => \Modules\OrderFulfillment\Helpers\OrderStatus::label($key),
         'class' => $statusClassByTier[\Modules\OrderFulfillment\Helpers\OrderStatus::tier($key)],
@@ -775,8 +781,10 @@
                 $showPriority = true;
             }
             // Priority no longer matters once an order has finished its
-            // lifecycle — hide the tag once it's DELIVERED or COMPLETE.
-            if (in_array(strtoupper($order->status), ['DELIVERED', 'COMPLETE'], true)) {
+            // lifecycle — hide the tag once it's DELIVERED, COMPLETE,
+            // CANCELLED, RETURNED, or REFUNDED (matches the Orders tab's
+            // own priority-hiding list in order.blade.php).
+            if (in_array(strtoupper($order->status), ['DELIVERED', 'COMPLETE', 'CANCELLED', 'RETURNED', 'REFUNDED'], true)) {
                 $showPriority = false;
             }
           @endphp
@@ -825,8 +833,10 @@
                 $showPriority = true;
             }
             // Priority no longer matters once an order has finished its
-            // lifecycle — hide the tag once it's DELIVERED or COMPLETE.
-            if (in_array(strtoupper($order->status), ['DELIVERED', 'COMPLETE'], true)) {
+            // lifecycle — hide the tag once it's DELIVERED, COMPLETE,
+            // CANCELLED, RETURNED, or REFUNDED (matches the Orders tab's
+            // own priority-hiding list in order.blade.php).
+            if (in_array(strtoupper($order->status), ['DELIVERED', 'COMPLETE', 'CANCELLED', 'RETURNED', 'REFUNDED'], true)) {
                 $showPriority = false;
             }
           @endphp
@@ -886,8 +896,10 @@
                 $showPriority = true;
             }
             // Priority no longer matters once an order has finished its
-            // lifecycle — hide the tag once it's DELIVERED or COMPLETE.
-            if (in_array(strtoupper($order->status), ['DELIVERED', 'COMPLETE'], true)) {
+            // lifecycle — hide the tag once it's DELIVERED, COMPLETE,
+            // CANCELLED, RETURNED, or REFUNDED (matches the Orders tab's
+            // own priority-hiding list in order.blade.php).
+            if (in_array(strtoupper($order->status), ['DELIVERED', 'COMPLETE', 'CANCELLED', 'RETURNED', 'REFUNDED'], true)) {
                 $showPriority = false;
             }
           @endphp

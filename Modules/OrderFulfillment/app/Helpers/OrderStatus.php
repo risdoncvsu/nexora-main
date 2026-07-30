@@ -24,6 +24,10 @@ namespace Modules\OrderFulfillment\Helpers;
  *   tier "transit"      -> OUT_FOR_DELIVERY
  *   tier "delivered"     -> DELIVERED
  *   tier "cancelled"      -> CANCELLED, DELAYED
+ *   tier "returned"       -> RETURNED (set once a customer return is
+ *                            approved — see ReturnItem::booted())
+ *   tier "refunded"       -> REFUNDED (set once that return reaches its
+ *                            Refunded stage)
  *
  * Keep this list and the tier map below in sync if a new status is
  * ever introduced.
@@ -40,6 +44,16 @@ class OrderStatus
         'COMPLETE'         => 'COMPLETE',
         'DELAYED'          => 'DELAYED',
         'CANCELLED'        => 'CANCELLED',
+        // Set by ReturnItem::booted() as soon as a genuine customer
+        // return is approved (not only once it's fully settled), and by
+        // CancelsShipmentToReturn's admin-cancellation path — which sets
+        // CANCELLED on the Order instead, RETURNED is customer-return-only.
+        'RETURNED'         => 'RETURNED',
+        // Set by ReturnItem::booted() specifically when a return reaches
+        // its Refunded stage — a distinct step in the RETURNED pipeline
+        // worth calling out on its own rather than lumping in with the
+        // rest of the return lifecycle.
+        'REFUNDED'         => 'REFUNDED',
     ];
 
     /**
@@ -57,6 +71,8 @@ class OrderStatus
         'COMPLETE'         => 'complete',
         'DELAYED'          => 'cancelled',
         'CANCELLED'        => 'cancelled',
+        'RETURNED'         => 'returned',
+        'REFUNDED'         => 'refunded',
     ];
 
     public static function label(?string $status): string

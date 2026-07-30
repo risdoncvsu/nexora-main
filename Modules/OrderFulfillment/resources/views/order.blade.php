@@ -108,9 +108,11 @@
 }
 
   .logo {
-    width: 46px;
-    height: 50px;
+    height: 64px;
+    width: auto;
+    max-width: 280px;
     object-fit: contain;
+    margin-left: -14px;
   }
 
   .brand-text .title {
@@ -484,6 +486,7 @@
   .badge.status.status-complete { background: #1E5A3A; color: #86EFAC; }
   .badge.status.status-cancelled { background: #4A1E1E; color: #F3A9A9; }
   .badge.status.status-returned { background: #4A3A1E; color: #F3D3A9; }
+  .badge.status.status-refunded { background: #134E4A; color: #5EEAD4; }
 
   .badge.priority {
     background: #6B2B2B;
@@ -1121,7 +1124,7 @@
     <div class="navbar">
       <div class="brand brand-logo" title="Nexora">
     <a href="{{ route('order-fulfillment.dashboard') }}" aria-label="Order Fulfillment dashboard"><img class="logo" src="{{ asset('images/Banner Transparent.png') }}" alt="Nexora Logo"></a>
-    <x-client-logo :size="50" />
+    <x-client-logo :size="64" />
 </div>
       <div class="nav-actions">
         <div class="nav-links">
@@ -1287,6 +1290,7 @@
                 'COMPLETE'          => 'COMPLETE',
                 'CANCELLED'         => 'CANCELLED',
                 'RETURNED'          => 'RETURNED',
+                'REFUNDED'          => 'REFUNDED',
             ];
             $statusLabel = $statusLabels[$statusRaw] ?? strtoupper(str_replace('_', ' ', $statusRaw));
             $statusClassMap = [
@@ -1299,6 +1303,7 @@
                 'COMPLETE'          => 'status-complete',
                 'CANCELLED'         => 'status-cancelled',
                 'RETURNED'          => 'status-returned',
+                'REFUNDED'          => 'status-refunded',
             ];
             $statusClass = $statusClassMap[$statusRaw] ?? 'status-new';
             $orderQty = $order->items->count();
@@ -1330,7 +1335,7 @@
               <td class="amount-cell">₱{{ number_format($orderTotal, 2) }}</td>
               <td class="status-cell"><span class="badge status {{ $statusClass }}">{{ $statusLabel }}</span></td>
               <td class="priority-cell">
-              @if (!in_array($statusRaw, ['CANCELLED', 'RETURNED', 'DELIVERED', 'COMPLETE']))
+              @if (!in_array($statusRaw, ['CANCELLED', 'RETURNED', 'REFUNDED', 'DELIVERED', 'COMPLETE']))
               <span class="badge {{ $priority['class'] }}">
               {{ $priority['label'] }}
               </span>
@@ -1489,7 +1494,7 @@
   <div class="assign-toast" id="orderToast">Order moved to packing</div>
 
   <script>
-    const STATUS_CLASSES = ['status-new', 'status-packing', 'status-transit', 'status-shipped', 'status-delivered', 'status-complete', 'status-cancelled', 'status-returned'];
+    const STATUS_CLASSES = ['status-new', 'status-packing', 'status-transit', 'status-shipped', 'status-delivered', 'status-complete', 'status-cancelled', 'status-returned', 'status-refunded'];
 
     const STATUS_LABELS = {
       NEW: 'NEW',
@@ -1501,6 +1506,7 @@
       COMPLETE: 'COMPLETE',
       CANCELLED: 'CANCELLED',
       RETURNED: 'RETURNED',
+      REFUNDED: 'REFUNDED',
     };
 
     function statusToLabel(status) {
@@ -1518,6 +1524,7 @@
         COMPLETE: 'status-complete',
         CANCELLED: 'status-cancelled',
         RETURNED: 'status-returned',
+        REFUNDED: 'status-refunded',
       };
       return map[status] || 'status-new';
     }
@@ -1596,7 +1603,17 @@
       const shippingStatuses = ['READY_TO_SHIP', 'OUT_FOR_DELIVERY', 'SHIPPED', 'DELAYED', 'DELIVERED', 'COMPLETE'];
       const hasShipment = shippingStatuses.includes(data.status);
 
-      document.getElementById('modalPriorityField').style.display = hasShipment ? 'none' : '';
+      // Priority also stops applying once an order has reached a
+      // terminal/settled state that isn't a shipment handoff — same list
+      // the Orders table itself already uses to hide the Priority tag
+      // there via in_array($statusRaw, ...) a few lines up in this file.
+      // Without this, a CANCELLED, RETURNED, or REFUNDED order kept
+      // showing a leftover "LOW/MED/HIGH" priority badge in this modal
+      // even though the table row next to it correctly hid it.
+      const priorityIrrelevantStatuses = ['CANCELLED', 'RETURNED', 'REFUNDED', 'DELIVERED', 'COMPLETE'];
+      const showPriority = !priorityIrrelevantStatuses.includes(data.status);
+
+      document.getElementById('modalPriorityField').style.display = (hasShipment || !showPriority) ? 'none' : '';
       document.getElementById('modalTrackingField').style.display = hasShipment ? '' : 'none';
       document.getElementById('modalCourierField').style.display = hasShipment ? '' : 'none';
       document.getElementById('modalAddressField').style.display = hasShipment ? '' : 'none';
@@ -1786,9 +1803,7 @@
 
           // ---- Update order modal ----
           setStatusBadge(document.getElementById('modalStatus'), 'CANCELLED');
-          const priorityEl = document.getElementById('modalPriority');
-          priorityEl.textContent = '—';
-          priorityEl.className = 'badge';
+          document.getElementById('modalPriorityField').style.display = 'none';
           document.getElementById('cancelOrderBtn').classList.add('disabled');
           document.getElementById('cancelOverlay').classList.remove('active');
 

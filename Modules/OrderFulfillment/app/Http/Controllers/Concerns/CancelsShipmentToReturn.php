@@ -72,8 +72,10 @@ trait CancelsShipmentToReturn
                 'reason'        => $reason,
                 // Nothing to "review" here — admin already decided to cancel
                 // it, it just needs to physically make its way back to the
-                // warehouse. ReturnController::index() auto-promotes this to
-                // Completed / Returned to Inventory 24h later.
+                // warehouse. Console\Commands\ProgressReturnLifecycle
+                // (returns:progress-lifecycle) auto-promotes this onward:
+                // Inspecting after 1 day, Refunded after 1 hour, then
+                // Completed / Returned to Inventory after 10 more minutes.
                 'status'        => 'In Transit to Warehouse',
                 'resolution'    => 'Pending',
                 'due_date'      => $shipment->due_date,

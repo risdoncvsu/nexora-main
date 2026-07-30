@@ -91,7 +91,7 @@
 <h2>Returns ({{ $returns->count() }})</h2>
 <p>
   If Reason is "Cancelled while shipping" or "Cancelled before shipping", Accept/Decline stay hidden
-  on the real Returns page even at status NEW — that's intentional (it means "admin cancellation",
+  on the real Returns page even at status Pending — that's intentional (it means "admin cancellation",
   not a customer return). Pick a different reason below to test Accept/Decline.
 </p>
 <table border="1" cellpadding="6" cellspacing="0">
@@ -160,10 +160,10 @@
     btn.textContent = 'Applying...';
 
     const returnResolutions = {
-      'NEW': null,
-      'Inspecting': 'In Review',
+      'Pending': null,
       'In Transit to Warehouse': 'Pending',
-      'Refunded': 'Refunded to customer',
+      'Inspecting': 'In Review',
+      'Refunded': 'Refund Issued',
       'Completed': 'Returned to Inventory',
       'Declined': 'Declined by fulfillment',
     };

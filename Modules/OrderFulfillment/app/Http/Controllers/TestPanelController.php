@@ -19,7 +19,7 @@ use Modules\OrderFulfillment\Models\Shipment;
  * This intentionally BYPASSES the normal business rules that the real
  * controllers enforce (e.g. OrderController::cancel blocking cancellation
  * after delivery, ShippingController's non-cancellable statuses, or
- * ReturnController's NEW-only guard on accept/decline). That's the point
+ * ReturnController's Pending-only guard on accept/decline). That's the point
  * for a test panel, but it also means this must never be reachable in
  * production — see the route registration notes in routes/web.php.
  */
@@ -27,7 +27,7 @@ class TestPanelController extends Controller
 {
     public const ORDER_STATUSES = [
         'NEW', 'PACKING', 'READY_TO_SHIP', 'SHIPPED',
-        'OUT_FOR_DELIVERY', 'DELIVERED', 'COMPLETE', 'DELAYED', 'CANCELLED', 'RETURNED',
+        'OUT_FOR_DELIVERY', 'DELIVERED', 'COMPLETE', 'DELAYED', 'CANCELLED', 'RETURNED', 'REFUNDED',
     ];
 
     public const SHIPMENT_STATUSES = [
@@ -35,7 +35,7 @@ class TestPanelController extends Controller
     ];
 
     public const RETURN_STATUSES = [
-        'NEW', 'Inspecting', 'In Transit to Warehouse', 'Refunded', 'Completed', 'Declined',
+        'Pending', 'Inspecting', 'In Transit to Warehouse', 'Refunded', 'Completed', 'Declined',
     ];
 
     public function index()
@@ -109,7 +109,7 @@ class TestPanelController extends Controller
     /**
      * POST /test-panel/returns/{id}/status
      * Force a Return straight to any status/resolution pair, skipping the
-     * NEW-only guard that ReturnController::accept()/decline() enforce.
+     * Pending-only guard that ReturnController::accept()/decline() enforce.
      */
     /**
      * Reasons that ReturnController/return.blade.php treat as an admin

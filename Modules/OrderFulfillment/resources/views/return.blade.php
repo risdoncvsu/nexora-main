@@ -108,9 +108,11 @@
 }
 
   .logo {
-    width: 46px;
-    height: 50px;
+    height: 64px;
+    width: auto;
+    max-width: 280px;
     object-fit: contain;
+    margin-left: -14px;
   }
 
   .brand-text .title { font-size: 20px; font-weight: 700; letter-spacing: 1px; }
@@ -394,14 +396,25 @@
     display: inline-block;
     font-size: 11px;
     font-weight: 700;
-    padding: 4px 10px;
-    border-radius: 4px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    white-space: nowrap;
   }
 
-  .status-high { background: #7F1D2E; color: #FCA5B1; }
-  .status-med  { background: #6B4A1E; color: #FBD38D; }
-  .status-refunded { background: #16532E; color: #86EFAC; }
-  .status-inspecting { background: #2b3a5c; color: #cdd6f5; }
+  /* Same color language as order.blade.php's .badge.status.status-* —
+     pending reads like a fresh/awaiting-review order (gray pill), in
+     transit reads like an order that's out for delivery (blue),
+     inspecting reads like an order being worked on (amber/warn, same
+     as PACKING), refunded gets its own distinct teal (matches Orders/
+     Dashboard's REFUNDED), completed reads like a finished order
+     (green, same as DELIVERED/COMPLETE), and declined reads like a
+     cancelled one (red). */
+  .status-badge.status-pending    { background: var(--pill); color: var(--text-muted); }
+  .status-badge.status-transit    { background: #1E3A6B; color: #93C5FD; }
+  .status-badge.status-inspecting { background: var(--warn-bg); color: var(--warn-text); border: 1px solid var(--warn-border); }
+  .status-badge.status-refunded   { background: #134E4A; color: #5EEAD4; }
+  .status-badge.status-completed  { background: #1E5A3A; color: #86EFAC; }
+  .status-badge.status-declined   { background: #4A1E1E; color: #F3A9A9; }
 
   .resolution-not-resellable { color: #f28b82; font-weight: 600; }
 
@@ -587,17 +600,6 @@
     gap: 10px;
     padding: 18px 28px 0;
   }
-
-  .tag {
-    display: inline-block;
-    font-size: 12px;
-    font-weight: 700;
-    padding: 5px 12px;
-    border-radius: 6px;
-  }
-
-  .tag.priority { background: #7F1D2E; color: #FCA5B1; }
-  .tag.review { background: #16532E; color: #86EFAC; }
 
   .modal-body { padding: 20px 28px 0; }
   .modal-body .field-label { margin: 0 0 6px; font-size: 12px; color: var(--text-muted); }
@@ -894,7 +896,7 @@
     <div class="navbar">
       <div class="brand brand-logo">
         <a href="{{ route('order-fulfillment.dashboard') }}" aria-label="Order Fulfillment dashboard"><img class="logo" src="{{ asset('images/Banner Transparent.png') }}" alt="Nexora Logo"></a>
-        <x-client-logo :size="50" />
+        <x-client-logo :size="64" />
       </div>
       <div class="nav-actions">
         <div class="nav-links">
@@ -979,10 +981,8 @@
             @php
               // Built from whatever's actually on these returns, rather
               // than a hardcoded list, so the filter always matches real
-              // status/resolution values (resolution in particular is
-              // free text, not a fixed enum).
-              $returnStatusOptions     = $returns->pluck('status')->filter()->unique()->sort()->values();
-              $returnResolutionOptions = $returns->pluck('resolution')->filter()->unique()->sort()->values();
+              // status values.
+              $returnStatusOptions = $returns->pluck('status')->filter()->unique()->sort()->values();
             @endphp
             <div id="filterPanel" class="filter-panel">
               <div class="filter-title">Status</div>
@@ -994,18 +994,6 @@
               <label class="filter-option">
                 <input type="radio" name="statusFilter" value="{{ $statusOption }}" class="status-check">
                 {{ $statusOption }}
-              </label>
-              @endforeach
-
-              <div class="filter-title" style="margin-top:14px;">Resolution</div>
-              <label class="filter-option">
-                <input type="radio" name="resolutionFilter" value="" class="resolution-check" checked>
-                All
-              </label>
-              @foreach ($returnResolutionOptions as $resolutionOption)
-              <label class="filter-option">
-                <input type="radio" name="resolutionFilter" value="{{ $resolutionOption }}" class="resolution-check">
-                {{ $resolutionOption }}
               </label>
               @endforeach
             </div>
@@ -1020,12 +1008,36 @@
               <th>Items</th>
               <th>Reason</th>
               <th>Status</th>
-              <th>Resolution</th>
             </tr>
           </thead>
 <tbody id="returnsTableBody">
 
 @foreach($returns as $return)
+@php
+  // Mirrors order.blade.php's per-row status label/class approach so
+  // the Returns tab's badges look and read the same way the Orders
+  // tab's do — same pill shape, same uppercase text, same color
+  // language (pending=gray, transit=blue, inspecting=amber/warn,
+  // refunded=teal, completed=green, declined=red).
+  $returnStatusLabels = [
+      'Pending'                 => 'PENDING',
+      'In Transit to Warehouse' => 'IN TRANSIT TO WAREHOUSE',
+      'Inspecting'              => 'INSPECTING',
+      'Refunded'                => 'REFUNDED',
+      'Completed'               => 'COMPLETED',
+      'Declined'                => 'DECLINED',
+  ];
+  $returnStatusLabel = $returnStatusLabels[$return->status] ?? strtoupper($return->status);
+  $returnStatusClassMap = [
+      'Pending'                 => 'status-pending',
+      'In Transit to Warehouse' => 'status-transit',
+      'Inspecting'              => 'status-inspecting',
+      'Refunded'                => 'status-refunded',
+      'Completed'               => 'status-completed',
+      'Declined'                => 'status-declined',
+  ];
+  $returnStatusClass = $returnStatusClassMap[$return->status] ?? 'status-pending';
+@endphp
 <tr class="return-row"
     onclick="openReturnModal(this)"
     data-return-id="{{ $return->id }}"
@@ -1045,14 +1057,16 @@
     <td>{{ $return->reason }}</td>
 
     <td>
-        <span class="status-badge">
-            {{ $return->status }}
+        <span class="status-badge {{ $returnStatusClass }}">
+            {{ $returnStatusLabel }}
         </span>
     </td>
-
-    <td>{{ $return->resolution }}</td>
 </tr>
 @endforeach
+
+<tr class="no-results-row" id="noResultsRow" style="display:none;">
+    <td colspan="5">No returns match your search or filter.</td>
+</tr>
 
 </tbody>
         </table>
@@ -1082,8 +1096,7 @@
       </div>
 
       <div class="modal-tags">
-        <span class="tag priority" id="modalPriority">High priority</span>
-        <span class="tag review" id="modalReviewStatus">Pending Review</span>
+        <span class="status-badge" id="modalPriority">High priority</span>
       </div>
 
       <div class="modal-body">
@@ -1134,6 +1147,46 @@ const acceptUrlTemplate = @json(route('order-fulfillment.returns.accept', ['id' 
 const rejectUrlTemplate = @json(route('order-fulfillment.returns.decline', ['id' => '__ID__']));
 const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
 
+// Mirrors order.blade.php's STATUS_LABELS/statusToClass/setStatusBadge
+// helpers, just for return statuses instead of order statuses, so a
+// status update (Accept/Reject here, or the returns:progress-lifecycle
+// auto-promotion picked up on next page load) renders with the same
+// uppercase text + pill color as the initial page render's PHP-side
+// $returnStatusLabels/$returnStatusClassMap above.
+const RETURN_STATUS_CLASSES = ['status-pending', 'status-transit', 'status-inspecting', 'status-refunded', 'status-completed', 'status-declined'];
+
+const RETURN_STATUS_LABELS = {
+  'Pending': 'PENDING',
+  'In Transit to Warehouse': 'IN TRANSIT TO WAREHOUSE',
+  'Inspecting': 'INSPECTING',
+  'Refunded': 'REFUNDED',
+  'Completed': 'COMPLETED',
+  'Declined': 'DECLINED',
+};
+
+function returnStatusToLabel(status) {
+  return RETURN_STATUS_LABELS[status] || String(status).toUpperCase();
+}
+
+function returnStatusToClass(status) {
+  const map = {
+    'Pending': 'status-pending',
+    'In Transit to Warehouse': 'status-transit',
+    'Inspecting': 'status-inspecting',
+    'Refunded': 'status-refunded',
+    'Completed': 'status-completed',
+    'Declined': 'status-declined',
+  };
+  return map[status] || 'status-pending';
+}
+
+function setReturnStatusBadge(el, status) {
+  if (!el) return;
+  el.textContent = returnStatusToLabel(status);
+  el.classList.remove(...RETURN_STATUS_CLASSES);
+  el.classList.add(returnStatusToClass(status));
+}
+
 let currentReturnRow = null;
 
 function openReturnModal(row)
@@ -1162,17 +1215,13 @@ function openReturnModal(row)
         itemsList.appendChild(li);
     });
 
-    document.getElementById('modalPriority').textContent =
-        row.dataset.status;
-
-    document.getElementById('modalReviewStatus').textContent =
-        row.dataset.resolution;
+    setReturnStatusBadge(document.getElementById('modalPriority'), row.dataset.status);
 
     document.getElementById('modalReasonTitle').textContent =
         row.dataset.reason;
 
     const isAdminCancellation = ADMIN_CANCEL_REASONS.includes(row.dataset.reason);
-    const isPending = row.dataset.status === 'NEW';
+    const isPending = row.dataset.status === 'Pending';
     const acceptBtn = document.getElementById('modalAcceptBtn');
     const rejectBtn = document.getElementById('modalRejectBtn');
     const showActions = !isAdminCancellation && isPending;
@@ -1225,11 +1274,7 @@ function openReturnModal(row)
           row.dataset.status = result.data.status;
           row.dataset.resolution = result.data.resolution;
 
-          const badge = row.querySelector('.status-badge');
-          if (badge) badge.textContent = result.data.status;
-
-          const resolutionCell = row.children[5];
-          if (resolutionCell) resolutionCell.textContent = result.data.resolution;
+          setReturnStatusBadge(row.querySelector('.status-badge'), result.data.status);
 
           closeReturnModal();
         })
@@ -1257,10 +1302,7 @@ function openReturnModal(row)
           if (!result.ok || !result.data.success) throw new Error(result.data.message || 'Could not reject this return.');
           row.dataset.status = result.data.status;
           row.dataset.resolution = result.data.resolution;
-          const badge = row.querySelector('.status-badge');
-          if (badge) badge.textContent = result.data.status;
-          const resolutionCell = row.children[5];
-          if (resolutionCell) resolutionCell.textContent = result.data.resolution;
+          setReturnStatusBadge(row.querySelector('.status-badge'), result.data.status);
           closeReturnModal();
         })
         .catch(function (err) {
@@ -1278,35 +1320,27 @@ function openReturnModal(row)
     const filterOverlay  = document.getElementById('filterOverlay');
     const filterBadge    = document.getElementById('filterBadge');
     const noResultsRow   = document.getElementById('noResultsRow');
-    const statusChecks     = document.querySelectorAll('.status-check');
-    const resolutionChecks = document.querySelectorAll('.resolution-check');
+    const statusChecks = document.querySelectorAll('.status-check');
 
     function activeStatus() {
       const checked = Array.from(statusChecks).find(c => c.checked);
       return checked ? checked.value : '';
     }
 
-    function activeResolution() {
-      const checked = Array.from(resolutionChecks).find(c => c.checked);
-      return checked ? checked.value : '';
-    }
-
     function applyReturnFilters() {
       const query = searchInput.value.trim().toLowerCase();
       const activeSt = activeStatus();
-      const activeRes = activeResolution();
       let visibleCount = 0;
 
       returnRows.forEach(function (row) {
         const d = row.dataset;
-        const haystack = [d.orderId, d.customer, d.product, d.reason, d.status, d.resolution]
+        const haystack = [d.orderId, d.customer, d.product, d.reason, d.status]
           .join(' ')
           .toLowerCase();
 
         const matchesSearch = query === '' || haystack.includes(query);
         const matchesStatus = activeSt === '' || d.status === activeSt;
-        const matchesResolution = activeRes === '' || d.resolution === activeRes;
-        const visible = matchesSearch && matchesStatus && matchesResolution;
+        const visible = matchesSearch && matchesStatus;
 
         row.style.display = visible ? '' : 'none';
         if (visible) visibleCount++;
@@ -1314,7 +1348,7 @@ function openReturnModal(row)
 
       noResultsRow.style.display = visibleCount === 0 ? '' : 'none';
 
-      const activeFilterCount = (activeSt !== '' ? 1 : 0) + (activeRes !== '' ? 1 : 0);
+      const activeFilterCount = activeSt !== '' ? 1 : 0;
 
       if (activeFilterCount > 0) {
         filterBtn.classList.add('active');
@@ -1346,10 +1380,6 @@ function openReturnModal(row)
     filterOverlay.addEventListener('click', closeFilterPanel);
 
     statusChecks.forEach(function (c) {
-      c.addEventListener('change', applyReturnFilters);
-    });
-
-    resolutionChecks.forEach(function (c) {
       c.addEventListener('change', applyReturnFilters);
     });
 
