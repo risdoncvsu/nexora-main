@@ -247,6 +247,50 @@ class RequisitionController extends Controller
     }
 
     /**
+     * Bring POs forward when every logged delivery has reached Inventory.
+     * This also repairs orders received before Inventory wrote the terminal
+     * PO status back, such as orders that previously had a placeholder row.
+     */
+    private function reconcileReceivedPurchaseOrders($purchaseOrders): void
+    {
+        $purchaseOrderIds = $purchaseOrders->pluck('id')->filter()->values()->all();
+        if ($purchaseOrderIds === []) {
+            return;
+        }
+
+        $deliveriesByPurchaseOrder = DB::connection('procurement')
+            ->table('deliveries')
+            ->whereIn('purchase_order_id', $purchaseOrderIds)
+            ->get(['purchase_order_id', 'status'])
+            ->groupBy('purchase_order_id');
+
+        foreach ($purchaseOrders as $purchaseOrder) {
+            $statuses = $deliveriesByPurchaseOrder->get($purchaseOrder->id, collect())
+                ->pluck('status')
+                ->map(fn ($status) => strtolower(trim((string) $status)))
+                ->filter()
+                ->values();
+
+            if ($statuses->isEmpty()
+                || $statuses->contains(fn ($status) => ! in_array($status, ['delivered', 'completed', 'cancelled'], true))
+                || ! $statuses->contains(fn ($status) => in_array($status, ['delivered', 'completed'], true))) {
+                continue;
+            }
+
+            $targetStatus = $statuses->every(fn ($status) => in_array($status, ['completed', 'cancelled'], true))
+                ? 'completed'
+                : 'delivered';
+
+            DB::connection('procurement')->table('purchase_orders')
+                ->where('id', $purchaseOrder->id)
+                ->whereIn('status', ['approved', 'processing'])
+                ->update(['status' => $targetStatus, 'updated_at' => now()]);
+
+            $purchaseOrder->status = $targetStatus;
+        }
+    }
+
+    /**
      * Requisitions list page (filters, sortable table, add requisition modal).
      */
     public function index(Request $request)
@@ -326,6 +370,8 @@ class RequisitionController extends Controller
                 $purchaseOrders = $purchaseOrderQuery
                     ->get()
                     ->keyBy('requisition_reference');
+
+                $this->reconcileReceivedPurchaseOrders($purchaseOrders);
             }
         } catch (\Exception $e) {
             // Leave the queue usable when the Procurement connection is unavailable.
@@ -356,11 +402,32 @@ class RequisitionController extends Controller
                     'completed' => 'Completed',
                 ];
 
-                // Only a source without its own status column (Order
-                // Fulfillment) falls back to this. Inventory stores the real
-                // status that Procurement writes back, so it is left alone.
+                // Inventory owns its requisition rows. When Inventory has
+                // received the final delivery, persist the matching terminal
+                // status there so the UI and database stay in agreement.
                 $advanceable = ['pending', 'approved', 'processing', 'in transit', 'intransit', 'delivered', ''];
-                if (empty($req->status_authoritative)
+                if (! empty($req->status_authoritative)
+                    && ($req->source_connection ?? null) === 'inventory'
+                    && in_array($poStatus, ['delivered', 'completed'], true)
+                    && in_array($currentStatus, $advanceable, true)) {
+                    try {
+                        $inventoryRequisition = DB::connection('inventory')->table('requisitions')
+                            ->where('id', $req->id)
+                            ->where('req_id', $ref);
+
+                        if (! (config('nexora.root_admin_module_testing') && auth()->user()?->role === 'root_admin')) {
+                            $inventoryRequisition->where('client_id', (int) session('employee_client_id'));
+                        }
+
+                        $inventoryRequisition->update([
+                            'status' => $derived[$poStatus],
+                            'updated_at' => now(),
+                        ]);
+                        $req->status = $derived[$poStatus];
+                    } catch (\Throwable $exception) {
+                        report($exception);
+                    }
+                } elseif (empty($req->status_authoritative)
                     && isset($derived[$poStatus])
                     && in_array($currentStatus, $advanceable, true)) {
                     $req->status = $derived[$poStatus];

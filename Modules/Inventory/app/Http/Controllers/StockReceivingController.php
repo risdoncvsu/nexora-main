@@ -365,6 +365,22 @@ class StockReceivingController extends Controller
                         ->where('client_id', $clientId)
                         ->value('requisition_reference');
 
+                    // Inventory owns low-stock requisitions. Mark the request
+                    // delivered at the same time the final supplier shipment
+                    // is received, rather than leaving it at Processing.
+                    if ($requisitionReference
+                        && Schema::connection('inventory')->hasTable('requisitions')
+                        && Schema::connection('inventory')->hasColumn('requisitions', 'req_id')) {
+                        $inv->table('requisitions')
+                            ->where('client_id', $clientId)
+                            ->where('req_id', $requisitionReference)
+                            ->whereRaw("LOWER(COALESCE(status, 'pending')) IN ('pending', 'approved', 'processing', 'in transit', 'intransit')")
+                            ->update([
+                                'status' => 'Delivered',
+                                'updated_at' => now(),
+                            ]);
+                    }
+
                     $requestNotes = $requisitionReference
                         ? $inv->table('requisitions')
                             ->where('client_id', $clientId)
