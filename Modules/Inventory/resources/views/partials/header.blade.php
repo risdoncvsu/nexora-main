@@ -19,6 +19,7 @@
     <div id="profileDropdown" class="profile-dropdown">
         <button type="button" class="profile-dropdown-close" onclick="toggleProfileDropdown()">&times;</button>
         <div class="profile-dropdown-email">{{ session('employee_email', '') }}</div>
+        <div class="profile-dropdown-role">{{ session('employee_position', '') }}</div>
         <div class="profile-dropdown-avatar-wrap">
             <div class="profile-dropdown-avatar">
                 <img src="{{ asset('images/icon.png') }}" alt="User avatar">
