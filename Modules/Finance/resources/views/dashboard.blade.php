@@ -247,10 +247,17 @@ function selectCashFlowPeriod(period){
         "Today":"today",
         "This week":"this_week",
         "This month":"this_month",
+        "Last month":"last_month",
         "This year":"this_year"
     };
 
-    window.location = "?period=" + map[period];
+    // "Last month" was missing from this map, so map[period] came back
+    // undefined and the page navigated to "?period=undefined" — which the
+    // server could not resolve and answered with a 500. Never navigate on an
+    // unknown label.
+    const target = map[period];
+    if (!target) return;
+    window.location = "?period=" + target;
 
 }
 
@@ -344,10 +351,17 @@ function selectExpensesPeriod(period){
         "Today":"today",
         "This week":"this_week",
         "This month":"this_month",
+        "Last month":"last_month",
         "This year":"this_year"
     };
 
-    window.location = "?period=" + map[period];
+    // "Last month" was missing from this map, so map[period] came back
+    // undefined and the page navigated to "?period=undefined" — which the
+    // server could not resolve and answered with a 500. Never navigate on an
+    // unknown label.
+    const target = map[period];
+    if (!target) return;
+    window.location = "?period=" + target;
 
 }
 
@@ -440,10 +454,17 @@ function selectRevenuePeriod(period){
         "Today":"today",
         "This week":"this_week",
         "This month":"this_month",
+        "Last month":"last_month",
         "This year":"this_year"
     };
 
-    window.location = "?period=" + map[period];
+    // "Last month" was missing from this map, so map[period] came back
+    // undefined and the page navigated to "?period=undefined" — which the
+    // server could not resolve and answered with a 500. Never navigate on an
+    // unknown label.
+    const target = map[period];
+    if (!target) return;
+    window.location = "?period=" + target;
 
 }
 
@@ -555,10 +576,17 @@ function selectInvoiceTrendPeriod(period){
         "Today":"today",
         "This week":"this_week",
         "This month":"this_month",
+        "Last month":"last_month",
         "This year":"this_year"
     };
 
-    window.location = "?period=" + map[period];
+    // "Last month" was missing from this map, so map[period] came back
+    // undefined and the page navigated to "?period=undefined" — which the
+    // server could not resolve and answered with a 500. Never navigate on an
+    // unknown label.
+    const target = map[period];
+    if (!target) return;
+    window.location = "?period=" + target;
 
 }
 

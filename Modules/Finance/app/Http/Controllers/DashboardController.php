@@ -10,6 +10,26 @@ use Modules\Finance\Services\StorefrontInvoiceSynchronizer;
 
 class DashboardController extends Controller
 {
+    /** Every period the overview understands. Anything else falls back. */
+    private const PERIODS = ['today', 'this_week', 'this_month', 'last_month', 'this_year'];
+
+    /**
+     * Resolve ?period= to a supported value.
+     *
+     * This used to be read straight from the query string, and the second
+     * switch below had no default — so any unexpected value left
+     * $labels/$invoiceValues/$paidValues undefined and the page died with
+     * "Call to a member function values() on null". The dashboard's own
+     * dropdown produced exactly that: its JS map has no "Last month" key, so
+     * choosing it navigated to ?period=undefined.
+     */
+    private function resolvePeriod($raw): string
+    {
+        $value = strtolower(trim((string) $raw));
+
+        return in_array($value, self::PERIODS, true) ? $value : 'this_month';
+    }
+
     /**
      * The Finance application shell. Keep this separate from the iframe
      * overview so that /finance/dashboard can be the entry point without
@@ -32,7 +52,7 @@ class DashboardController extends Controller
 
         
         $today = Carbon::today();
-$period = request()->get('period', 'this_month');
+$period = $this->resolvePeriod(request()->get('period'));
 
 switch ($period) {
 
@@ -49,6 +69,11 @@ switch ($period) {
     case 'this_month':
         $start = $today->copy()->startOfMonth();
         $end = $today->copy()->endOfMonth();
+        break;
+
+    case 'last_month':
+        $start = $today->copy()->subMonthNoOverflow()->startOfMonth();
+        $end = $today->copy()->subMonthNoOverflow()->endOfMonth();
         break;
 
     case 'this_year':
@@ -140,6 +165,7 @@ $invoiceTotal = (float) $filteredInvoices
         break;
 
     case 'this_month':
+    case 'last_month':
 
         $labels = collect(range(1, $start->daysInMonth))
             ->map(fn($d) => (string)$d);
@@ -184,6 +210,14 @@ $invoiceTotal = (float) $filteredInvoices
         });
 
         break;
+
+    default:
+        // Unreachable while resolvePeriod() guards the input. Leaving these
+        // unset is exactly what turned a bad query string into a 500, so the
+        // fallback stays.
+        $labels = collect();
+        $invoiceValues = collect();
+        $paidValues = collect();
 }
 
         $recentActivity = $filteredInvoices->take(8)->map(function (Invoice $invoice): array {
