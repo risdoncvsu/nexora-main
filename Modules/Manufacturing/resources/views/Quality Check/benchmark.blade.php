@@ -1,47 +1,23 @@
 @php
-    $benchmarkTargets = $tempData['benchmarkTargets'] ?? [];
     $qcSessions       = collect($tempData['qcSessions'] ?? []);
     $rangeStyles      = $tempData['rangeStyles'] ?? [];
-
-    $rangeToKey = [
-        'high-end'  => 'HE',
-        'mid-range' => 'MR',
-        'budget'    => 'BU',
-        'office'    => 'OF',
-    ];
 
     $qcOrders    = collect($workOrders)->where('status', 'QC Check')->values();
     $selectedIdx = (int) request()->get('qcorder', 0);
     $selectedOrder = $qcOrders[$selectedIdx] ?? $qcOrders[0] ?? null;
 
     $range     = $selectedOrder['range'] ?? 'mid-range';
-    $rangeKey  = $rangeToKey[$range] ?? 'MR';
-    $checksMap = $benchmarkTargets[$rangeKey] ?? [];
 
-    // Turn the assoc map into an indexed list with checkId attached, grouped implicitly by category prefix
-    $checks = collect($checksMap)->map(function ($def, $checkId) {
+    // Single source of truth (Modules\Manufacturing\Services\BenchmarkTargetService)
+    // for "which checks actually apply to this order's components" — the
+    // release guard in ManufacturingController::sendToFulfillment() uses the
+    // exact same method, so the two can never disagree on the check count again.
+    $applicableChecks = (new \Modules\Manufacturing\Services\BenchmarkTargetService())
+        ->applicableChecksFor($range, $selectedOrder['parts'] ?? []);
+
+    $checks = collect($applicableChecks)->map(function ($def, $checkId) {
         [$category] = explode('_', $checkId, 2);
         return array_merge($def, ['id' => $checkId, 'category' => $category]);
-    })->values();
-
-    // Only benchmark components that are actually in this order.
-    $orderPartCategories = collect($selectedOrder['parts'] ?? [])
-        ->pluck('category')
-        ->filter()
-        ->map(fn ($c) => strtoupper($c))
-        ->unique();
-
-    $hasCpu  = $orderPartCategories->contains('CPU');
-    $hasCase = $orderPartCategories->contains('CASE'); // presence of a case = an actual prebuilt, not a component bundle
-
-    $checks = $checks->filter(function ($check) use ($orderPartCategories, $hasCpu, $hasCase) {
-        // POST only makes sense once a CPU is present to boot.
-        if ($check['id'] === 'System_post') return $hasCpu;
-
-        // Cable management only applies to a real prebuilt (has a case to route cables in).
-        if ($check['id'] === 'System_cables') return $hasCase;
-
-        return $orderPartCategories->contains(strtoupper($check['category']));
     })->values();
 
     $session = $qcSessions->firstWhere('woId', $selectedOrder['id'] ?? '');

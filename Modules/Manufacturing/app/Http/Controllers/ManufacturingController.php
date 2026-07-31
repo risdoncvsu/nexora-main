@@ -261,10 +261,15 @@ class ManufacturingController extends Controller
             return response()->json(['success' => false, 'message' => 'This build is not awaiting release from QC.'], 422);
         }
 
-        // Guard: only release once every benchmark check has actually passed.
-        $totalChecks = count((new BenchmarkTargetService())->targetsFor($order->range));
-        $session     = QcSession::where('wo_id', $order->id)->first();
-        $passCount   = $session ? $session->results()->where('verdict', 'Pass')->count() : 0;
+        // Guard: only release once every benchmark check that actually
+        // applies to this order's components has passed.
+        $order->loadMissing('parts');
+        $applicableChecks = (new BenchmarkTargetService())->applicableChecksFor($order->range, $order->parts);
+        $totalChecks      = count($applicableChecks);
+        $session          = QcSession::where('wo_id', $order->id)->first();
+        $passCount        = $session
+            ? $session->results()->whereIn('check_id', array_keys($applicableChecks))->where('verdict', 'Pass')->count()
+            : 0;
 
         if ($totalChecks === 0 || $passCount !== $totalChecks) {
             return response()->json(['success' => false, 'message' => 'Every check must pass before releasing to Order Fulfillment.'], 422);
@@ -699,13 +704,7 @@ class ManufacturingController extends Controller
      */
     private function workOrderPartForBenchmarkCategory(WorkOrder $order, string $benchmarkCategory): mixed
     {
-        $aliases = [
-            'cpu' => ['cpu', 'processor'],
-            'gpu' => ['gpu', 'graphics', 'video'],
-            'ram' => ['ram', 'memory'],
-            'storage' => ['storage', 'ssd', 'hdd', 'nvme', 'drive', 'disk'],
-            'system' => ['system', 'case', 'cable', 'power', 'psu', 'motherboard'],
-        ];
+        $aliases = array_change_key_case(BenchmarkTargetService::CATEGORY_ALIASES, CASE_LOWER);
 
         $terms = $aliases[strtolower($benchmarkCategory)] ?? [strtolower($benchmarkCategory)];
 
