@@ -599,6 +599,12 @@ class EcommerceAdminController extends Controller
                 report($e);
             }
 
+            // Release reserved inventory back to available stock for cancellations
+            if ($returnRequest->type === 'cancel') {
+                $this->releaseReservedInventory($returnRequest, $clientId);
+                $this->cancelManufacturingWorkOrder($returnRequest, $clientId);
+            }
+
             // Trigger CRM recalculation
             try {
                 if ($order) {
@@ -850,6 +856,120 @@ class EcommerceAdminController extends Controller
             });
         } catch (\Throwable $e) {
             \Log::warning('Auto-restock failed for return request #' . $returnRequest->id . ': ' . $e->getMessage());
+            report($e);
+        }
+    }
+
+    /**
+     * Release reserved inventory back to available stock when a cancellation
+     * is approved. Best-effort: failures are logged but don't block approval.
+     */
+    private function releaseReservedInventory(ReturnRequest $returnRequest, int $clientId): void
+    {
+        try {
+            $orderId = (string) $returnRequest->order_id;
+            if ($orderId === '') return;
+
+            $inv = \Illuminate\Support\Facades\DB::connection('inventory');
+
+            // Only reservations still outstanding for this order are released.
+            // Consumed (confirmed) reservations are left untouched.
+            $reservations = $inv->table('order_reservations')
+                ->where('client_id', $clientId)
+                ->where('order_reference', $orderId)
+                ->where('status', 'reserved')
+                ->whereNull('cancelled_at')
+                ->whereNull('confirmed_at')
+                ->get();
+
+            if ($reservations->isEmpty()) return;
+
+            $inv->transaction(function () use ($inv, $reservations, $clientId, $orderId, $returnRequest) {
+                foreach ($reservations as $reservation) {
+                    $itemId = (int) $reservation->item_id;
+                    $warehouseId = (int) $reservation->warehouse_id;
+                    $qty = (int) $reservation->quantity;
+
+                    // Free the reservation back to available stock (stock
+                    // itself was never consumed — only reserved).
+                    $sl = $inv->table('stock_levels')
+                        ->where('client_id', $clientId)
+                        ->where('item_id', $itemId)
+                        ->where('warehouse_id', $warehouseId)
+                        ->first();
+
+                    if ($sl) {
+                        $inv->table('stock_levels')->where('id', $sl->id)->update([
+                            'reserved_quantity' => max(0, (int) $sl->reserved_quantity - $qty),
+                            'updated_at' => now(),
+                        ]);
+                    }
+
+                    // Mark the reservation cancelled
+                    $inv->table('order_reservations')->where('id', $reservation->id)->update([
+                        'status' => 'cancelled',
+                        'cancelled_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+
+                    // Audit trail — a negative reservation movement offsets
+                    // the original reservation for accurate KPIs.
+                    $inv->table('stock_movements')->insert([
+                        'client_id' => $clientId,
+                        'type' => 'reservation',
+                        'item_id' => $itemId,
+                        'warehouse_id' => $warehouseId,
+                        'quantity' => -$qty,
+                        'reference' => 'cancel_' . $returnRequest->id,
+                        'reference_id' => $orderId,
+                        'performed_by' => null,
+                        'notes' => 'Reservation released for cancelled order ' . $orderId,
+                        'created_at' => now(),
+                    ]);
+                }
+            });
+        } catch (\Throwable $e) {
+            \Log::warning('Failed to release reserved inventory for cancel request #' . $returnRequest->id . ': ' . $e->getMessage());
+            report($e);
+        }
+    }
+
+    /**
+     * Mark the linked Manufacturing work order as Cancelled when a storefront
+     * cancellation is approved. Best-effort: failures are logged but don't
+     * block the approval. Only open work orders are touched — a build that
+     * already passed QC is left alone.
+     */
+    private function cancelManufacturingWorkOrder(ReturnRequest $returnRequest, int $clientId): void
+    {
+        try {
+            $orderId = (string) $returnRequest->order_id;
+            if ($orderId === '') return;
+
+            $manu = \Illuminate\Support\Facades\DB::connection('manufacturing');
+
+            if (! \Illuminate\Support\Facades\Schema::connection('manufacturing')->hasTable('work_orders')) {
+                return;
+            }
+
+            // Every non-terminal status is cancellable. Terminal states
+            // (Finished/Completed/Cancelled) are guaranteed untouched.
+            $woId = 'WO-' . strtoupper(substr(sha1($orderId), 0, 12));
+
+            $manu->table('work_orders')
+                ->where('client_id', $clientId)
+                ->whereNotIn('status', ['Finished', 'Completed', 'Cancelled'])
+                ->where(function ($query) use ($orderId, $woId) {
+                    $query->where('fulfillment_order_id', $orderId)
+                        ->orWhere('id', $woId)
+                        ->orWhere('source', 'Ecommerce ' . $orderId);
+                })
+                ->update([
+                    'status' => 'Cancelled',
+                    'updated_at' => now(),
+                ]);
+        } catch (\Throwable $e) {
+            \Log::warning('Failed to cancel manufacturing work order for cancel request #' . $returnRequest->id . ': ' . $e->getMessage());
             report($e);
         }
     }

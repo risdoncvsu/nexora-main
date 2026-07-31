@@ -1394,12 +1394,12 @@
                                 <i class="ph-bold ph-list-bullets"></i> All Orders
                                 <span class="bg-primary/20 text-primary text-[10px] font-black px-1.5 py-0.5 rounded-md min-w-[20px] text-center">{{ count($orders) }}</span>
                             </button>
+                            @if($catCounts['to-pay'] > 0)
                             <button type="button" onclick="window.filterOrderHistory('to-pay', this)" data-oh-filter="to-pay" class="oh-tab-btn text-gray-400 hover:text-white hover:bg-white/5 font-medium rounded-xl py-2.5 px-4 whitespace-nowrap text-xs transition-all duration-200 flex items-center gap-2">
                                 <i class="ph ph-credit-card"></i> To Pay
-                                @if($catCounts['to-pay'] > 0)
-                                    <span class="bg-white/10 text-gray-300 text-[10px] font-black px-1.5 py-0.5 rounded-md min-w-[20px] text-center">{{ $catCounts['to-pay'] }}</span>
-                                @endif
+                                <span class="bg-white/10 text-gray-300 text-[10px] font-black px-1.5 py-0.5 rounded-md min-w-[20px] text-center">{{ $catCounts['to-pay'] }}</span>
                             </button>
+                            @endif
                             <button type="button" onclick="window.filterOrderHistory('to-ship', this)" data-oh-filter="to-ship" class="oh-tab-btn text-gray-400 hover:text-white hover:bg-white/5 font-medium rounded-xl py-2.5 px-4 whitespace-nowrap text-xs transition-all duration-200 flex items-center gap-2">
                                 <i class="ph ph-package"></i> To Ship
                                 @if($catCounts['to-ship'] > 0)
@@ -1574,8 +1574,9 @@
                                                 <button type="button" onclick="event.stopPropagation(); alert('Redirecting to Payment Gateway for Order #{{ $order->id }}...')" class="bg-primary hover:bg-[#e56000] text-white px-4 py-1.5 rounded-lg font-bold text-[11px] transition-all shadow-lg shadow-primary/20 hover:shadow-primary/40">
                                                     <i class="ph-bold ph-credit-card text-xs mr-1"></i> Pay Now
                                                 </button>
+                                            @elseif($filterCat === 'to-ship')
                                                 <button type="button" onclick="event.stopPropagation(); openCancelModal('{{ $order->id }}')" class="bg-white/5 hover:bg-red-500/10 text-red-400 border border-white/10 hover:border-red-500/30 px-3 py-1.5 rounded-lg font-bold text-[11px] transition-all">
-                                                    Cancel
+                                                    <i class="ph-bold ph-x text-xs"></i> Cancel
                                                 </button>
                                             @elseif($filterCat === 'to-receive')
                                                 <button type="button" onclick="event.stopPropagation(); confirmReceived('{{ $order->id }}', this)" class="bg-green-600 hover:bg-green-500 text-white px-4 py-1.5 rounded-lg font-bold text-[11px] transition-all shadow-lg shadow-green-500/20 flex items-center gap-1">
