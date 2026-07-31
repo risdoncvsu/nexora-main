@@ -869,11 +869,11 @@
                                     if (reason === 'other') {
                                         reason = otherInput.value.trim();
                                         if (!reason) {
-                                            alert('Please describe the reason for cancellation.');
+                                            showToast('Please describe the reason for cancellation.', 'error');
                                             return;
                                         }
                                     } else if (!reason) {
-                                        alert('Please select a reason for cancellation.');
+                                        showToast('Please select a reason for cancellation.', 'error');
                                         return;
                                     }
 
@@ -904,32 +904,18 @@
                                     .then(function(data) {
                                         if (data.success) {
                                             closeCancelModal();
-                                            var toast = document.getElementById('oh-toast') || (function() {
-                                                var t = document.createElement('div');
-                                                t.id = 'oh-toast';
-                                                t.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 bg-green-600 text-white px-6 py-3 rounded-xl text-sm font-bold shadow-lg z-[999] transition-all duration-300 opacity-0';
-                                                document.body.appendChild(t);
-                                                return t;
-                                            })();
-                                            toast.textContent = data.message || 'Cancel request submitted!';
-                                            toast.style.background = '#16a34a';
-                                            toast.classList.remove('opacity-0');
-                                            toast.classList.add('opacity-100');
-                                            setTimeout(function() {
-                                                toast.classList.remove('opacity-100');
-                                                toast.classList.add('opacity-0');
-                                            }, 3000);
+                                            showToast(data.message || 'Cancel request submitted!');
                                             setTimeout(function() { location.reload(); }, 1500);
                                         } else {
                                             btn.innerHTML = originalHtml;
                                             btn.disabled = false;
-                                            alert(data.error || 'Something went wrong. Please try again.');
+                                            showToast(data.error || 'Something went wrong. Please try again.', 'error');
                                         }
                                     })
                                     .catch(function(err) {
                                         btn.innerHTML = originalHtml;
                                         btn.disabled = false;
-                                        alert('Network error. Please try again.');
+                                        showToast('Network error. Please try again.', 'error');
                                     });
                                 };
 
@@ -961,34 +947,19 @@
                                     })
                                     .then(function(data) {
                                         if (data.success) {
-                                            // Show success toast
-                                            var toast = document.getElementById('oh-toast') || (function() {
-                                                var t = document.createElement('div');
-                                                t.id = 'oh-toast';
-                                                t.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 bg-green-600 text-white px-6 py-3 rounded-xl text-sm font-bold shadow-lg z-[999] transition-all duration-300 opacity-0';
-                                                document.body.appendChild(t);
-                                                return t;
-                                            })();
-                                            toast.textContent = data.message || 'Order confirmed as received!';
-                                            toast.style.background = '#16a34a';
-                                            toast.classList.remove('opacity-0');
-                                            toast.classList.add('opacity-100');
-                                            setTimeout(function() {
-                                                toast.classList.remove('opacity-100');
-                                                toast.classList.add('opacity-0');
-                                            }, 3000);
-                                            // Reload after short delay to reflect the updated status
+                                            // Show success toast, then reload to reflect the updated status
+                                            showToast(data.message || 'Order confirmed as received!');
                                             setTimeout(function() { location.reload(); }, 1500);
                                         } else {
                                             btn.innerHTML = originalHtml;
                                             btn.disabled = false;
-                                            alert(data.error || 'Something went wrong. Please try again.');
+                                            showToast(data.error || 'Something went wrong. Please try again.', 'error');
                                         }
                                     })
                                     .catch(function(err) {
                                         btn.innerHTML = originalHtml;
                                         btn.disabled = false;
-                                        alert('Network error. Please try again.');
+                                        showToast('Network error. Please try again.', 'error');
                                     });
                                 };
 
@@ -1063,17 +1034,17 @@
                                     if (reason === 'other') {
                                         reason = otherInput.value.trim();
                                         if (!reason) {
-                                            alert('Please describe the reason for your return.');
+                                            showToast('Please describe the reason for your return.', 'error');
                                             return;
                                         }
                                     } else if (!reason) {
-                                        alert('Please select a reason for your return.');
+                                        showToast('Please select a reason for your return.', 'error');
                                         return;
                                     }
 
                                     const checkedItems = document.querySelectorAll('input[name="return_items[]"]:checked');
                                     if (checkedItems.length === 0) {
-                                        alert('Please select at least one item to return.');
+                                        showToast('Please select at least one item to return.', 'error');
                                         return;
                                     }
 
@@ -1107,32 +1078,18 @@
                                     .then(function(data) {
                                         if (data.success) {
                                             closeReturnModal();
-                                            var toast = document.getElementById('oh-toast') || (function() {
-                                                var t = document.createElement('div');
-                                                t.id = 'oh-toast';
-                                                t.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 bg-green-600 text-white px-6 py-3 rounded-xl text-sm font-bold shadow-lg z-[999] transition-all duration-300 opacity-0';
-                                                document.body.appendChild(t);
-                                                return t;
-                                            })();
-                                            toast.textContent = data.message || 'Return request submitted!';
-                                            toast.style.background = '#d97706';
-                                            toast.classList.remove('opacity-0');
-                                            toast.classList.add('opacity-100');
-                                            setTimeout(function() {
-                                                toast.classList.remove('opacity-100');
-                                                toast.classList.add('opacity-0');
-                                            }, 4000);
+                                            showToast(data.message || 'Return request submitted!');
                                             setTimeout(function() { location.reload(); }, 2000);
                                         } else {
                                             btn.innerHTML = originalHtml;
                                             btn.disabled = false;
-                                            alert(data.error || 'Something went wrong. Please try again.');
+                                            showToast(data.error || 'Something went wrong. Please try again.', 'error');
                                         }
                                     })
                                     .catch(function(err) {
                                         btn.innerHTML = originalHtml;
                                         btn.disabled = false;
-                                        alert('Network error. Please try again.');
+                                        showToast('Network error. Please try again.', 'error');
                                     });
                                 };
 
@@ -1599,7 +1556,7 @@
                                         
                                         <div class="flex items-center gap-2">
                                             @if($filterCat === 'to-pay')
-                                                <button type="button" onclick="event.stopPropagation(); alert('Redirecting to Payment Gateway for Order #{{ $order->id }}...')" class="bg-primary hover:bg-[#e56000] text-white px-4 py-1.5 rounded-lg font-bold text-[11px] transition-all shadow-lg shadow-primary/20 hover:shadow-primary/40">
+                                                <button type="button" onclick="event.stopPropagation(); showToast('Redirecting to Payment Gateway for Order #{{ $order->id }}...')" class="bg-primary hover:bg-[#e56000] text-white px-4 py-1.5 rounded-lg font-bold text-[11px] transition-all shadow-lg shadow-primary/20 hover:shadow-primary/40">
                                                     <i class="ph-bold ph-credit-card text-xs mr-1"></i> Pay Now
                                                 </button>
                                             @elseif($filterCat === 'to-ship')
@@ -2920,19 +2877,36 @@
 
     <!-- Global Toast Notification -->
     <div id="toast-notification" class="fixed bottom-6 right-6 z-[200] transform translate-y-20 opacity-0 transition-all duration-300 flex items-center gap-3 bg-[#13131a] border border-primary/30 shadow-[0_0_20px_rgba({{ $primaryR }},{{ $primaryG }},{{ $primaryB }},0.2)] rounded-xl px-5 py-4 pointer-events-none">
-        <div class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-            <i class="ph-fill ph-check-circle text-primary text-xl"></i>
+        <div id="toast-icon-wrap" class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+            <i id="toast-icon" class="ph-fill ph-check-circle text-primary text-xl"></i>
         </div>
         <p id="toast-message" class="text-sm font-bold text-white uppercase tracking-wider">Success!</p>
     </div>
     
     <script>
-        window.showToast = function(message) {
+        window.showToast = function(message, type) {
             const toast = document.getElementById('toast-notification');
             const msgEl = document.getElementById('toast-message');
+            const iconEl = document.getElementById('toast-icon');
+            const iconWrap = document.getElementById('toast-icon-wrap');
+            const isError = type === 'error';
             msgEl.textContent = message;
             toast.classList.remove('translate-y-20', 'opacity-0');
-            setTimeout(() => {
+            if (isError) {
+                toast.style.borderColor = 'rgba(239,68,68,0.5)';
+                toast.style.boxShadow = '0 0 20px rgba(239,68,68,0.2)';
+                iconWrap.style.background = 'rgba(239,68,68,0.2)';
+                iconEl.classList.remove('ph-check-circle', 'text-primary');
+                iconEl.classList.add('ph-x-circle', 'text-red-400');
+            } else {
+                toast.style.borderColor = '';
+                toast.style.boxShadow = '';
+                iconWrap.style.background = '';
+                iconEl.classList.remove('ph-x-circle', 'text-red-400');
+                iconEl.classList.add('ph-check-circle', 'text-primary');
+            }
+            if (window._toastTimer) clearTimeout(window._toastTimer);
+            window._toastTimer = setTimeout(() => {
                 toast.classList.add('translate-y-20', 'opacity-0');
             }, 3000);
         }
@@ -3251,12 +3225,12 @@
                         if (body.errors) {
                             errorMsg = Object.values(body.errors).flat().join('\n');
                         }
-                        alert(errorMsg);
+                        showToast(errorMsg, 'error');
                     }
                 })
                 .catch(err => {
                     console.error("Save error:", err);
-                    alert("An error occurred while saving the address. Please try again.");
+                    showToast("An error occurred while saving the address. Please try again.", 'error');
                 })
                 .finally(() => {
                     submitBtn.innerHTML = originalBtnText;

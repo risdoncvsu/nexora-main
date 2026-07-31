@@ -461,13 +461,20 @@ class AccountController extends Controller
             return response()->json(['success' => false, 'error' => 'Order not found.'], 404);
         }
 
-        // Check if order is in a cancellable state
+        // Check if order is in a cancellable state. The ecommerce status is
+        // mirrored from Manufacturing/fulfillment progress (processing,
+        // manufacturing, qc_check, packing, ...), so instead of an allowlist
+        // that keeps drifting out of sync, block only the genuinely
+        // non-cancellable terminal states.
         $status = strtoupper($order->status ?? 'NEW');
-        $cancellableStates = ['PENDING', 'NEW', 'PROCESSING', 'PENDING_PAYMENT'];
-        if (!in_array($status, $cancellableStates)) {
+        $nonCancellableStates = [
+            'SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED', 'COMPLETED',
+            'CANCELLED', 'CANCEL_REQUESTED', 'RETURN_REQUESTED', 'RETURN_APPROVED', 'REFUNDED',
+        ];
+        if (in_array($status, $nonCancellableStates)) {
             return response()->json([
                 'success' => false,
-                'error' => 'This order cannot be cancelled as it has already been processed or shipped.',
+                'error' => 'This order cannot be cancelled as it has already been shipped or delivered.',
             ], 422);
         }
 
