@@ -480,6 +480,23 @@ class EcommerceAdminController extends Controller
         $company = $this->company();
         $clientId = (int) app(EcommerceClientContext::class)->clientId();
 
+        // Legacy two-step flow left approved cancellations stranded — cancels
+        // now auto-refund on approval, so normalize any leftover approved
+        // cancel rows to the refunded terminal state. Idempotent, best-effort.
+        try {
+            ReturnRequest::withoutGlobalScope('ecommerce-client')
+                ->where('client_id', $clientId)
+                ->where('type', 'cancel')
+                ->where('status', 'approved')
+                ->update([
+                    'status' => 'refunded',
+                    'refunded_at' => now(),
+                    'updated_at' => now(),
+                ]);
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
         $requests = ReturnRequest::withoutGlobalScope('ecommerce-client')
             ->where('client_id', $clientId)
             ->with(['order', 'user'])
@@ -549,39 +566,61 @@ class EcommerceAdminController extends Controller
         try {
             DB::connection('ecommerce')->beginTransaction();
 
-            $returnRequest->status = 'approved';
-            $returnRequest->refund_amount = $validated['refund_amount'] ?? $returnRequest->refund_amount;
+            $order = Order::find($returnRequest->order_id);
+            $isCancel = $returnRequest->type === 'cancel';
+
+            if ($isCancel) {
+                // A cancellation was never fulfilled — the refund is processed
+                // immediately on approval. No separate refund step is needed.
+                $refundAmount = round((float) ($validated['refund_amount'] ?? $order?->total ?? 0), 2);
+                $returnRequest->status = 'refunded';
+                $returnRequest->refund_amount = $refundAmount;
+                $returnRequest->refunded_at = now();
+            } else {
+                $returnRequest->status = 'approved';
+                $returnRequest->refund_amount = $validated['refund_amount'] ?? $returnRequest->refund_amount;
+            }
             $returnRequest->admin_notes = $validated['admin_notes'] ?? $returnRequest->admin_notes;
             $returnRequest->resolved_at = now();
             $returnRequest->save();
 
             // Update the order status based on type
-            $order = Order::find($returnRequest->order_id);
             if ($order) {
-                if ($returnRequest->type === 'cancel') {
-                    $order->status = 'cancelled';
-                } elseif ($returnRequest->type === 'return') {
-                    $order->status = 'return_approved';
-                }
+                $order->status = $isCancel ? 'cancelled' : 'return_approved';
                 $order->save();
 
                 // Notify the customer
                 try {
                     $company = $this->company();
                     $store = $company->ecommerce_slug ?? 'store';
-                    $label = $returnRequest->type === 'cancel' ? 'Cancellation' : 'Return';
+                    $label = $isCancel ? 'Cancellation' : 'Return';
 
                     CustomerNotification::create([
                         'client_id' => $clientId,
                         'user_id' => $order->user_id,
-                        'type' => $returnRequest->type === 'cancel' ? 'cancel_request' : 'return_request',
+                        'type' => $isCancel ? 'cancel_request' : 'return_request',
                         'title' => $label . ' Approved',
                         'body' => 'Your ' . strtolower($label) . ' request for Order #' . $order->tracking_number . ' has been approved.' . ($validated['admin_notes'] ? ' Note: ' . $validated['admin_notes'] : ''),
                         'link' => route('ecommerce.account.orders.show', ['store' => $store, 'id' => $order->id]),
-                        'icon' => $returnRequest->type === 'cancel' ? 'ph-x-circle' : 'ph-arrow-u-up-left',
+                        'icon' => $isCancel ? 'ph-x-circle' : 'ph-arrow-u-up-left',
                         'icon_color' => 'green',
                         'is_read' => false,
                     ]);
+
+                    // Cancellations refund automatically — tell the customer
+                    if ($isCancel) {
+                        CustomerNotification::create([
+                            'client_id' => $clientId,
+                            'user_id' => $order->user_id,
+                            'type' => 'refund',
+                            'title' => 'Cancellation Refund Processed',
+                            'body' => 'Your cancellation refund of ₱' . number_format($refundAmount, 2) . ' has been processed. It may take 5-10 business days to appear in your account.',
+                            'link' => route('ecommerce.account.orders.show', ['store' => $store, 'id' => $order->id]),
+                            'icon' => 'ph-currency-circle-dollar',
+                            'icon_color' => 'purple',
+                            'is_read' => false,
+                        ]);
+                    }
                 } catch (\Throwable $e) {
                     \Log::warning('Failed to create return approval notification: ' . $e->getMessage());
                 }
@@ -591,16 +630,26 @@ class EcommerceAdminController extends Controller
 
             // Best-effort sync to fulfillment DB
             try {
-                $fulfillmentStatus = $returnRequest->type === 'cancel' ? 'CANCELLED' : 'RETURN_APPROVED';
-                DB::connection('order_fulfillment')->table('orders')
-                    ->where('id', $returnRequest->order_id)
-                    ->update(['status' => $fulfillmentStatus, 'updated_at' => now()]);
+                if ($isCancel) {
+                    DB::connection('order_fulfillment')->table('orders')
+                        ->where('id', $returnRequest->order_id)
+                        ->update([
+                            'status' => 'REFUNDED',
+                            'refund_amount' => $returnRequest->refund_amount,
+                            'refunded_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+                } else {
+                    DB::connection('order_fulfillment')->table('orders')
+                        ->where('id', $returnRequest->order_id)
+                        ->update(['status' => 'RETURN_APPROVED', 'updated_at' => now()]);
+                }
             } catch (\Throwable $e) {
                 report($e);
             }
 
             // Release reserved inventory back to available stock for cancellations
-            if ($returnRequest->type === 'cancel') {
+            if ($isCancel) {
                 $this->releaseReservedInventory($returnRequest, $clientId);
                 $this->cancelManufacturingWorkOrder($returnRequest, $clientId);
             }
@@ -614,7 +663,11 @@ class EcommerceAdminController extends Controller
                 report($e);
             }
 
-            return response()->json(['success' => true, 'message' => ucfirst($returnRequest->type) . ' request approved successfully.']);
+            $message = $isCancel
+                ? 'Cancellation approved and refunded (₱' . number_format((float) $returnRequest->refund_amount, 2) . ').'
+                : 'Return request approved successfully.';
+
+            return response()->json(['success' => true, 'message' => $message]);
         } catch (\Throwable $e) {
             DB::connection('ecommerce')->rollBack();
             report($e);

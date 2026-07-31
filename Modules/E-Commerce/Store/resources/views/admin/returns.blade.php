@@ -537,7 +537,7 @@
                             <button type="button" class="action-btn danger" onclick="openRejectModal('{{ $req->id }}', '{{ $req->type }}')">
                                 <i class="ph ph-x"></i> Reject
                             </button>
-                        @elseif($req->status === 'approved')
+                        @elseif($req->status === 'approved' && $req->type === 'return')
                             <button type="button" class="action-btn primary" onclick="openRefundModal('{{ $req->id }}', '{{ $req->type }}')">
                                 <i class="ph ph-currency-circle-dollar"></i> Process Refund
                             </button>
@@ -703,36 +703,30 @@
         var notice = document.getElementById('approve-notice');
         if (notice) {
             if (type === 'cancel') {
-                notice.textContent = 'This will approve the cancellation, cancel the order, and notify the customer.';
+                notice.textContent = 'This will approve the cancellation, cancel the order, release reserved inventory, and automatically process the refund for the full order amount.';
             } else {
                 notice.textContent = 'This will approve the return, update the order status, and notify the customer. You can process the refund afterwards.';
             }
         }
 
-        // For returns: fetch order total to pre-fill refund amount
-        if (type === 'return') {
-            var detailUrl = '{{ route('ecommerce.admin.returns.show', ['id' => 'REQ_ID']) }}';
-            detailUrl = detailUrl.replace('REQ_ID', id);
-            fetch(detailUrl, {
-                headers: { 'X-Requested-With': 'XMLHttpRequest' }
-            })
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-                var total = data.order?.total || 0;
-                document.getElementById('refund-amount').value = total > 0 ? total : '';
-                var refundLabel = document.getElementById('refund-amount-label');
-                if (refundLabel) {
-                    refundLabel.textContent = 'Refund Amount (₱' + Number(total).toLocaleString() + ' total)';
-                }
-            })
-            .catch(function() {});
-        } else {
-            document.getElementById('refund-amount').value = '';
+        // Pre-fill the refund amount with the order total for both types
+        // (cancellations are auto-refunded on approval, so the amount shown
+        // here is what will be refunded).
+        var detailUrl = '{{ route('ecommerce.admin.returns.show', ['id' => 'REQ_ID']) }}';
+        detailUrl = detailUrl.replace('REQ_ID', id);
+        fetch(detailUrl, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var total = data.order?.total || 0;
+            document.getElementById('refund-amount').value = total > 0 ? total : '';
             var refundLabel = document.getElementById('refund-amount-label');
             if (refundLabel) {
-                refundLabel.textContent = 'Refund Amount (optional)';
+                refundLabel.textContent = 'Refund Amount (₱' + Number(total).toLocaleString() + ' total)';
             }
-        }
+        })
+        .catch(function() {});
     }
 
     function openRejectModal(id, type) {

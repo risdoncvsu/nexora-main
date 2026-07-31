@@ -1363,7 +1363,7 @@
                                     $catCounts['to-receive']++;
                                 } elseif (in_array($_st, ['DELIVERED', 'COMPLETED'])) {
                                     $catCounts['completed']++;
-                                } elseif (in_array($_st, ['CANCEL_REQUESTED', 'CANCELLED'])) {
+                                } elseif (in_array($_st, ['CANCEL_REQUESTED', 'CANCELLED', 'REFUNDED'])) {
                                     $catCounts['cancelled']++;
                                 } elseif (in_array($_st, ['RETURN_REQUESTED'])) {
                                     $catCounts['return']++;
@@ -1434,7 +1434,7 @@
                                         $filterCat = 'completed';
                                     } elseif (in_array($status, ['RETURN_REQUESTED'])) {
                                         $filterCat = 'return';
-                                    } elseif (in_array($status, ['CANCEL_REQUESTED', 'CANCELLED'])) {
+                                    } elseif (in_array($status, ['CANCEL_REQUESTED', 'CANCELLED', 'REFUNDED'])) {
                                         $filterCat = 'cancelled';
                                     }
 
@@ -1472,6 +1472,7 @@
                                         case 'CANCEL_REQUESTED':
                                             $stepIndex = 0; $badgeText = 'Cancel Requested'; $barWidth = '0%'; break;
                                         case 'CANCELLED':
+                                        case 'REFUNDED':
                                             $stepIndex = 0; $badgeText = 'Cancelled'; $barWidth = '0%'; break;
                                         default:
                                             $stepIndex = 1; $badgeText = str_replace('_', ' ', $status); $barWidth = '20%'; break;
@@ -1480,7 +1481,7 @@
                                     $firstItemName = optional($order->items->first())->name ?? ($order->fulfillment_details->product_name ?? 'Custom PC Build');
                                     $itemCount = $order->items->count();
 
-                                    $cancelStatuses = ['RETURN_REQUESTED', 'CANCEL_REQUESTED', 'CANCELLED'];
+                                    $cancelStatuses = ['RETURN_REQUESTED', 'CANCEL_REQUESTED', 'CANCELLED', 'REFUNDED'];
                                     $statusColorClass = in_array($status, $cancelStatuses) 
                                         ? 'text-red-400 border-red-500/30 bg-red-500/10' 
                                         : ($status === 'DELIVERED' || $status === 'COMPLETED' 
@@ -1522,7 +1523,7 @@
                                                     </p>
                                                     
                                                     <!-- Inline Mini Progress -->
-                                                    @if(!in_array($status, ['CANCEL_REQUESTED', 'CANCELLED']))
+                                                    @if(!in_array($status, ['CANCEL_REQUESTED', 'CANCELLED', 'REFUNDED']))
                                                     <div class="mt-3 flex items-center gap-2">
                                                         <div class="flex-1 h-1 bg-white/[0.06] rounded-full overflow-hidden max-w-[160px]">
                                                             <div class="{{ $progressBarColor }} h-full rounded-full transition-all duration-500" style="width: {{ $barWidth }}"></div>
@@ -1546,7 +1547,7 @@
                                     <!-- Card Footer: Actions -->
                                     <div class="border-t border-white/[0.04] bg-white/[0.015] px-5 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
                                         <div class="flex items-center gap-2 text-xs text-gray-500">
-                                            <span class="w-1.5 h-1.5 rounded-full {{ in_array($status, ['CANCEL_REQUESTED', 'CANCELLED']) ? 'bg-red-500' : 'bg-green-500 animate-pulse' }}"></span>
+                                            <span class="w-1.5 h-1.5 rounded-full {{ in_array($status, ['CANCEL_REQUESTED', 'CANCELLED', 'REFUNDED']) ? 'bg-red-500' : 'bg-green-500 animate-pulse' }}"></span>
                                             <span>Live Status from <strong class="text-gray-400">OrderFulfillment DB</strong></span>
                                             @if(isset($order->shipment_details->tracking_number))
                                                 <span class="text-gray-600 hidden sm:inline">|</span>
