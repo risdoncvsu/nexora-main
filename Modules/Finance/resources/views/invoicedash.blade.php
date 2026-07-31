@@ -180,9 +180,11 @@
               <th class="py-2 pr-2">CLIENT</th>
               <th class="py-2 pr-2">ISSUE DATE</th>
               <th class="py-2 pr-2">DUE DATE</th>
-              <th class="py-2 pr-2">AMOUNT</th>
-              <th class="py-2 pr-2">STATUS</th>
-              <th class="py-2 pr-2">ACTIONS</th>
+              <th class="py-2 pr-2">SUBTOTAL</th>
+                <th class="py-2 pr-2">PAID</th>
+                <th class="py-2 pr-2">GRAND TOTAL</th>
+                <th class="py-2 pr-2">STATUS</th>
+                <th class="py-2 pr-2">ACTIONS</th>
             </tr>
           </thead>
           <tbody id="invoiceTableBody"></tbody>
@@ -355,32 +357,29 @@
 
                 </div>
 
-                <!-- Amount -->
-                <div>
+                <!-- Grand Total -->
+<div>
 
-                    <label class="block text-sm text-muted mb-1">
-                        Invoice Amount
-                    </label>
+    <label class="block text-sm text-muted mb-1">
+        Grand Total
+    </label>
 
-                    <div class="relative">
+    <div class="relative">
 
-                        <span class="absolute left-3 top-2.5 text-muted">
-                            ₱
-                        </span>
+        <span class="absolute left-3 top-2.5 text-muted">
+            ₱
+        </span>
 
-                        <input
-                            id="editAmount"
+        <input
+            id="editGrandTotal"
+            name="grand_total"
+            type="number"
+            readonly
+            class="w-full bg-navy-700 border border-navy-600 rounded-lg pl-8 pr-3 py-2 text-white cursor-not-allowed">
 
-                            name="invoice_amount"
-                            readonly
+    </div>
 
-                            type="number"
-                            step="0.01"
-                            class="w-full bg-navy-700 border border-navy-600 rounded-lg pl-8 pr-3 py-2 text-white">
-
-                    </div>
-
-                </div>
+</div>
                 <!-- Paid Amount -->
                 <div>
 
@@ -404,6 +403,7 @@
                 </div>
 
                 </div>
+                
 
 
                 <!-- Payment Method -->
@@ -453,25 +453,7 @@
                             class="w-full bg-navy-700 border border-navy-600 rounded-lg px-3 py-2 text-white">
 
                     </div>
-                <!-- Payment Status -->
-                <div>
-
-                    <label class="block text-sm text-muted mb-1">
-                        Payment Status
-                    </label>
-
-                    <select
-                        id="editPaymentStatus"
-                        name="payment_status"
-                        class="w-full bg-navy-700 border border-navy-600 rounded-lg px-3 py-2 text-white">
-
-                        <option value="Unpaid">Unpaid</option>
-                        <option value="Pending">Pending</option>
-                        <option value="Paid">Paid</option>
-
-                    </select>
-
-                </div>
+            
 
             </div>
 
@@ -508,6 +490,7 @@
   const rawInvoices = @json($invoices);
 
 let invoices = rawInvoices.map(inv => ({
+
     id: inv.invoice_id,
     number: `INV-${inv.invoice_id}`,
 
@@ -555,6 +538,7 @@ unit_price: Number(inv.order?.items?.[0]?.product_amount ?? inv.order?.product_a
 
 status: getInvoiceStatus(inv)
 }));
+invoices.sort((a, b) => b.id - a.id);
 
 let currentPage = 1;
 
@@ -730,6 +714,14 @@ function renderInvoices() {
                 ${fmtPeso(getInvoiceAmount(inv))}
             </td>
 
+            <td class="py-2 pr-2 text-emerald-400">
+                ${fmtPeso(inv.paid_amount)}
+            </td>
+
+            <td class="py-2 pr-2 font-semibold">
+                ${fmtPeso(getGrandTotal(inv))}
+            </td>
+
             <td class="py-2 pr-2">
                 <span class="inline-flex items-center justify-center text-xs font-semibold rounded-md px-2 py-1 w-[70px] ${statusStyles[inv.status]}">
                     ${inv.status}
@@ -856,10 +848,32 @@ function openEditModal(id) {
 
     if (!invoice) return;
 
+    const grandTotal = getGrandTotal(invoice);
+
     document.getElementById("editInvoiceId").value = invoice.id;
     document.getElementById("editClient").value = invoice.client;
-    document.getElementById("editAmount").value =getInvoiceAmount(invoice);
-    document.getElementById("editPaidAmount").value = invoice.paid_amount;
+const grandTotalInput = document.getElementById("editGrandTotal");
+const paidInput = document.getElementById("editPaidAmount");
+
+grandTotalInput.value = grandTotal.toFixed(2);
+
+paidInput.value = Math.min(Number(invoice.paid_amount), grandTotal);
+paidInput.max = grandTotal;
+
+paidInput.oninput = function () {
+
+    let value = Number(this.value);
+
+    if (value > grandTotal) {
+        value = grandTotal;
+    }
+
+    if (value < 0) {
+        value = 0;
+    }
+
+    this.value = value;
+};
     document.getElementById("editStatus").value = invoice.status;
     document.getElementById("editIssue").value =
     invoice.issue_date;
@@ -875,9 +889,6 @@ document.getElementById("editPaymentDetails").value =
 
 document.getElementById("editReferenceNumber").value =
     invoice.reference_number ?? "";
-
-document.getElementById("editPaymentStatus").value =
-    invoice.payment_status ?? "Unpaid";
 
     document.getElementById("editInvoiceForm").action = `{{ url('/finance/invoice') }}/${invoice.id}`;
     const modal = document.getElementById("editInvoiceModal");
@@ -1075,7 +1086,32 @@ const segments = [
 
 
 
-document.addEventListener("DOMContentLoaded", renderInvoices);
+document.addEventListener("DOMContentLoaded", () => {
+
+    renderInvoices();
+
+    document.getElementById("vatRate").addEventListener("input", () => {
+
+        renderInvoices();
+
+    });
+
+});
+function updateEditGrandTotal(invoice) {
+
+    const grandTotal = getGrandTotal(invoice);
+
+    document.getElementById("editGrandTotal").value =
+        grandTotal.toFixed(2);
+
+    const paid = document.getElementById("editPaidAmount");
+
+    paid.max = grandTotal;
+
+    if (Number(paid.value) > grandTotal) {
+        paid.value = grandTotal;
+    }
+}
 function getVatRate() {
 
     const vatInput = document.getElementById("vatRate");
@@ -1088,6 +1124,19 @@ function getVatRate() {
     }
 
     return rate / 100;
+}
+
+function getGrandTotal(invoice) {
+
+    const subtotal = getInvoiceAmount(invoice);
+
+    const discount = Number(invoice.discount || 0);
+
+    const shipping = Number(invoice.shipping_fee || 0);
+
+    const vat = subtotal * getVatRate();
+
+    return subtotal + shipping + vat - discount;
 
 }
 
@@ -1166,22 +1215,15 @@ document.getElementById("printItems").innerHTML = html;
 // Totals
 // ---------------------------
 
-const subtotal = invoice.items.reduce((sum, item) => {
-    return sum + (item.qty * item.product_amount);
-}, 0);
-
+const subtotal = getInvoiceAmount(invoice);
 
 const discount = Number(invoice.discount || 0);
 
 const shipping = Number(invoice.shipping_fee || 0);
 
-
-// VAT 12%
 const vat = subtotal * getVatRate();
 
-
-const grandTotal = subtotal + vat - discount + shipping;
-
+const grandTotal = getGrandTotal(invoice);
 
 const paid = Number(invoice.paid_amount || 0);
 
