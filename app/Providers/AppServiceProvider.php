@@ -26,7 +26,8 @@ class AppServiceProvider extends ServiceProvider
             return new EcommerceAdminUserProvider($app['hash'], $config['model']);
         });
 
-        // 2. Add this check to force HTTPS in production
+        // Force HTTPS everywhere except local development. Locally (APP_ENV=local)
+        // no scheme is forced, so http on localhost works.
         if (env('APP_ENV') !== 'local') {
             URL::forceScheme('https');
         }
