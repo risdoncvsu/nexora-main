@@ -9,11 +9,16 @@ use Modules\Procurement\Support\SchemaProbe;
  * Writes requisition status back to the external requisition sources
  * (Inventory, Order Fulfillment). Procurement owns these transitions:
  *
- *   Pending    -> Approved | Rejected   (Procurement approves/rejects)
- *   Approved   -> Processing            (a PO was created for it)
+ *   Pending    -> Rejected              (Procurement declines it)
+ *   Pending    -> Processing            (a PO was created for it)
  *   Processing -> In Transit            (its shipment left the supplier)
  *   In Transit -> Delivered -> Completed
  *   Rejected / Completed are terminal.
+ *
+ * There is no Approve step: raising the purchase order IS the approval, so
+ * Inventory and Order Fulfillment requests now follow the same path. Approved
+ * is still accepted as an inbound value so requisitions already sitting in
+ * that state can move on instead of getting stuck.
  *
  * Casing matches the column default ('Pending'), i.e. title case.
  *
@@ -39,10 +44,12 @@ class RequisitionStatusWriter
 
     /** Allowed target statuses, keyed by the normalised current status. */
     private const TRANSITIONS = [
-        'pending' => [self::APPROVED, self::REJECTED],
+        // Creating the purchase order is what moves a request forward, so
+        // Pending goes straight to Processing.
+        'pending' => [self::REJECTED, self::PROCESSING, self::IN_TRANSIT, self::DELIVERED, self::COMPLETED],
         // Delivery records may be imported after a shipment has already
-        // reached its destination, so Approved may legitimately advance over
-        // Processing during reconciliation.
+        // reached its destination, so a status may legitimately skip ahead
+        // during reconciliation.
         'approved' => [self::PROCESSING, self::IN_TRANSIT, self::DELIVERED, self::COMPLETED],
         'processing' => [self::IN_TRANSIT, self::DELIVERED, self::COMPLETED],
         'intransit' => [self::DELIVERED, self::COMPLETED],

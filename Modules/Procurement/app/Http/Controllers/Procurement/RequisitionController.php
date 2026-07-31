@@ -87,16 +87,20 @@ class RequisitionController extends Controller
     public function updateDefect(Request $request, int $defect)
     {
         $data = $request->validate([
-            'action' => 'required|string|in:reject,return,intransit,received',
+            'action' => 'required|string|in:reject,return',
         ]);
 
         $record = $this->defectsForCurrentClient($request)->whereKey($defect)->firstOrFail();
-        $current = strtolower(trim((string) $record->status));
+        // Legacy rows may still say "Open"; both spellings mean Pending.
+        $current = strtolower(self::normaliseDefectStatus($record->status));
+
+        // Procurement only decides the first step. Once the defect has been
+        // returned to the supplier, raising a purchase order takes it from
+        // Processing through In Transit, Delivered and Completed — exactly the
+        // same pipeline as every other request.
         $transitions = [
-            'reject' => ['open' => 'Rejected'],
-            'return' => ['open' => 'Returned to Supplier'],
-            'intransit' => ['returned to supplier' => 'Replacement In Transit'],
-            'received' => ['replacement in transit' => 'Replacement Received'],
+            'reject' => ['pending' => 'Rejected'],
+            'return' => ['pending' => 'Returned to Supplier'],
         ];
         $next = $transitions[$data['action']][$current] ?? null;
 
@@ -114,6 +118,21 @@ class RequisitionController extends Controller
             'receiving_created' => false,
             'message' => 'Defect replacement status updated. Inventory stock is updated only when an incoming shipment is approved.',
         ]);
+    }
+
+    /**
+     * Inventory raises a defect as "Open"; Procurement shows and stores it as
+     * "Pending" so it starts the same way every other request does.
+     */
+    public static function normaliseDefectStatus(?string $status): string
+    {
+        $value = trim((string) $status);
+
+        if ($value === '' || strcasecmp($value, 'Open') === 0) {
+            return 'Pending';
+        }
+
+        return $value;
     }
 
     private function getRequisitionConnections(): array
@@ -301,7 +320,10 @@ class RequisitionController extends Controller
                 'department' => 'Inventory',
                 'requested_by' => $defect->created_by ?: 'Inventory',
                 'priority' => 'Defect',
-                'status' => $defect->status ?: 'Open',
+                // A defect that Inventory has just raised is Pending here, the
+                // same starting point as any other request. Legacy rows stored
+                // as "Open" are shown as Pending too.
+                'status' => self::normaliseDefectStatus($defect->status),
                 'request_date' => optional($defect->created_at)->toDateString(),
                 'notes' => $defect->description,
                 'created_at' => $defect->created_at,
@@ -349,11 +371,11 @@ class RequisitionController extends Controller
         // concurrent page loads raced each other.
         $inventoryStatusWrites = [];
 
-        $requisitions = $requisitions->map(function ($req) use ($purchaseOrders, &$inventoryStatusWrites) {
-            if (($req->record_type ?? null) === 'defect') {
-                return $req;
-            }
+        // Defect status changes discovered while rendering, flushed after the
+        // map in one UPDATE per target status.
+        $defectStatusWrites = [];
 
+        $requisitions = $requisitions->map(function ($req) use ($purchaseOrders, &$inventoryStatusWrites, &$defectStatusWrites) {
             $ref = $req->requisition_number;
             $po = $purchaseOrders->get($ref);
 
@@ -378,6 +400,27 @@ class RequisitionController extends Controller
                 // received the final delivery, persist the matching terminal
                 // status there so the UI and database stay in agreement.
                 $advanceable = ['pending', 'approved', 'processing', 'in transit', 'intransit', 'delivered', ''];
+
+                // A defect replacement follows the same pipeline once it has
+                // been returned to the supplier and a PO raised against it:
+                //   Returned to Supplier -> Processing -> In Transit
+                //     -> Delivered -> Completed
+                // Its status lives in Inventory's defects table, so the derived
+                // value is written back there rather than to a requisitions row.
+                if (($req->record_type ?? null) === 'defect') {
+                    if (isset($derived[$poStatus])
+                        && in_array($currentStatus, array_merge($advanceable, ['returned to supplier', 'open']), true)
+                        && $currentStatus !== strtolower($derived[$poStatus])) {
+                        $defectStatusWrites[$derived[$poStatus]][] = $req->id;
+                        $req->status = $derived[$poStatus];
+                    }
+
+                    $req->po_number = $po->po_number;
+                    $req->po_status = $po->status;
+
+                    return $req;
+                }
+
                 if (! empty($req->status_authoritative)
                     && ($req->source_connection ?? null) === 'inventory'
                     && in_array($poStatus, ['delivered', 'completed'], true)
@@ -396,6 +439,45 @@ class RequisitionController extends Controller
 
             return $req;
         });
+
+        // Resolve defect/adjustment details for replacement requisitions
+        $requisitions = $requisitions->map(function ($req) {
+            if (!str_contains($req->notes ?? '', '[defect_id:')) {
+                return $req;
+            }
+            preg_match('/[defect_id:(\d+)]/', $req->notes ?? '', $m);
+            $defectId = (int) ($m[1] ?? 0);
+            if ($defectId < 1) {
+                return $req;
+            }
+            $defect = DB::connection('inventory')
+                ->table('defects')
+                ->where('id', $defectId)
+                ->first();
+            if ($defect) {
+                $req->defect_info = $defect;
+                if ($defect->source === 'Adjustment' && !empty($defect->source_id)) {
+                    $req->adjustment_info = DB::connection('inventory')
+                        ->table('stock_adjustments')
+                        ->where('id', (int) $defect->source_id)
+                        ->first();
+                }
+            }
+            return $req;
+        });
+
+        // One UPDATE per distinct target status for defects too.
+        foreach ($defectStatusWrites as $targetStatus => $ids) {
+            try {
+                $query = DB::connection('inventory')->table('defects')->whereIn('id', $ids);
+                if (! $this->isRootTesting($request)) {
+                    $query->where('client_id', $this->clientId());
+                }
+                $query->update(['status' => $targetStatus, 'updated_at' => now()]);
+            } catch (\Throwable $exception) {
+                report($exception);
+            }
+        }
 
         // One UPDATE per distinct target status, tenant-scoped, instead of one
         // per row inside the map above.

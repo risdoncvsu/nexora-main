@@ -114,7 +114,19 @@
             @forelse($requisitions as $req)
               <tr data-id="{{ $req->id ?? '' }}" data-record-type="{{ $req->record_type ?? 'requisition' }}" data-source="{{ $req->source_connection ?? '' }}" data-status="{{ strtolower(str_replace(' ', '', $req->status ?? 'Pending')) }}" data-status-label="{{ $req->status ?? 'Pending' }}" data-date="{{ $req->request_date }}" data-uom="{{ $req->uom ?? 'pcs' }}" data-notes="{{ $req->notes ?? '' }}" data-po="{{ isset($req->po_number) ? $req->po_number : '' }}" data-has-po="{{ isset($req->po_number) && $req->po_number ? '1' : '0' }}" data-defect-no="{{ ($req->record_type ?? null) === 'defect' ? $req->requisition_number : '' }}" data-part="{{ ($req->record_type ?? null) === 'defect' ? $req->item : '' }}" data-qty="{{ $req->qty ?? '' }}" data-description="{{ ($req->record_type ?? null) === 'defect' ? $req->notes : '' }}" data-reported-by="{{ ($req->record_type ?? null) === 'defect' ? $req->requested_by : '' }}">
                 <td><a class="po-link">{{ $req->requisition_number }}</a></td>
-                <td>{{ $req->item }}</td>
+                <td>
+                    {{ $req->item }}
+                    @if(isset($req->defect_info))
+                        <div style="font-size:10px;color:#f59e0b;margin-top:2px;">
+                            ⚠ Defect #{{ $req->defect_info->id }} ({{ $req->defect_info->quantity }} {{ $req->defect_info->quantity > 1 ? 'pcs' : 'pc' }})
+                        </div>
+                        @if(isset($req->adjustment_info))
+                            <div style="font-size:10px;color:#94a3b8;">
+                                Adj #{{ $req->adjustment_info->id }} &middot; {{ ucfirst($req->adjustment_info->reason) }}
+                            </div>
+                        @endif
+                    @endif
+                </td>
                 <td>{{ $req->qty }}</td>
                 @php
                   $priorityClass = strtolower($req->priority ?? 'normal');
@@ -145,8 +157,6 @@
         </div>
       </div>
 
-      {{-- Defects are rendered in the shared requisitions table above; the
-          old standalone #defect-items-table was disabled behind @if(false)
-          and has been removed along with its JS loader. --}}
+    
     </section>
 @endsection

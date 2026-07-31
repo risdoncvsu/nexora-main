@@ -105,33 +105,10 @@
       return payload;
     });
   }
-  // Requisition Approve / Reject â€” driven from the request's View Details
-  // modal. Approving is what unlocks the "Create Purchase Order" button;
-  // rejecting hides it. Persistence depends on the external requisition source
-  // having a status column.
-  // Optimistic: repaint the badge, close the modal, and show the notification
-  // immediately on click. The server still owns the rules â€” if it refuses the
-  // transition we revert the badge and surface its reason.
-  function setRequisitionDecision(row, decision){
-    if(!row) return;
-    const ref = textFrom(row.children[0]);
-    const prevStatus = row.dataset.status || '';
-    const statusCell = row.children[6];
-    const prevCellHtml = statusCell ? statusCell.innerHTML : '';
+  // NOTE: setRequisitionDecision() lived here. It drove the Approve / Reject
+  // buttons on a requisition's View modal; there is no approval step any more
+  // (raising the purchase order is the approval), so it had no callers left.
 
-    updateRowStatus(row, decision);
-    closeViewModal();
-    showToast(
-      `Requisition ${ref} ${decision.toLowerCase()}`,
-      decision === 'Approved' ? 'ok' : 'no'
-    );
-
-    persistRequisitionStatus(row, decision).catch(err => {
-      row.dataset.status = prevStatus;
-      if(statusCell) statusCell.innerHTML = prevCellHtml;
-      showToast(err?.message || `Unable to update requisition ${ref}.`, 'no');
-    });
-  }
   function syncRelatedRequisitionStatusForPO(row, poStatus){
     if(!row) return;
     const lookupRef = row.dataset.reqRef || textFrom(row.children[0]);
@@ -395,7 +372,7 @@
       const part = row.dataset.part || textFrom(row.children[1]);
       const qty = Number(row.dataset.qty || textFrom(row.children[2])) || 1;
       const inSharedQueue = row.closest('table')?.id === 'requisitions-table';
-      return {type, key:defectNo, id:row.dataset.id || '', title:`Defect Â· ${defectNo}`, defectNo, part, qty, description:row.dataset.description || row.dataset.notes || textFrom(row.children[3]), reportedBy:row.dataset.reportedBy || textFrom(row.children[inSharedQueue ? 5 : 4]), status:row.dataset.statusLabel || textFrom(row.children[inSharedQueue ? 6 : 5]), source:row.dataset.source || 'Inventory', date:row.dataset.date || textFrom(row.children[inSharedQueue ? 7 : 6])};
+      return {type, key:defectNo, id:row.dataset.id || '', title:`Defect Â· ${defectNo}`, defectNo, part, qty, description:row.dataset.description || row.dataset.notes || textFrom(row.children[3]), reportedBy:row.dataset.reportedBy || textFrom(row.children[inSharedQueue ? 5 : 4]), status:row.dataset.statusLabel || textFrom(row.children[inSharedQueue ? 6 : 5]), source:row.dataset.source || 'Inventory', date:row.dataset.date || textFrom(row.children[inSharedQueue ? 7 : 6]), hasPO: row.dataset.hasPo === '1', po: row.dataset.po || ''};
     }
     if(type === 'delivery'){
       // Columns: 0 ship, 1 PO, 2 supplier, 3 item, 4 expected delivery,
@@ -490,57 +467,51 @@
       setViewActions({label:'Close', className:'btn-view', onClick:closeViewModal}, null);
     } else if(record.type === 'req'){
       body = `<div class="detail-grid"><div class="detail-card"><h4>Request details</h4><div class="modal-row"><span>Requisition no.</span><span>${htmlEscape(record.ref)}</span></div><div class="modal-row"><span>Item</span><span>${htmlEscape(record.item)}</span></div><div class="modal-row"><span>Quantity</span><span>${record.qty} ${htmlEscape(record.uom)}</span></div><div class="modal-row"><span>Delivery status</span><span>${htmlEscape(record.delivery)}</span></div></div><div class="detail-card"><h4>Request workflow</h4><div class="modal-row"><span>Department</span><span>${htmlEscape(record.dept)}</span></div><div class="modal-row"><span>Requested by</span><span>${htmlEscape(record.requester)}</span></div><div class="modal-row"><span>Status</span><span>${htmlEscape(record.status)}</span></div><div class="modal-row"><span>Date & time</span><span>${htmlEscape(record.date)} Â· ${htmlEscape(record.time)}</span></div></div></div><div class="detail-note"><b>Justification</b><br>${htmlEscape(record.notes)}</div>`;
-      const reqStatus = String(record.status || '').toLowerCase().trim();
-      // Only Inventory requisitions store a status, so only they can be
-      // approved/rejected. Order Fulfillment requests have no status column â€”
-      // they skip approval and can be converted to a PO directly.
-      const isInventory = String(record.source || '').toLowerCase() === 'inventory';
-      const createPoBtn = () => ({label:'Create Purchase Order', className:'btn-primary', onClick:()=>{ convertReqToPO(record.ref, record.item, record.qty, record.priority, record.items); closeViewModal(); }});
+      // There is no Approve step: raising the purchase order IS the approval,
+      // so Inventory and Order Fulfillment requests behave identically. A
+      // request that has already been rejected or fulfilled cannot be
+      // converted, and one that already has a PO cannot get a second.
+      const reqStatus = normalizeStatusKey(record.status);
+      const convertible = !record.hasPO
+        && !['rejected', 'cancelled', 'completed'].includes(reqStatus);
+      const createPoBtn = {label:'Create Purchase Order', className:'btn-primary', onClick:()=>{ convertReqToPO(record.ref, record.item, record.qty, record.priority, record.items); closeViewModal(); }};
 
-      if(isInventory){
-        if(reqStatus === 'pending' || reqStatus === ''){
-          // An undecided Inventory request is approved or rejected here.
-          setViewActions(
-            {label:'Reject Request', className:'btn-reject', onClick:()=> setRequisitionDecision(row, 'Rejected')},
-            {label:'Approve Request', className:'btn-approve', onClick:()=> setRequisitionDecision(row, 'Approved')},
-            null
-          );
-        } else {
-          // Create PO only for an Approved request without a PO; Rejected hides it.
-          setViewActions({label:'Close', className:'btn-view', onClick:closeViewModal}, null,
-            (!record.hasPO && reqStatus === 'approved') ? createPoBtn() : null);
-        }
-      } else {
-        // Non-Inventory: no status change here, still convertible to a PO.
-        setViewActions({label:'Close', className:'btn-view', onClick:closeViewModal}, null,
-          !record.hasPO ? createPoBtn() : null);
-      }
+      setViewActions(
+        {label:'Close', className:'btn-view', onClick:closeViewModal},
+        null,
+        convertible ? createPoBtn : null
+      );
     } else if(record.type === 'defect'){
       body = `<div class="detail-grid"><div class="detail-card"><h4>Defect details</h4><div class="modal-row"><span>Defect #</span><span>${htmlEscape(record.defectNo)}</span></div><div class="modal-row"><span>Part name</span><span>${htmlEscape(record.part)}</span></div><div class="modal-row"><span>Quantity</span><span>${record.qty}</span></div><div class="modal-row"><span>Status</span><span>${htmlEscape(record.status)}</span></div></div><div class="detail-card"><h4>Report info</h4><div class="modal-row"><span>Source</span><span>${htmlEscape(record.source)}</span></div><div class="modal-row"><span>Reported by</span><span>${htmlEscape(record.reportedBy)}</span></div><div class="modal-row"><span>Date</span><span>${htmlEscape(record.date)}</span></div></div></div><div class="detail-note"><b>Description</b><br>${htmlEscape(record.description)}</div>`;
-      // Static return workflow â€” Procurement only updates status, it never
-      // talks to a supplier system or raises a PO for this:
-      //   Open -> Rejected / Returned to Supplier
-      //   Returned to Supplier -> Replacement In Transit
-      //   Replacement In Transit -> Replacement Received (Inventory takes it
-      //     from there and the defect becomes Completed on their side).
-      const defectStatus = String(record.status || 'Open').toLowerCase().trim();
-      if(defectStatus === 'open'){
+      // A defect replacement follows exactly the same path as any other
+      // request once Procurement has returned it to the supplier:
+      //   Pending -> Rejected
+      //   Pending -> Returned to Supplier -> (raise a PO) -> Processing
+      //     -> In Transit (logged in Deliveries) -> Delivered -> Completed
+      // Only the first decision is made here; everything after it is driven by
+      // the purchase order and its shipment, so no manual buttons for those.
+      const defectStatus = normalizeStatusKey(record.status || 'Pending');
+      const createDefectPoBtn = {
+        label: 'Create Purchase Order',
+        className: 'btn-primary',
+        onClick: () => { convertReqToPO(record.defectNo, record.part, record.qty, 'Normal', null); closeViewModal(); }
+      };
+
+      if(defectStatus === 'pending' || defectStatus === 'open'){
         setViewActions(
           {label:'Reject', className:'btn-reject', onClick:()=> defectAction(row, 'reject')},
           {label:'Return to Supplier', className:'btn-approve', onClick:()=> defectAction(row, 'return')}
         );
-      } else if(defectStatus === 'returned to supplier'){
+      } else if(defectStatus === 'returnedtosupplier'){
+        // The replacement is now a purchase the supplier has to fulfil.
         setViewActions(
           {label:'Close', className:'btn-view', onClick:closeViewModal},
-          {label:'Mark In Transit', className:'btn-approve', onClick:()=> defectAction(row, 'intransit')}
-        );
-      } else if(defectStatus === 'replacement in transit'){
-        setViewActions(
-          {label:'Close', className:'btn-view', onClick:closeViewModal},
-          {label:'Mark Received', className:'btn-approve', onClick:()=> defectAction(row, 'received')}
+          null,
+          record.hasPO ? null : createDefectPoBtn
         );
       } else {
-        // Replacement Received / Completed / Rejected are terminal here.
+        // Processing / In Transit / Delivered move with the PO and its
+        // delivery; Rejected and Completed are terminal.
         setViewActions({label:'Close', className:'btn-view', onClick:closeViewModal}, null);
       }
     }

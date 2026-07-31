@@ -324,6 +324,86 @@
      Item cascade (populatePoRowCategorySelect / bindPoItemRow) as the fully
      manual "+ New PO" flow. Each row keeps a reminder label of which
      requisitioned item it corresponds to. */
+  /* ---------- Catalog lookup for requested items ----------
+   * The requested item almost always IS one of our own supplier products —
+   * Procurement is who registered the supplier, its category and its price.
+   * So instead of making the user re-pick all three, find the catalog entry
+   * that sells it and pre-select everything. Nothing is locked: a different
+   * supplier can still be chosen, which repopulates the rows as usual. */
+  function matchSupplierProductForItem(itemName){
+    const key = String(itemName || '').trim().toLowerCase();
+    if(!key) return null;
+
+    const catalog = window.SUPPLIER_CATALOG || {};
+    for(const supplierName of Object.keys(catalog)){
+      const products = catalog[supplierName]?.products || [];
+      const match = products.find(p => String(p.name || '').trim().toLowerCase() === key);
+      if(match){
+        return {
+          supplierName,
+          category: String(match.category || '').trim() || 'Uncategorized',
+          unitPrice: Number(match.unitPrice || match.price || 0),
+          productName: match.name || itemName
+        };
+      }
+    }
+
+    // Fallback for the Suppliers page, where the cards are the freshest source.
+    if(typeof supplierCards === 'function'){
+      for(const card of supplierCards()){
+        const match = getSupplierProducts(card)
+          .find(p => String(p.name || '').trim().toLowerCase() === key);
+        if(match){
+          return {
+            supplierName: card.dataset.name || '',
+            category: String(match.category || '').trim() || 'Uncategorized',
+            unitPrice: Number(match.price || match.unitPrice || 0),
+            productName: match.name || itemName
+          };
+        }
+      }
+    }
+
+    return null;
+  }
+
+  // Select a category + item + price on one row, adding the options back if
+  // the catalog no longer offers them (a renamed or removed product).
+  function applyPoRowProduct(row, entry, match){
+    if(!row || !match) return;
+
+    const catField = row.querySelector('.po-item-category');
+    if(catField){
+      if(![...catField.options].some(o => o.value === match.category)){
+        const opt = document.createElement('option');
+        opt.value = match.category;
+        opt.textContent = match.category;
+        catField.appendChild(opt);
+      }
+      catField.value = match.category;
+    }
+
+    populatePoRowItemSelect(row, entry, match.category);
+
+    const itemField = row.querySelector('.po-item-name');
+    if(itemField){
+      if(![...itemField.options].some(o => o.value === match.productName)){
+        const opt = document.createElement('option');
+        opt.value = match.productName;
+        opt.textContent = match.productName;
+        opt.dataset.unitPrice = match.unitPrice;
+        itemField.appendChild(opt);
+      }
+      itemField.disabled = false;
+      itemField.value = match.productName;
+    }
+
+    const priceField = row.querySelector('.po-item-price');
+    if(priceField) priceField.value = Number(match.unitPrice || 0).toFixed(2);
+
+    recomputePoRowAmount(row);
+  }
+
   function renderRequestPoItemRow(container, { reqNum, name, qty }){
     const template = document.getElementById('po-item-row-request-template');
     if(!container || !template) return null;
@@ -344,16 +424,61 @@
     const supplierField = modal?.querySelector('#add-po-form [name="supplier"]');
     if(!container) return;
     container.innerHTML = '';
+
     const requested = buildRequestedItemsList(reqData);
-    requested.forEach(entry => {
+    const matches = requested.map(entry => matchSupplierProductForItem(entry.name));
+
+    // A purchase order belongs to one supplier, so the first match decides it.
+    // Items sold by a different supplier are left for the user to pick.
+    const resolvedSupplier = matches.find(Boolean)?.supplierName || '';
+    if(supplierField){
+      if(resolvedSupplier && ![...supplierField.options].some(o => o.value === resolvedSupplier)){
+        addSupplierOptionToPoForm(resolvedSupplier);
+      }
+      supplierField.value = resolvedSupplier;
+    }
+
+    const supplierEntry = currentPoSupplierEntry(modal);
+    let filled = 0;
+    let unmatched = 0;
+
+    requested.forEach((entry, i) => {
       const row = renderRequestPoItemRow(container, { reqNum: reqData?.reqNum, name: entry.name, qty: entry.qty });
-      if(row){
-        bindPoItemRow(modal, row);
-        populatePoRowCategorySelect(row, currentPoSupplierEntry(modal));
+      if(!row) return;
+      bindPoItemRow(modal, row);
+      populatePoRowCategorySelect(row, supplierEntry);
+
+      const match = matches[i];
+      if(match && match.supplierName === resolvedSupplier){
+        applyPoRowProduct(row, supplierEntry, match);
+        filled++;
+      } else {
+        unmatched++;
       }
     });
-    if(supplierField) supplierField.value = '';
+
     setPoModalMode(modal, 'request');
+
+    // setPoModalMode() has just written the generic "pick a supplier" hints;
+    // replace them with what actually happened.
+    const supplierHint = modal?.querySelector('#po-supplier-hint');
+    if(supplierHint){
+      supplierHint.textContent = resolvedSupplier
+        ? `Auto-filled: ${resolvedSupplier} sells the requested item(s). You can still choose a different supplier.`
+        : 'Select the supplier for this request.';
+    }
+
+    const hint = modal?.querySelector('#po-items-hint');
+    if(hint){
+      if(filled && !unmatched){
+        hint.textContent = 'Supplier, category, item and price were filled in from your product catalog. Change the supplier if you want to buy this elsewhere.';
+      } else if(filled){
+        hint.textContent = `Filled ${filled} of ${requested.length} item(s) from your catalog. The rest are not in any supplier's product list — pick their category and item manually.`;
+      } else {
+        hint.textContent = 'None of the requested items are in a supplier product list yet. Select the supplier, then the category and item for each row.';
+      }
+    }
+
     recomputePoTotals(modal);
   }
 
