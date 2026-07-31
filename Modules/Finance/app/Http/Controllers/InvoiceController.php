@@ -30,10 +30,17 @@ class InvoiceController extends Controller
     }
    private function getInvoiceValue(Invoice $invoice): float
 {
-    // Order Fulfillment stores its canonical order summary on orders; it does
-    // not own an order_items table. The accounting record is therefore the
-    // authoritative amount when an invoice is edited.
-    return (float) $invoice->invoice_amount + (float) $invoice->shipping_fee;
+    $subtotal = (float) $invoice->invoice_amount;
+
+    $shipping = (float) ($invoice->shipping_fee ?? 0);
+
+    $discount = (float) ($invoice->discount ?? 0);
+
+    $vatRate = 0.12;
+
+    $vat = $subtotal * $vatRate;
+
+    return $subtotal + $shipping + $vat - $discount;
 }
 
     /**
@@ -200,46 +207,95 @@ public function update(Request $request, Invoice $invoice)
 {
     $validated = $request->validate([
 
-        'status'             => 'required|string|max:20',
-        'payment_status'     => 'required|string|max:20',
 
-        'paid_amount'        => 'required|numeric|min:0',
+        'paid_amount' => 'required|numeric|min:0',
 
-        'payment_method'     => 'nullable|string|max:100',
-        'payment_details'    => 'nullable|string',
-        'reference_number'   => 'nullable|string|max:100',
-
-        'payment_details' => 'nullable',
-            'reference_number' => 'nullable',
+        'payment_method' => 'nullable|string|max:100',
+        'payment_details' => 'nullable|string',
+        'reference_number' => 'nullable|string|max:100',
 
     ]);
 
-    // Calculate invoice total from order items
-    $invoiceTotal = $this->getInvoiceValue($invoice);
+    // Invoice total
+    $subtotal = (float) $invoice->invoice_amount;
 
-    // Prevent negative outstanding balance
-    if ($validated['paid_amount'] > $invoiceTotal) {
-    return back()->withErrors([
-        'paid_amount' => 'Paid amount cannot exceed the invoice total.'
-    ]);
+$shipping = (float) ($invoice->shipping_fee ?? 0);
+
+$discount = (float) ($invoice->discount ?? 0);
+
+// Same VAT used by the Blade (12%)
+$vatRate = 0.12;
+
+$vat = $subtotal * $vatRate;
+
+$grandTotal = (float) $request->grand_total;
+
+    // Prevent overpayment
+    if ($validated['paid_amount'] > $grandTotal) {
+
+        return back()->withErrors([
+            'paid_amount' => 'Paid amount cannot exceed the grand total.'
+        ]);
+
+    }
+
+    $paid = (float) $validated['paid_amount'];
+
+    $outstanding = max(0, $grandTotal - $paid);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Automatically determine payment status
+    |--------------------------------------------------------------------------
+    */
+
+    if ($paid <= 0) {
+
+        $paymentStatus = 'Unpaid';
+
+    } elseif ($paid < $grandTotal) {
+
+        $paymentStatus = 'Pending';
+
+    } else {
+
+        $paymentStatus = 'Paid';
+
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Automatically determine invoice status
+    |--------------------------------------------------------------------------
+    */
+
+    if ($paymentStatus === 'Paid') {
+
+    $invoiceStatus = 'Paid';
+
+} else {
+
+    $invoiceStatus = 'Pending';
 
 }
 
-$outstanding = $invoiceTotal - $validated['paid_amount'];
-
     $invoice->update([
 
-            'status'             => $validated['payment_status'],
-            'payment_status'     => $validated['payment_status'],
+        'status' => $invoiceStatus,
 
-            'paid_amount'        => $validated['paid_amount'],
-            'outstanding_amount' => $outstanding,
+        'payment_status' => $paymentStatus,
 
-            'payment_method'     => $validated['payment_method'],
-            'payment_details'    => $validated['payment_details'],
-            'reference_number'   => $validated['reference_number'],
+        'paid_amount' => $paid,
 
-        ]);
+        'outstanding_amount' => $outstanding,
+
+        'payment_method' => $validated['payment_method'],
+
+        'payment_details' => $validated['payment_details'],
+
+        'reference_number' => $validated['reference_number'],
+
+    ]);
 
     return back()->with(
         'success',
