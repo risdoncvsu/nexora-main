@@ -237,6 +237,39 @@ class ManufacturingController extends Controller
             ]);
         }
 
+        // All checks passed — save only. The build is NOT auto-released; the tech
+        // presses "Send to Order Fulfillment" to release it (see sendToFulfillment).
+        return response()->json([
+            'success'   => true,
+            'status'    => 'QC Check',
+            'allPassed' => true,
+            'message'   => 'All checks passed. Press "Send to Order Fulfillment" to release this build.',
+        ]);
+    }
+
+    // ── Order fulfillment handoff (explicit, button-triggered) ────────────────
+    public function sendToFulfillment(Request $request): JsonResponse
+    {
+        $order = WorkOrder::find($request->input('woId'));
+        if (! $order) {
+            return response()->json(['success' => false, 'message' => 'Work order not found.'], 404);
+        }
+
+        $this->assertCanOperateWorkOrder($order);
+
+        if ($order->status !== 'QC Check') {
+            return response()->json(['success' => false, 'message' => 'This build is not awaiting release from QC.'], 422);
+        }
+
+        // Guard: only release once every benchmark check has actually passed.
+        $totalChecks = count((new BenchmarkTargetService())->targetsFor($order->range));
+        $session     = QcSession::where('wo_id', $order->id)->first();
+        $passCount   = $session ? $session->results()->where('verdict', 'Pass')->count() : 0;
+
+        if ($totalChecks === 0 || $passCount !== $totalChecks) {
+            return response()->json(['success' => false, 'message' => 'Every check must pass before releasing to Order Fulfillment.'], 422);
+        }
+
         try {
             $fulfillmentOrderId = $this->releaseToFulfillment($order);
             $order->update(['status' => 'Completed']);
@@ -248,7 +281,7 @@ class ManufacturingController extends Controller
                 'status' => 'Completed',
                 'fulfillmentOrderId' => $fulfillmentOrderId,
                 'message' => $fulfillmentOrderId
-                    ? 'QC passed. The order is now ready for packing in Order Fulfillment.'
+                    ? 'Released to Order Fulfillment for packing.'
                     : 'QC passed. The manufacturing work order is complete.',
             ]);
         } catch (RuntimeException $exception) {

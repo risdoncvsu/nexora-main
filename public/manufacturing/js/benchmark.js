@@ -156,10 +156,29 @@ function updateBenchmarkCounts() {
 // ── Save ────────────────────────────────────────────────────────────────
 function confirmSendToFulfillment() {
     openConfirmModal(
-        'This saves the QC results and releases the build to Order Fulfillment for packing.',
-        () => saveBenchmarkResults(),
+        'This releases the build to Order Fulfillment for packing. Make sure the QC results are saved first.',
+        () => submitSendToFulfillment(),
         { title: 'Send to Order Fulfillment?', confirmLabel: 'Send' }
     );
+}
+
+async function submitSendToFulfillment() {
+    try {
+        const res = await fetch('/manufacturing/send-to-fulfillment', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+            body:    JSON.stringify({ woId: benchmarkData.woId }),
+        });
+        const data = await res.json();
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.message ?? 'Could not release to Order Fulfillment.');
+        }
+    } catch (e) {
+        alert('Network error — could not release to Order Fulfillment.');
+        console.error(e);
+    }
 }
 
 async function saveBenchmarkResults() {

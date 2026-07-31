@@ -25,6 +25,7 @@ Route::middleware('manufacturing.access')->name('manufacturing.')->group(functio
     Route::post('/update-order', [ManufacturingController::class, 'updateOrder'])->name('update-order');
     Route::post('/cancel-order', [ManufacturingController::class, 'cancelOrder'])->name('cancel-order');
     Route::post('/update-qc', [ManufacturingController::class, 'updateQC'])->name('update-qc');
+    Route::post('/send-to-fulfillment', [ManufacturingController::class, 'sendToFulfillment'])->name('send-to-fulfillment');
     Route::post('/update-rework', [ManufacturingController::class, 'updateRework'])->name('update-rework');
     Route::post('/grab-replacement-part', [ManufacturingController::class, 'grabReplacementPart'])->name('grab-replacement-part');
     // Keep the older endpoints available for existing clients while the

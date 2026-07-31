@@ -10,7 +10,8 @@
         "laravel/framework": "^13.8",
         "laravel/tinker": "^3.0",
         "nwidart/laravel-modules": "^13.0",
-        "laravel/socialite": "^5.28"
+        "laravel/socialite": "^5.28",
+        "blade-ui-kit/blade-heroicons": "^2.7"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
