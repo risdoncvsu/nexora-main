@@ -833,12 +833,26 @@
 
                                 window.openCancelModal = function(orderId) {
                                     document.getElementById('cancel-order-id').value = orderId;
-                                    document.getElementById('cancel-modal').classList.remove('hidden');
-                                    document.getElementById('cancel-modal').classList.add('flex');
-                                    document.getElementById('cancel-modal').style.display = 'flex';
+                                    var cancelModal = document.getElementById('cancel-modal');
+                                    cancelModal.classList.remove('hidden');
+                                    cancelModal.classList.add('flex');
+                                    cancelModal.style.display = 'flex';
+                                    // Complete the fade/scale-in transition for the dialog panel
+                                    requestAnimationFrame(function() {
+                                        var panel = document.getElementById('cancel-modal-panel');
+                                        if (panel) {
+                                            panel.classList.remove('opacity-0', 'scale-95');
+                                            panel.classList.add('opacity-100', 'scale-100');
+                                        }
+                                    });
                                 };
 
                                 window.closeCancelModal = function() {
+                                    var panel = document.getElementById('cancel-modal-panel');
+                                    if (panel) {
+                                        panel.classList.add('opacity-0', 'scale-95');
+                                        panel.classList.remove('opacity-100', 'scale-100');
+                                    }
                                     document.getElementById('cancel-modal').classList.remove('flex');
                                     document.getElementById('cancel-modal').classList.add('hidden');
                                     document.getElementById('cancel-modal').style.display = 'none';
@@ -980,9 +994,18 @@
 
                                 window.openReturnModal = function(orderId) {
                                     document.getElementById('return-order-id').value = orderId;
-                                    document.getElementById('return-modal').classList.remove('hidden');
-                                    document.getElementById('return-modal').classList.add('flex');
-                                    document.getElementById('return-modal').style.display = 'flex';
+                                    var returnModal = document.getElementById('return-modal');
+                                    returnModal.classList.remove('hidden');
+                                    returnModal.classList.add('flex');
+                                    returnModal.style.display = 'flex';
+                                    // Complete the fade/scale-in transition for the dialog panel
+                                    requestAnimationFrame(function() {
+                                        var panel = document.getElementById('return-modal-panel');
+                                        if (panel) {
+                                            panel.classList.remove('opacity-0', 'scale-95');
+                                            panel.classList.add('opacity-100', 'scale-100');
+                                        }
+                                    });
 
                                     // Populate items from the orders data
                                     var ordersData = window.userAccountOrders || [];
@@ -1017,6 +1040,11 @@
                                 };
 
                                 window.closeReturnModal = function() {
+                                    var panel = document.getElementById('return-modal-panel');
+                                    if (panel) {
+                                        panel.classList.add('opacity-0', 'scale-95');
+                                        panel.classList.remove('opacity-100', 'scale-100');
+                                    }
                                     document.getElementById('return-modal').classList.remove('flex');
                                     document.getElementById('return-modal').classList.add('hidden');
                                     document.getElementById('return-modal').style.display = 'none';
@@ -2076,7 +2104,7 @@
                 <!-- Cancel Order Modal -->
                 <div id="cancel-modal" class="fixed inset-0 z-[9999] hidden items-center justify-center">
                     <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeCancelModal()"></div>
-                    <div class="relative bg-[#13131a] border border-white/10 rounded-2xl p-6 md:p-8 w-full max-w-md shadow-[0_0_50px_rgba(0,0,0,0.5)] transform scale-95 opacity-0 transition-all duration-300">
+                    <div id="cancel-modal-panel" class="relative bg-[#13131a] border border-white/10 rounded-2xl p-6 md:p-8 w-full max-w-md shadow-[0_0_50px_rgba(0,0,0,0.5)] transform scale-95 opacity-0 transition-all duration-300">
                         <div class="flex items-center justify-between mb-6">
                             <div class="flex items-center gap-3">
                                 <div class="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">
@@ -2125,7 +2153,7 @@
                 <!-- Return Order Modal -->
                 <div id="return-modal" class="fixed inset-0 z-[9999] hidden items-center justify-center">
                     <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeReturnModal()"></div>
-                    <div class="relative bg-[#13131a] border border-white/10 rounded-2xl p-6 md:p-8 w-full max-w-md shadow-[0_0_50px_rgba(0,0,0,0.5)] transform scale-95 opacity-0 transition-all duration-300 max-h-[90vh] overflow-y-auto">
+                    <div id="return-modal-panel" class="relative bg-[#13131a] border border-white/10 rounded-2xl p-6 md:p-8 w-full max-w-md shadow-[0_0_50px_rgba(0,0,0,0.5)] transform scale-95 opacity-0 transition-all duration-300 max-h-[90vh] overflow-y-auto">
                         <div class="flex items-center justify-between mb-6">
                             <div class="flex items-center gap-3">
                                 <div class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
