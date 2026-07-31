@@ -17,6 +17,7 @@ Route::post('/logout', function () {
 
 Route::middleware('manufacturing.access')->name('manufacturing.')->group(function (): void {
     Route::get('/dashboard', [ManufacturingController::class, 'index'])->name('dashboard');
+    Route::get('/dashboard-chart-data', [ManufacturingController::class, 'dashboardChartData'])->name('dashboard-chart-data');
     Route::middleware('manufacturing.bom')->group(function (): void {
         Route::get('/boms', [BomController::class, 'index'])->name('boms.index');
         Route::post('/boms', [BomController::class, 'store'])->name('boms.store');

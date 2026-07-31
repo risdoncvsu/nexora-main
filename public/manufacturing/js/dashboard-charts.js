@@ -1,12 +1,20 @@
 // dashboard-charts.js
 // Renders the weekly builds bar chart on the Dashboard.
-function initDashboardChart() {
+function renderDashboardChart(payload) {
     const ctx = document.getElementById('dashWeekChart');
-    if (!ctx || !window.dashboardData || !window.Chart) return;
+    if (!ctx || !window.Chart) return;
 
-    const { days, weekCounts } = window.dashboardData;
+    const days = payload?.days || window.dashboardData?.days || ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const weekCounts = payload?.weekCounts || window.dashboardData?.weekCounts || Array(7).fill(0);
 
-    new Chart(ctx, {
+    if (window.dashboardChartInstance) {
+        window.dashboardChartInstance.data.labels = days;
+        window.dashboardChartInstance.data.datasets[0].data = weekCounts;
+        window.dashboardChartInstance.update();
+        return;
+    }
+
+    window.dashboardChartInstance = new Chart(ctx, {
         type: 'bar',
         data: {
             labels: days,
@@ -30,6 +38,26 @@ function initDashboardChart() {
             }
         }
     });
+}
+
+function initDashboardChart() {
+    if (!window.dashboardData || !window.Chart) return;
+
+    renderDashboardChart(window.dashboardData);
+
+    if (window.dashboardChartEndpoint) {
+        fetch(window.dashboardChartEndpoint, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+            .then(response => response.ok ? response.json() : null)
+            .then(payload => {
+                if (payload?.days && Array.isArray(payload.weekCounts)) {
+                    window.dashboardData = payload;
+                    renderDashboardChart(payload);
+                }
+            })
+            .catch(() => {});
+    }
 }
 
 if (window.Chart) {

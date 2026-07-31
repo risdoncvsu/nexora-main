@@ -12,6 +12,7 @@ use Modules\Manufacturing\Services\ManufacturingDataService;
 use Modules\Manufacturing\Services\BenchmarkTargetService;
 use Modules\Manufacturing\Services\DueDateService;
 use Modules\Manufacturing\Services\InventoryBridgeService;
+use Carbon\CarbonInterface;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -40,6 +41,39 @@ class ManufacturingController extends Controller
                 'partStyles'   => config('manufacturing.partStyles'),
                 'rangeStyles'  => config('manufacturing.rangeStyles'),
             ]),
+        ]);
+    }
+
+    public function dashboardChartData(): JsonResponse
+    {
+        $days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        $weekCounts = array_fill(0, 7, 0);
+
+        $startOfWeek = now()->startOfWeek(CarbonInterface::MONDAY)->startOfDay();
+        $endOfWeek = $startOfWeek->copy()->endOfDay()->addDays(6);
+
+        $finishedOrders = WorkOrder::where('status', 'Completed')->get();
+
+        foreach ($finishedOrders as $order) {
+            if (! $order->created_at) {
+                continue;
+            }
+
+            $createdAt = $order->created_at instanceof \Carbon\CarbonInterface
+                ? $order->created_at
+                : \Carbon\Carbon::parse($order->created_at);
+
+            if (! $createdAt->betweenIncluded($startOfWeek, $endOfWeek)) {
+                continue;
+            }
+
+            $dayIndex = ($createdAt->dayOfWeekIso - 1) % 7;
+            $weekCounts[$dayIndex] = ($weekCounts[$dayIndex] ?? 0) + 1;
+        }
+
+        return response()->json([
+            'days' => $days,
+            'weekCounts' => $weekCounts,
         ]);
     }
 

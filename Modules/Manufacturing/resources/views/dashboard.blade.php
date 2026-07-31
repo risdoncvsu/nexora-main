@@ -241,5 +241,6 @@
         days: @json($days),
         weekCounts: @json($weekCounts)
     };
+    window.dashboardChartEndpoint = '{{ route('manufacturing.dashboard-chart-data') }}';
 </script>
 <script src="{{ asset('manufacturing/js/dashboard-charts.js') }}"></script>
