@@ -22,7 +22,7 @@ return new class extends Migration
         Schema::connection('manufacturing')->create('qc_results', function (Blueprint $table) {
             $table->increments('id');
             $table->integer('session_id');
-            $table->string('check_id', 10);
+            $table->string('check_id', 30);
             $table->decimal('value')->nullable();
             $table->string('verdict', 10)->nullable();
             $table->text('note')->nullable();

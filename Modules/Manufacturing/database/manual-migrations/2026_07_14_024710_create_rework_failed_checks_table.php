@@ -22,7 +22,7 @@ return new class extends Migration
         Schema::connection('manufacturing')->create('rework_failed_checks', function (Blueprint $table) {
             $table->increments('id');
             $table->string('rework_id', 20);
-            $table->string('check_id', 10)->nullable();
+            $table->string('check_id', 30)->nullable();
             $table->string('check_name', 150)->nullable();
             $table->string('verdict', 10)->nullable();
             $table->string('result', 50)->nullable();
