@@ -393,6 +393,13 @@
   .status-pill.resolved{ background:var(--green-light); color:var(--green); }
   .status-pill.closed{ background:var(--gray-light); color:var(--muted); }
   .status-pill.scrapped{ background:var(--red-light); color:var(--red); }
+  /* Defect replacement states. "Returned to Supplier" sits between Pending
+     (orange) and Processing (blue), so purple keeps it distinct from both.
+     The two "replacement*" classes cover rows saved under the old defect
+     workflow — statusPill() collapses the spaces out of the label. */
+  .status-pill.returnedtosupplier{ background:var(--purple-light); color:var(--purple); }
+  .status-pill.replacementintransit{ background:var(--blue-light); color:var(--blue); }
+  .status-pill.replacementreceived{ background:var(--green-light); color:var(--green); }
 
   .row-actions{ display:inline-flex; gap:14px; align-items:center; color:var(--muted); }
   .row-actions button{

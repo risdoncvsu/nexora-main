@@ -223,6 +223,34 @@ class PurchaseOrderController extends Controller
     }
 
     /**
+     * Current status of a defect referenced as DEF-######, or null when it is
+     * not a defect reference or Inventory's table is unreachable.
+     *
+     * Defect replacements live in Inventory's defects table, not in any
+     * requisitions table, so RequisitionStatusWriter cannot see them.
+     */
+    private function defectStatusForReference(string $reference): ?string
+    {
+        if (! preg_match('/^DEF-(\d+)$/i', trim($reference), $m)) {
+            return null;
+        }
+
+        try {
+            $rootTesting = config('nexora.root_admin_module_testing')
+                && auth()->user()?->role === 'root_admin';
+
+            $defect = \Modules\Inventory\Models\Defect::query()
+                ->whereKey((int) $m[1])
+                ->when(! $rootTesting, fn ($q) => $q->where('client_id', (int) session('employee_client_id')))
+                ->first();
+
+            return $defect ? trim((string) $defect->status) : null;
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    /**
      * Frequently-ordered items per supplier, for the PO modal's "Recommended"
      * tab. Derived entirely from existing purchase order history — no new
      * table, no schema change.
